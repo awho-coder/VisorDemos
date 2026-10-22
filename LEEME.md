@@ -1,0 +1,226 @@
+# VisorDemos — visor de demos de Quake 2 para hacer videos
+
+VisorDemos es un cliente de Quake 2 (basado en [q2pro](https://github.com/q2pro/q2pro))
+hecho para **ver demos y sacar clips de video** listos para un editor.
+Funciona con demos `.dm2` (los que graba cualquier jugador) y `.mvd2`
+(los que graba el servidor). Pensado para D-Day: Normandy, pero sirve con
+cualquier mod.
+
+Qué puedes hacer:
+
+- Ver el demo con una barra de tiempo, pausar, adelantar, retroceder y
+  cambiar la velocidad (cámara lenta).
+- **Soltar la cámara** y volar por el mapa, o **seguir a cualquier jugador**
+  desde atrás.
+- **Grabar un recorrido de cámara** mientras miras el demo, para que el video
+  repita ese movimiento suave.
+- Marcar inicio y fin de una jugada y **exportarla a video** (MP4 o MOV) con
+  imagen y sonido, a 1080p y 60 cuadros por segundo.
+
+VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
+`visordemos.cfg`.
+
+---
+
+## 1. Instalación
+
+### Windows
+
+1. Descomprime el `.zip`.
+2. Copia **todo el contenido** de la carpeta `VisorDemos` dentro de tu carpeta
+   de Quake 2 (la que tiene `baseq2` y `dday`). Quedará así:
+
+   ```
+   Quake2\
+     VisorDemos.exe
+     asociar-demos.bat
+     LEEME.txt
+     baseq2\visor.cfg
+     baseq2\q2pro.menu
+     dday\ ...
+   ```
+
+3. (Opcional) Haz doble clic en `asociar-demos.bat` para que los demos `.dm2`
+   y `.mvd2` se abran con VisorDemos al hacerles doble clic.
+4. Abre `VisorDemos.exe`. Por defecto usa el mod D-Day. Para otro mod, crea un
+   acceso directo con `VisorDemos.exe +set game nombre_del_mod`.
+
+### Linux
+
+Instala las dependencias de compilación (una sola vez):
+
+- **Fedora**: `sudo dnf install meson ninja-build gcc sdl2-compat-devel openal-soft-devel libpng-devel libjpeg-turbo-devel zlib-ng-compat-devel mesa-libGL-devel libglvnd-devel libX11-devel libXi-devel wayland-devel wayland-protocols-devel libdecor-devel ffmpeg-devel`
+  (con RPM Fusion; sin RPM Fusion usa `ffmpeg-free-devel`: puede que no
+  tenga codificador H.264 y el MP4 salga en un formato más simple; en ese
+  caso exporta en MOV).
+- **Debian/Ubuntu**: `sudo apt install meson gcc libsdl2-dev libopenal-dev libpng-dev libjpeg-dev zlib1g-dev mesa-common-dev libx11-dev libxi-dev libwayland-dev wayland-protocols libdecor-0-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev`
+
+Luego, en la carpeta de VisorDemos:
+
+```
+./compilar.sh            # compila
+./instalar-linux.sh      # menu de aplicaciones + doble clic en .dm2/.mvd2
+./visor.sh               # abre el visor
+```
+
+`visor.sh` busca Quake 2 en la carpeta del flatpak de q2pro, en `~/.q2pro` y en
+`~/quake2`. Si lo tienes en otro lado: `Q2DATA=/ruta/a/quake2 ./visor.sh`.
+Para otro mod: `GAME=nombre_del_mod ./visor.sh`. En Linux la configuración,
+los videos y los recorridos quedan en `~/.local/share/visordemos/<mod>/`.
+
+---
+
+## 2. Abrir un demo
+
+- Doble clic en el archivo `.dm2` / `.mvd2` (si hiciste el paso opcional), o
+- arrástralo sobre `VisorDemos.exe` / `visor.sh`, o
+- abre el visor, presiona **Esc → browse demos** y elígelo de la lista.
+
+Dentro del demo presiona **H** para ver la ayuda con todas las teclas.
+
+---
+
+## 3. Controles
+
+| Tecla | Qué hace |
+|---|---|
+| **Flecha abajo** | Pausa / continuar |
+| **Flecha izquierda / derecha** | Retroceder / adelantar 10 segundos |
+| **[  /  ]** | Más lento / más rápido (x0.1 a x4) |
+| **Retroceso** (Backspace) | Velocidad normal |
+| **F1** (mantener) | Ver la tabla de puntos del demo |
+| **Flecha arriba** | Cámara libre sí / no |
+| **W A S D + mouse** | Mover y mirar con la cámara libre |
+| **Espacio / Ctrl** | Subir / bajar |
+| **Shift** (mantener) | Mover la cámara más rápido |
+| **E / Q** | Seguir al siguiente / anterior jugador |
+| **R** | Volver a la vista de quien grabó el demo |
+| **C** | Grabar recorrido de cámara / terminar |
+| **V** | Usar el recorrido grabado sí / no |
+| **I** | Marcar inicio del clip |
+| **O** | Marcar fin del clip |
+| **G** | Grabar el clip a video |
+| **Supr** | Borrar las marcas de inicio y fin |
+| **H** | Mostrar / ocultar la ayuda |
+| **Esc** | Menú (*browse demos* para abrir otro demo, salir, etc.) |
+
+Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
+
+La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
+las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
+**azul** (línea fina) = tramo con recorrido de cámara grabado. Nada de esto
+sale en los videos.
+
+---
+
+## 4. Hacer un clip, paso a paso
+
+1. Busca la jugada con las flechas (izquierda/derecha) y pausa con flecha abajo.
+2. Ve un poco antes de la jugada y presiona **I** (inicio).
+3. Avanza hasta el final de la jugada y presiona **O** (fin).
+4. Elige la cámara:
+   - **Vista del jugador**: no hagas nada (o presiona **R**).
+   - **Seguir a un jugador**: **E / Q** hasta encontrarlo.
+   - **Toma con movimiento** (paneos, vuelos): ver el punto 5.
+5. Presiona **G**. El demo salta al inicio, se graba hasta el fin y se pausa.
+   Arriba aparece "GRABANDO" con el porcentaje. Al terminar dice
+   "Clip guardado".
+
+Los videos quedan en la carpeta **`videos`** del mod
+(`Quake2\dday\videos\` en Windows). Nunca se sobrescriben: si el nombre
+existe, se agrega un número.
+
+Mientras se graba el clip el juego puede verse más lento o más rápido que lo
+normal: es esperado. El video sale perfecto igual, porque se genera cuadro
+a cuadro.
+
+### Tomas con movimiento: recorrido de cámara
+
+1. Ve al inicio del clip y presiona **C**: empieza a grabar la cámara.
+2. Deja correr el demo y mueve la cámara como quieras (vuela con la cámara
+   libre, sigue jugadores, cambia entre ellos). Puedes usar cámara lenta
+   (**[**) para tener más control.
+3. Presiona **C** de nuevo para terminar. El recorrido se guarda solo.
+4. Presiona **G**: el clip repite tu recorrido, suavizado.
+
+Si un tramo no te gustó, vuelve a ese momento y graba solo ese tramo con
+**C**: se reemplaza únicamente esa parte. **V** activa o desactiva el
+recorrido. Los recorridos se guardan por demo en la carpeta `campaths` y se
+cargan solos la próxima vez que abras el mismo demo.
+
+---
+
+## 5. Llevar los clips al editor de video
+
+Por defecto los clips salen en **MP4 (H.264 + AAC), 1920×1080, 60 fps**,
+el formato que abre cualquier editor: Premiere, Vegas, CapCut, Filmora,
+Shotcut, Kdenlive, DaVinci Resolve en Windows y Mac.
+
+- Importa los clips, ordénalos en la línea de tiempo y agrega música,
+  textos y transiciones.
+- Para cámara lenta extra en el editor conviene grabar el clip ya en cámara
+  lenta dentro del visor (**[** antes de **G**): queda fluido porque se
+  generan todos los cuadros.
+- Graba los clips **sin HUD** (es lo predeterminado) y agrega los textos en
+  el editor. Si quieres el HUD del juego en el video: `clip_hud 1` en la
+  consola.
+
+**DaVinci Resolve gratuito en Linux** no abre H.264/AAC. En ese caso exporta
+en MOV (ProRes + audio sin comprimir): en la consola escribe
+`clip_format mov`. Los archivos MOV son mucho más grandes (calidad de edición
+profesional).
+
+---
+
+## 6. Ajustes (consola)
+
+Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
+`clip_size 2560x1440`. Los ajustes se guardan.
+
+| Ajuste | Por defecto | Qué hace |
+|---|---|---|
+| `clip_size` | `1920x1080` | Resolución del video. Vacío (`clip_size ""`) = tamaño de la ventana |
+| `clip_fps` | `60` | Cuadros por segundo del video |
+| `clip_format` | `mp4` | `mp4` (H.264+AAC) o `mov` (ProRes+PCM) |
+| `clip_quality` | `16` | Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien) |
+| `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
+| `clip_volume` | `0.7` | Volumen del sonido en el video |
+| `freecam_speed` | `300` | Velocidad de la cámara libre |
+| `chase_dist` | `110` | Distancia al jugador que sigues |
+| `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
+
+Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
+`capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
+`demo_speed 0.5`, `campath_clear`.
+
+Para mejor calidad de imagen el visor usa la ventana tal como la tengas.
+Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
+
+---
+
+## 7. Límites y problemas comunes
+
+- **En un `.dm2` solo existe lo que veía quien grabó.** El servidor solo
+  manda los jugadores cercanos o visibles. Si alejas la cámara, puede haber
+  jugadores que no aparecen o que aparecen de golpe, y si quien grabó estaba
+  encerrado, no habrá a quién seguir ("No hay jugadores a la vista"). Los
+  demos **`.mvd2`** (grabados por el servidor) traen a todos los jugadores.
+- En algunos servidores el `.dm2` no incluye el cuerpo de quien grabó, así
+  que con la cámara libre no se ve a ese jugador.
+- **MVD**: la cámara libre y el seguimiento usan los modos propios de MVD
+  (flecha arriba = volar / seguir, E / Q = cambiar de jugador). El recorrido
+  de cámara (C / V) por ahora solo funciona con `.dm2`.
+- **El video no tiene sonido**: el audio se graba con el sonido por
+  software. En la consola: `s_enable 1`, luego `snd_restart`.
+- **"cambió el tamaño de la ventana"**: no cambies el tamaño de la ventana
+  ni pases a pantalla completa mientras se graba un clip.
+- **Windows: no abre al hacer doble clic en un demo**: ejecuta
+  `asociar-demos.bat` o usa clic derecho → Abrir con → VisorDemos.exe.
+
+---
+
+## Licencia
+
+VisorDemos se basa en q2pro y se distribuye bajo la licencia GNU GPL
+(versión 2 o posterior); ver `LICENSE`. El código fuente está en el mismo
+repositorio que este archivo.

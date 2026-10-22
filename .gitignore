@@ -3,3 +3,5 @@
 /tags
 /TAGS
 builddir/
+build-win64/
+VisorDemos-windows-*.zip
