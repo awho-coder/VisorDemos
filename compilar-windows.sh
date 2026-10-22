@@ -45,23 +45,45 @@ for t in x86_64-w64-mingw32-gcc nasm meson ninja make git zip; do
 done
 
 
+### x264: el mismo codificador H.264 que en Linux, para que los MP4 salgan
+### igual en cualquier Windows (el de Media Foundation queda de respaldo)
+PREFIX="$OUT/ffmpeg-prefix"
+if [ ! -f "$PREFIX/lib/libx264.a" ]; then
+    [ -d "$OUT/x264" ] || git clone --depth=1 -b stable https://code.videolan.org/videolan/x264.git "$OUT/x264"
+    cd "$OUT/x264"
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --cross-prefix=x86_64-w64-mingw32- \
+        --prefix="$PREFIX" \
+        --enable-static --disable-cli --disable-opencl --enable-strip \
+        --enable-win32thread
+    make -j"$JOBS"
+    make install
+    cd "$SRC"
+fi
+
 ### FFmpeg minimo y estatico: lo que q2pro necesita para cinematicas, mas los
-### codificadores para los clips (H.264 por Media Foundation, ProRes, AAC, PCM)
-if [ ! -f "$OUT/ffmpeg-prefix/lib/pkgconfig/libavcodec.pc" ]; then
+### codificadores para los clips (H.264 con x264 o Media Foundation, ProRes,
+### AAC, PCM)
+if [ ! -f "$PREFIX/.visordemos-x264" ]; then
     [ -d "$OUT/ffmpeg" ] || git clone --depth=1 -b "$FFMPEG_BRANCH" https://github.com/FFmpeg/FFmpeg.git "$OUT/ffmpeg"
+    rm -rf "$OUT/ffmpeg/build" "$OUT/build"
     mkdir -p "$OUT/ffmpeg/build"
     cd "$OUT/ffmpeg/build"
+    PKG_CONFIG_LIBDIR="$PREFIX/lib/pkgconfig" PKG_CONFIG_PATH="" \
     ../configure \
-        --prefix="$OUT/ffmpeg-prefix" \
+        --prefix="$PREFIX" \
         --cross-prefix=x86_64-w64-mingw32- \
         --arch=x86 \
         --target-os=mingw64 \
+        --pkg-config=pkg-config --pkg-config-flags=--static \
+        --enable-gpl --enable-libx264 \
         --disable-everything \
         --enable-decoder=theora --enable-decoder=vorbis --enable-decoder=idcin \
         --enable-decoder='pcm_s16le,pcm_u8,pcm_s16be' \
         --enable-demuxer=ogg --enable-demuxer=idcin --enable-demuxer=wav \
         --enable-parser=vp3 --enable-parser=vorbis \
-        --enable-encoder=h264_mf --enable-encoder=prores_ks \
+        --enable-encoder=libx264 --enable-encoder=h264_mf --enable-encoder=prores_ks \
         --enable-encoder=aac --enable-encoder=pcm_s16le --enable-encoder=mpeg4 \
         --enable-muxer=mp4 --enable-muxer=mov \
         --enable-mediafoundation --enable-w32threads \
@@ -71,6 +93,7 @@ if [ ! -f "$OUT/ffmpeg-prefix/lib/pkgconfig/libavcodec.pc" ]; then
         --disable-debug
     make -j"$JOBS"
     make install
+    touch "$PREFIX/.visordemos-x264"
     cd "$SRC"
 fi
 

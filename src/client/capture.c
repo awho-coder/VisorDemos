@@ -57,6 +57,7 @@ typedef enum {
 static struct {
     capstate_t  state;
     bool        exporting;      // stop automatically at marks.out
+    bool        failed;         // an encoding error stopped the recording
     int         stop_frame;
 
     // fixed time step
@@ -689,8 +690,30 @@ static void capture_stop(void)
     set_cvar_now("s_volume", cap.saved_volume);
     S_StopAllSounds();
 
+    if (cap.failed && !cap.vframes) {
+        // nothing usable was written: don't leave an empty file behind
+        remove(cap.filename);
+        Com_EPrintf("No se pudo grabar el clip (fallo el codificador de video). "
+                    "Prueba con otro formato: clip_format mov\n");
+        SCR_CenterPrint("No se pudo grabar el clip (ver consola)", false);
+        return;
+    }
+
+    if (cap.failed) {
+        Com_EPrintf("La grabacion se corto por un error; se guardo lo grabado "
+                    "(%.1f s): %s\n", seconds, cap.filename);
+        SCR_CenterPrint("Grabacion cortada por un error (ver consola)", false);
+        return;
+    }
+
     Com_Printf("Clip guardado (%.1f s): %s\n", seconds, cap.filename);
     SCR_CenterPrint(va("Clip guardado: %s", COM_SkipPath(cap.filename)), false);
+}
+
+static void capture_fail(void)
+{
+    cap.failed = true;
+    capture_stop();
 }
 
 void CL_CaptureShutdown(void)
@@ -719,12 +742,12 @@ void CL_CaptureFrame(void)
 
     if (r_config.width != cap.src_w || r_config.height != cap.src_h) {
         Com_EPrintf("Captura: cambio el tamano de la ventana, se detiene la grabacion.\n");
-        capture_stop();
+        capture_fail();
         return;
     }
 
     if (!R_CaptureReadPixels(cap.rgba, cap.src_w, cap.src_h)) {
-        capture_stop();
+        capture_fail();
         return;
     }
 
@@ -743,7 +766,7 @@ void CL_CaptureFrame(void)
     }
     if (ret < 0) {
         log_averror("codificar video", ret);
-        capture_stop();
+        capture_fail();
         return;
     }
 
