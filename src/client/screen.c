@@ -2252,7 +2252,8 @@ static void SCR_Draw2D(void)
     scr.hud_width = Q_rint(scr.hud_width * scr.hud_scale);
 
     // crosshair has its own color and alpha
-    SCR_DrawCrosshair();
+    if (!CL_FreecamActive())
+        SCR_DrawCrosshair();
 
     // the rest of 2D elements share common alpha
     R_ClearColor();
@@ -2264,11 +2265,16 @@ static void SCR_Draw2D(void)
     if (scr_debuggraph->integer || scr_timegraph->integer || scr_netgraph->integer)
         SCR_DrawDebugGraph();
 
-    SCR_DrawStats();
+    if (!CL_FreecamHideHud()) {
+        SCR_DrawStats();
 
-    SCR_DrawLayout();
+        SCR_DrawLayout();
 
-    SCR_DrawInventory();
+        SCR_DrawInventory();
+    }
+
+    if (CL_FreecamActive())
+        SCR_DrawString(scr.hud_width / 2, CONCHAR_HEIGHT, UI_CENTER | UI_DROPSHADOW, "CAMARA LIBRE");
 
     SCR_DrawCenterString();
 

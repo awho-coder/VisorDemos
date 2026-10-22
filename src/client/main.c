@@ -667,6 +667,7 @@ void CL_ClearState(void)
     CL_ClearTEnts();
     LOC_FreeLocations();
     CL_FreeDemoSnapshots();
+    CL_FreecamReset();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
@@ -2706,6 +2707,7 @@ static void CL_InitLocal(void)
 
     CL_RegisterInput();
     CL_InitDemos();
+    CL_InitFreecam();
     LOC_Init();
     CL_InitAscii();
     CL_InitEffects();

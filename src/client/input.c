@@ -82,14 +82,14 @@ static bool IN_GetCurrentGrab(void)
     if (cls.key_dest & (KEY_MENU | KEY_CONSOLE))
         return false;   // menu or console is up
 
-    if (sv_paused->integer)
+    if (sv_paused->integer && !CL_FreecamActive())
         return false;   // game paused
 
     if (cls.state != ca_active)
         return false;   // not connected
 
     if (in_grab->integer >= 2) {
-        if (cls.demo.playback && !Key_IsDown(K_SHIFT))
+        if (cls.demo.playback && !Key_IsDown(K_SHIFT) && !CL_FreecamActive())
             return false;   // playing a demo (and not using freelook)
 
         if (cl.frame.ps.pmove.pm_type == PM_FREEZE)
@@ -590,6 +590,29 @@ static void CL_ClampPitch(void)
 
 /*
 =================
+CL_FreecamInput
+
+Feeds keyboard and mouse to the demo free camera. Runs even while the demo
+is paused; nothing here is sent anywhere.
+=================
+*/
+static void CL_FreecamInput(int msec)
+{
+    vec3_t dir;
+
+    CL_AdjustAngles(msec);
+    CL_MouseMove();
+    cl.mousemove[0] = cl.mousemove[1] = 0;
+
+    dir[0] = (in_forward.state & 1) - (in_back.state & 1);
+    dir[1] = (in_moveright.state & 1) - (in_moveleft.state & 1);
+    dir[2] = (in_up.state & 1) - (in_down.state & 1);
+
+    CL_FreecamMove(msec, dir, in_speed.state & 1);
+}
+
+/*
+=================
 CL_UpdateCmd
 
 Updates msec, angles and builds interpolated movement vector for local prediction.
@@ -599,6 +622,11 @@ Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCmd.
 void CL_UpdateCmd(int msec)
 {
     VectorClear(cl.localmove);
+
+    if (CL_FreecamActive()) {
+        CL_FreecamInput(msec);
+        return;
+    }
 
     if (sv_paused->integer) {
         return;

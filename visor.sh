@@ -12,7 +12,8 @@ VISOR_HOME="${VISOR_HOME:-$HOME/.local/share/visordemos}"
 GAME="${GAME:-dday}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
-mkdir -p "$VISOR_HOME"
+mkdir -p "$VISOR_HOME/$GAME"
+cp "$DIR/visor.cfg" "$VISOR_HOME/$GAME/visor.cfg"
 
 if [ $# -ge 1 ] && [ "${1#+}" = "$1" ]; then
     demo="$1"; shift
@@ -24,4 +25,5 @@ exec "$DIR/builddir/q2pro" \
     +set homedir "$VISOR_HOME" \
     +set game "$GAME" \
     +set logfile 1 \
+    +exec visor.cfg \
     "$@"

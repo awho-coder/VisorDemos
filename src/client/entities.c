@@ -1328,7 +1328,11 @@ static void CL_SetupThirdPersionView(void)
 
 static void CL_FinishViewValues(void)
 {
-    if (cl_thirdperson->integer && get_player_entity())
+    if (CL_FreecamActive()) {
+        // camera is detached: draw the recorder's player model, no gun
+        cl.thirdPersonView = true;
+        cl.thirdPersonAlpha = 1.0f;
+    } else if (cl_thirdperson->integer && get_player_entity())
         CL_SetupThirdPersionView();
     else
         CL_SetupFirstPersonView();
@@ -1480,6 +1484,8 @@ void CL_CalcViewValues(void)
     cl.playerEntityAngles[PITCH] = cl.playerEntityAngles[PITCH] / 3;
 
     VectorAdd(cl.refdef.vieworg, viewoffset, cl.refdef.vieworg);
+
+    CL_FreecamView();
 
     VectorCopy(cl.refdef.vieworg, listener_origin);
     VectorCopy(cl.v_forward, listener_forward);

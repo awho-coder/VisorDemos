@@ -758,6 +758,18 @@ void CL_DeltaFrame(void);
 void CL_AddEntities(void);
 void CL_CalcViewValues(void);
 
+
+//
+// freecam.c
+//
+void CL_InitFreecam(void);
+void CL_FreecamReset(void);
+bool CL_FreecamActive(void);
+bool CL_FreecamHideHud(void);
+void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
+void CL_FreecamView(void);
+
+
 #if USE_DEBUG
 void CL_CheckEntityPresent(int entnum, const char *what);
 #endif
