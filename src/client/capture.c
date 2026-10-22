@@ -46,6 +46,7 @@ static struct {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
+#include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 
 typedef enum {
@@ -206,26 +207,44 @@ static int encode(AVCodecContext *enc, AVStream *st, AVFrame *frame)
 
 static const AVCodec *find_video_encoder(bool prores)
 {
-    static const char *const h264[] = { "libx264", "libopenh264", "h264_vaapi", NULL };
+    // libx264 on Linux; Media Foundation (built into Windows) on Windows
+    static const char *const h264[] = { "libx264", "h264_mf", "libopenh264", NULL };
     const AVCodec *codec;
 
     if (prores)
         return avcodec_find_encoder_by_name("prores_ks");
 
     for (int i = 0; h264[i]; i++) {
-        // vaapi needs hardware frames, skip it in this simple path
-        if (!strcmp(h264[i], "h264_vaapi"))
-            continue;
         codec = avcodec_find_encoder_by_name(h264[i]);
         if (codec)
             return codec;
     }
 
-    codec = avcodec_find_encoder(AV_CODEC_ID_H264);
-    if (codec)
-        return codec;
-
     return avcodec_find_encoder(AV_CODEC_ID_MPEG4);
+}
+
+// the wanted pixel format if the encoder takes it, else its first choice
+static enum AVPixelFormat pick_pix_fmt(const AVCodec *codec, enum AVPixelFormat want)
+{
+    const enum AVPixelFormat *fmts = NULL;
+    int n = 0;
+
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 13, 100)
+    if (avcodec_get_supported_config(NULL, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0,
+                                     (const void **)&fmts, &n) < 0)
+        fmts = NULL;
+#else
+    fmts = codec->pix_fmts;
+    while (fmts && fmts[n] != AV_PIX_FMT_NONE)
+        n++;
+#endif
+
+    if (!fmts || !n)
+        return want;
+    for (int i = 0; i < n; i++)
+        if (fmts[i] == want)
+            return want;
+    return fmts[0];
 }
 
 static bool open_video(bool prores)
@@ -255,17 +274,22 @@ static bool open_video(bool prores)
     c->color_trc = AVCOL_TRC_BT709;
 
     if (prores) {
-        c->pix_fmt = AV_PIX_FMT_YUV422P10LE;
+        c->pix_fmt = pick_pix_fmt(codec, AV_PIX_FMT_YUV422P10LE);
         av_opt_set(c->priv_data, "profile", "hq", 0);
     } else {
-        c->pix_fmt = AV_PIX_FMT_YUV420P;
+        c->pix_fmt = pick_pix_fmt(codec, AV_PIX_FMT_YUV420P);
         if (!strcmp(codec->name, "libx264")) {
             av_opt_set(c->priv_data, "preset", "fast", 0);
             av_opt_set_double(c->priv_data, "crf", Cvar_ClampValue(clip_quality, 0, 51), 0);
         } else {
+            // no CRF: pick a generous bitrate (about 31 Mbit/s at 1080p60)
             c->bit_rate = (int64_t)cap.width * cap.height * cap.fps / 4;
+            c->rc_max_rate = c->bit_rate * 3 / 2;
+            c->rc_buffer_size = c->bit_rate * 2;
         }
     }
+
+    Com_DPrintf("Captura: codificador %s, formato %s\n", codec->name, av_get_pix_fmt_name(c->pix_fmt));
 
     if (cap.oc->oformat->flags & AVFMT_GLOBALHEADER)
         c->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
