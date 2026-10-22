@@ -42,6 +42,7 @@ static cvar_t   *freecam_speed;
 static cvar_t   *freecam_fast;
 static cvar_t   *freecam_smooth;
 static cvar_t   *freecam_hud;
+static cvar_t   *freecam_fov;
 static cvar_t   *chase_dist;
 static cvar_t   *chase_height;
 static cvar_t   *chase_auto;
@@ -408,6 +409,10 @@ void CL_FreecamView(void)
     if (CL_FreecamActive()) {
         AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
 
+        // own field of view: ignore the recorder's zoom (sniper scope etc.)
+        cl.fov_x = Cvar_ClampValue(freecam_fov, 10, 160);
+        cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
+
         // the recorder's damage flashes and underwater tint don't belong here
         Vector4Clear(cl.refdef.screen_blend);
         Vector4Clear(cl.refdef.damage_blend);
@@ -430,6 +435,7 @@ void CL_InitFreecam(void)
     freecam_fast = Cvar_Get("freecam_fast", "3", CVAR_ARCHIVE);
     freecam_smooth = Cvar_Get("freecam_smooth", "0.15", CVAR_ARCHIVE);
     freecam_hud = Cvar_Get("freecam_hud", "0", CVAR_ARCHIVE);
+    freecam_fov = Cvar_Get("freecam_fov", "90", CVAR_ARCHIVE);
     chase_dist = Cvar_Get("chase_dist", "110", CVAR_ARCHIVE);
     chase_height = Cvar_Get("chase_height", "28", CVAR_ARCHIVE);
     chase_auto = Cvar_Get("chase_auto", "0.6", CVAR_ARCHIVE);

@@ -186,6 +186,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
 | `clip_volume` | `0.7` | Volumen del sonido en el video |
 | `freecam_speed` | `300` | Velocidad de la cámara libre |
+| `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
 
