@@ -812,6 +812,154 @@ static void Com_AddEarlyCommands(bool clear)
     }
 }
 
+#if USE_CLIENT
+/*
+=================
+VisorDemos: demo file given as a plain argument
+
+Opening a .dm2 / .mvd2 with a double click (or "Open with") passes the bare
+file path. Guess the mod from ".../<mod>/demos/<file>", make the file
+reachable under <gamedir>/demos/ and play it.
+=================
+*/
+static char com_demo_path[MAX_OSPATH];
+
+static bool is_demo_file_name(const char *s)
+{
+    static const char *const exts[] = { ".dm2", ".mvd2", ".dm2.gz", ".mvd2.gz" };
+    size_t len = strlen(s);
+
+    for (int i = 0; i < q_countof(exts); i++) {
+        size_t n = strlen(exts[i]);
+        if (len > n && !Q_stricmp(s + len - n, exts[i]))
+            return true;
+    }
+    return false;
+}
+
+static void Com_FindDemoArgument(void)
+{
+    char dir[MAX_OSPATH], *p, *mod;
+    FILE *f;
+
+    if (com_argc < 2 || !com_argv[1] || com_argv[1][0] == '+')
+        return;
+    if (!is_demo_file_name(com_argv[1]))
+        return;
+
+    f = fopen(com_argv[1], "rb");
+    if (!f)
+        return;
+    fclose(f);
+
+    Q_strlcpy(com_demo_path, com_argv[1], sizeof(com_demo_path));
+    for (p = com_demo_path; *p; p++)
+        if (*p == '\\')
+            *p = '/';
+    com_argv[1] = NULL;
+
+    // ".../<mod>/demos/<file>": use that mod unless +set game says otherwise
+    Q_strlcpy(dir, com_demo_path, sizeof(dir));
+    p = strrchr(dir, '/');
+    if (!p)
+        return;
+    *p = 0;
+    p = strrchr(dir, '/');
+    if (!p || Q_stricmp(p + 1, "demos"))
+        return;
+    *p = 0;
+    mod = strrchr(dir, '/');
+    mod = mod ? mod + 1 : dir;
+    if (*mod && Q_stricmp(mod, BASEGAME))
+        Cvar_SetEx("game", mod, FROM_CMDLINE);
+}
+
+static bool copy_file(const char *from, const char *to)
+{
+    FILE *in, *out;
+    char buf[65536];
+    size_t n;
+    bool ok = true;
+
+    in = fopen(from, "rb");
+    if (!in)
+        return false;
+    out = fopen(to, "wb");
+    if (!out) {
+        fclose(in);
+        return false;
+    }
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            ok = false;
+            break;
+        }
+    }
+    fclose(in);
+    if (fclose(out))
+        ok = false;
+    return ok;
+}
+
+static int64_t file_size(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    int64_t size;
+
+    if (!f)
+        return -1;
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fclose(f);
+    return size;
+}
+
+static bool Com_QueueDemoArgument(void)
+{
+    char name[MAX_QPATH], dest[MAX_OSPATH], base[MAX_QPATH], *ext;
+    int64_t size;
+
+    if (!*com_demo_path)
+        return false;
+
+    Q_strlcpy(name, COM_SkipPath(com_demo_path), sizeof(name));
+    size = file_size(com_demo_path);
+
+    // already there, or copy it (never overwrite a different demo)
+    Q_strlcpy(base, name, sizeof(base));
+    ext = strchr(base, '.');
+    for (int i = 0; i < 100; i++) {
+        if (i) {
+            if (ext)
+                Q_snprintf(name, sizeof(name), "%.*s_%d%s", (int)(ext - base), base, i,
+                           COM_SkipPath(com_demo_path) + (ext - base));
+            else
+                Q_snprintf(name, sizeof(name), "%s_%d", base, i);
+        }
+        Q_snprintf(dest, sizeof(dest), "%s/demos/%s", fs_gamedir, name);
+
+        if (!Q_stricmp(dest, com_demo_path))
+            break;      // opened straight from demos/
+        if (FS_LoadFile(va("demos/%s", name), NULL) == size)
+            break;      // the game already sees this demo
+        if (file_size(dest) == size)
+            break;      // same demo copied before
+        if (file_size(dest) < 0) {
+            FS_CreatePath(dest);
+            if (!copy_file(com_demo_path, dest)) {
+                Com_EPrintf("No se pudo copiar el demo a %s\n", dest);
+                return false;
+            }
+            break;
+        }
+    }
+
+    Cbuf_AddText(&cmd_buffer, va("demo \"%s\"\n", name));
+    Cbuf_Execute(&cmd_buffer);
+    return true;
+}
+#endif
+
 /*
 =================
 Com_AddLateCommands
@@ -973,6 +1121,10 @@ void Qcommon_Init(int argc, char **argv)
     // add any system-wide configuration files
     Sys_AddDefaultConfig();
 
+#if USE_CLIENT
+    Com_FindDemoArgument();
+#endif
+
     // we need to add the early commands twice, because
     // a basedir or cddir needs to be set before execing
     // config files, but we want other params to override
@@ -1019,7 +1171,11 @@ void Qcommon_Init(int argc, char **argv)
     Sys_RunConsole();
 
     // add + commands from command line
-    if (!Com_AddLateCommands()) {
+    bool demo_arg = false;
+#if USE_CLIENT
+    demo_arg = Com_QueueDemoArgument();
+#endif
+    if (!Com_AddLateCommands() && !demo_arg) {
         // if the user didn't give any commands, run default action
         const char *cmd = COM_DEDICATED ? "dedicated_start" : "client_start";
 
