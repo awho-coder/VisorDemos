@@ -1,20 +1,49 @@
 #!/bin/sh
 # Compila VisorDemos para Windows 64 bits desde Linux y arma el .zip para
-# repartir. Requiere: x86_64-w64-mingw32-gcc (paquete mingw64-gcc en Fedora,
-# gcc-mingw-w64 en Debian/Ubuntu; en Fedora tambien mingw64-winpthreads-static), nasm, meson, ninja, make, git, zip
-# y conexion a internet (descarga FFmpeg, zlib, libpng y libjpeg-turbo).
+# repartir. Requiere meson, ninja, make, git, curl, zip y conexion a internet
+# (descarga FFmpeg, zlib, libpng y libjpeg-turbo). Si no hay mingw ni nasm
+# instalados, descarga un compilador portatil (llvm-mingw) y compila nasm en
+# build-win64/tools, sin tocar el sistema.
 set -e
 cd "$(dirname "$0")"
 SRC="$(pwd)"
 OUT="$SRC/build-win64"
 FFMPEG_BRANCH="release/7.1"
 JOBS="$(nproc 2>/dev/null || echo 4)"
+mkdir -p "$OUT"
+
+# sin mingw ni nasm instalados: usar versiones portatiles en build-win64/tools
+# (llvm-mingw y nasm compilado localmente; no necesita sudo)
+TOOLS="$OUT/tools"
+LLVM_MINGW="llvm-mingw-20261020-ucrt-ubuntu-22.04-x86_64"
+NASM_VER="2.16.03"
+mkdir -p "$OUT/dl" "$TOOLS"
+if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+    if [ ! -x "$TOOLS/llvm-mingw/bin/x86_64-w64-mingw32-gcc" ]; then
+        echo "Descargando llvm-mingw (compilador para Windows, portatil)..."
+        curl -L -o "$OUT/dl/llvm-mingw.tar.xz" \
+            "https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/$LLVM_MINGW.tar.xz"
+        tar xf "$OUT/dl/llvm-mingw.tar.xz" -C "$TOOLS"
+        mv "$TOOLS/$LLVM_MINGW" "$TOOLS/llvm-mingw"
+    fi
+    PATH="$TOOLS/llvm-mingw/bin:$PATH"
+fi
+if ! command -v nasm >/dev/null 2>&1; then
+    if [ ! -x "$TOOLS/nasm/bin/nasm" ]; then
+        echo "Compilando nasm $NASM_VER..."
+        curl -L -o "$OUT/dl/nasm.tar.xz" \
+            "https://www.nasm.us/pub/nasm/releasebuilds/$NASM_VER/nasm-$NASM_VER.tar.xz"
+        tar xf "$OUT/dl/nasm.tar.xz" -C "$OUT/dl"
+        (cd "$OUT/dl/nasm-$NASM_VER" && ./configure --prefix="$TOOLS/nasm" >/dev/null && make -j"$JOBS" >/dev/null && make install >/dev/null)
+    fi
+    PATH="$TOOLS/nasm/bin:$PATH"
+fi
+export PATH
 
 for t in x86_64-w64-mingw32-gcc nasm meson ninja make git zip; do
     command -v "$t" >/dev/null 2>&1 || { echo "Falta '$t' (ver LEEME.md, seccion Windows)." >&2; exit 1; }
 done
 
-mkdir -p "$OUT"
 
 ### FFmpeg minimo y estatico: lo que q2pro necesita para cinematicas, mas los
 ### codificadores para los clips (H.264 por Media Foundation, ProRes, AAC, PCM)
