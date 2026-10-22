@@ -264,9 +264,10 @@ static void SV_Map(bool restart)
         return;
 
 #if USE_CLIENT
-    // hack for demomap
+    // hack for demomap. VisorDemos: play it as a normal demo, so seeking,
+    // the timeline, clip marks and cameras all work ("map x.dm2" = "demo x.dm2")
     if (cmd.state == ss_demo) {
-        Cbuf_InsertText(&cmd_buffer, va("demo \"%s\" compat\n", cmd.server));
+        Cbuf_InsertText(&cmd_buffer, va("demo \"%s\"\n", cmd.server));
         return;
     }
 #endif
