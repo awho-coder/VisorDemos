@@ -1,7 +1,7 @@
 #!/bin/sh
 # Compila VisorDemos para Windows 64 bits desde Linux y arma el .zip para
 # repartir. Requiere: x86_64-w64-mingw32-gcc (paquete mingw64-gcc en Fedora,
-# gcc-mingw-w64 en Debian/Ubuntu), nasm, meson, ninja, make, git, zip
+# gcc-mingw-w64 en Debian/Ubuntu; en Fedora tambien mingw64-winpthreads-static), nasm, meson, ninja, make, git, zip
 # y conexion a internet (descarga FFmpeg, zlib, libpng y libjpeg-turbo).
 set -e
 cd "$(dirname "$0")"
@@ -54,6 +54,7 @@ if [ ! -d "$OUT/build" ]; then
         -Davcodec=enabled -Dlibcurl=disabled -Dopenal=disabled \
         -Dsdl2=disabled -Dwayland=disabled -Dx11=disabled \
         -Ddefault-game=dday -Dwindows-crash-dumps=disabled \
+        -Dc_link_args=-static \
         "$OUT/build" "$SRC"
 fi
 meson compile -C "$OUT/build"
