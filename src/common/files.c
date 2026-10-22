@@ -3719,6 +3719,12 @@ void FS_AddConfigFiles(bool init)
         Com_AddConfigFile(COM_AUTOEXEC_CFG, FS_TYPE_REAL | FS_PATH_BASE);
     Com_AddConfigFile(COM_AUTOEXEC_CFG, FS_TYPE_REAL | FS_PATH_GAME);
 
+#if USE_CLIENT
+    // VisorDemos: own saved settings, then the viewer key layout
+    Com_AddConfigFile(VISOR_CONFIG_CFG, FS_TYPE_REAL | flag);
+    Com_AddConfigFile(VISOR_BINDS_CFG, 0);
+#endif
+
     Com_AddConfigFile(COM_POSTEXEC_CFG, FS_TYPE_REAL);
 }
 

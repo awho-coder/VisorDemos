@@ -2337,11 +2337,12 @@ static void SCR_DrawVisorBar(void)
     int ch, pad, bar_h, strip_h, y0, ty, tx0, tx1, tw;
     float s = scr.hud_scale, prog;
     int in = CL_ClipMarkIn(), out = CL_ClipMarkOut();
+    int frame;
     bool paused;
 
-    if (!cls.demo.playback || cls.demo.compat || !scr_demobar->integer)
+    if (!scr_demobar->integer || (cls.key_dest & KEY_MENU))
         return;
-    if (cls.state != ca_active || (cls.key_dest & KEY_MENU))
+    if (!CL_DemoPosition(&frame, &prog, &paused))
         return;
 
     ch = Q_rint(CONCHAR_HEIGHT / s);
@@ -2358,7 +2359,6 @@ static void SCR_DrawVisorBar(void)
     tx1 = W - pad * 2;
     tw = tx1 - tx0;
     ty = y0 + pad + ch + pad;
-    prog = Q_clipf(cls.demo.file_progress, 0, 1);
 
     R_DrawFill32(tx0, ty, tw, bar_h, VISOR_TRACK);
     R_DrawFill32(tx0, ty, Q_rint(tw * prog), bar_h, VISOR_PLAYED);
@@ -2386,9 +2386,7 @@ static void SCR_DrawVisorBar(void)
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
     // text line
-    paused = sv_paused->integer && cl_paused->integer;
-
-    format_demo_time(t_in, sizeof(t_in), cls.demo.frames_read);
+    format_demo_time(t_in, sizeof(t_in), frame);
     Q_snprintf(left, sizeof(left), "%s  (%d%%)", t_in, Q_rint(prog * 100));
 
     mid[0] = 0;
@@ -2531,8 +2529,8 @@ static void SCR_DrawActive(void)
     scr.hud_height = r_config.height;
     scr.hud_width = r_config.width;
 
-    // DM2 playback uses the visor timeline overlay instead
-    if (!CL_CaptureActive() && !cls.demo.playback)
+    // demo playback uses the visor timeline overlay instead
+    if (!CL_CaptureActive() && !CL_DemoPosition(NULL, NULL, NULL))
         SCR_DrawDemo();
 
     SCR_CalcVrect();

@@ -44,6 +44,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define COM_CONFIG_CFG      "config.cfg"
 #endif
 
+// VisorDemos keeps its own settings so it never rewrites the player's
+// config.cfg / q2config.cfg, and always loads its key layout last
+#define VISOR_CONFIG_CFG    "visordemos.cfg"
+#define VISOR_BINDS_CFG     "visor.cfg"
+
 // FIXME: rename these
 #define COM_HISTORYFILE_NAME    ".conhistory"
 #define COM_DEMOCACHE_NAME      ".democache"

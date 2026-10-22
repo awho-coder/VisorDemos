@@ -15,6 +15,7 @@ GNU General Public License for more details.
 // visor.c -- small demo viewer helpers: help overlay and playback speed
 
 #include "client.h"
+#include "server/server.h"
 
 static bool     help_visible;
 
@@ -76,6 +77,48 @@ static void Demo_Speed_f(void)
         }
         set_speed(v);
     }
+}
+
+/*
+===============
+CL_DemoPosition
+
+Current position for DM2 playback or local MVD playback. Frames are 1/10 s.
+===============
+*/
+bool CL_DemoPosition(int *frame, float *progress, bool *paused)
+{
+    bool mvd_paused = false;
+    float p = 0;
+    int f = 0;
+
+    if (cls.state != ca_active)
+        return false;
+
+    if (cls.demo.playback) {
+        if (cls.demo.compat || !cls.demo.file_size)
+            return false;
+        f = cls.demo.frames_read;
+        p = cls.demo.file_progress;
+    } else if (!MVD_GetDemoStatus(&p, &mvd_paused, &f)) {
+        return false;
+    }
+
+    if (frame)
+        *frame = f;
+    if (progress)
+        *progress = Q_clipf(p, 0, 1);
+    if (paused)
+        *paused = mvd_paused || (sv_paused->integer && cl_paused->integer);
+    return true;
+}
+
+// demo finished or closed
+bool CL_DemoAtEnd(void)
+{
+    if (cls.demo.playback)
+        return cls.demo.eof;
+    return !CL_DemoPosition(NULL, NULL, NULL);
 }
 
 static const cmdreg_t c_visor[] = {

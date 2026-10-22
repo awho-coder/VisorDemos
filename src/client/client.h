@@ -792,6 +792,8 @@ bool CL_CamPathRange(float *start, float *end);
 void CL_InitVisor(void);
 bool CL_VisorHelpVisible(void);
 float CL_DemoSpeed(void);
+bool CL_DemoPosition(int *frame, float *progress, bool *paused);
+bool CL_DemoAtEnd(void);
 
 
 //

@@ -104,6 +104,27 @@ void CL_FreecamReset(void)
     VectorClear(fc.velocity);
 }
 
+// MVD playback runs through a local MVD server: camera control there is
+// done with its own spectator commands
+static bool mvd_playing(void)
+{
+#if USE_MVD_CLIENT
+    return sv_running->integer == ss_broadcast && cls.state == ca_active;
+#else
+    return false;
+#endif
+}
+
+static bool mvd_command(const char *cmd, const char *msg)
+{
+    if (!mvd_playing())
+        return false;
+    CL_ClientCommand(cmd);
+    if (msg)
+        SCR_CenterPrint(msg, false);
+    return true;
+}
+
 static bool can_detach(void)
 {
     if (!cls.demo.playback || cls.state != ca_active) {
@@ -148,6 +169,9 @@ FREE CAMERA
 static void Freecam_f(void)
 {
     bool enable;
+
+    if (mvd_command("observe", "MVD: camara libre / seguir jugador"))
+        return;
 
     if (Cmd_Argc() > 1)
         enable = Q_atoi(Cmd_Argv(1));
@@ -289,11 +313,22 @@ static void chase_cycle(int dir)
     SCR_CenterPrint("No hay jugadores a la vista", false);
 }
 
-static void Chase_Next_f(void) { chase_cycle(1); }
-static void Chase_Prev_f(void) { chase_cycle(-1); }
+static void Chase_Next_f(void)
+{
+    if (!mvd_command("invnext", NULL))
+        chase_cycle(1);
+}
+
+static void Chase_Prev_f(void)
+{
+    if (!mvd_command("invprev", NULL))
+        chase_cycle(-1);
+}
 
 static void Camera_Reset_f(void)
 {
+    if (mvd_command("follow", NULL))
+        return;
     set_mode(CAM_OFF);
 }
 

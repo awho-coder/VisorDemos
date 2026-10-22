@@ -488,7 +488,9 @@ static void make_filename(const char *name, const char *ext)
     } else {
         // demo name plus the clip range, e.g. townwar_01m20s
         char *p;
-        int start = marks.in >= 0 ? marks.in : cls.demo.frames_read;
+        int start = marks.in;
+        if (start < 0 && !CL_DemoPosition(&start, NULL, NULL))
+            start = 0;
 
         Q_strlcpy(base, cls.servername[0] ? cls.servername : "clip", sizeof(base));
         p = strrchr(base, '.');
@@ -722,10 +724,10 @@ void CL_CaptureFrame(void)
     }
 
     if (cap.exporting) {
-        if (!cls.demo.playback || cls.demo.eof || cls.demo.frames_read >= cap.stop_frame) {
+        int frame;
+        if (!CL_DemoPosition(&frame, NULL, NULL) || CL_DemoAtEnd() || frame >= cap.stop_frame) {
             capture_stop();
-            if (cls.demo.playback)
-                Cvar_Set("cl_paused", "1");
+            Cvar_Set("cl_paused", "1");
         }
     }
 }
@@ -743,7 +745,9 @@ bool CL_CaptureStatus(char *buf, size_t size)
         return false;
 
     if (cap.exporting && marks.out > marks.in) {
-        int done = cls.demo.frames_read - marks.in;
+        int done = 0;
+        CL_DemoPosition(&done, NULL, NULL);
+        done -= marks.in;
         int total = cap.stop_frame - marks.in;
         Q_snprintf(buf, size, "GRABANDO %d%%  (%.1f s)",
                    Q_clip(done * 100 / max(total, 1), 0, 100),
@@ -799,8 +803,8 @@ void CL_ClipClearMarks(void)
 
 static bool need_demo(void)
 {
-    if (!cls.demo.playback) {
-        Com_Printf("Las marcas de clip funcionan al reproducir un demo .dm2.\n");
+    if (!CL_DemoPosition(NULL, NULL, NULL)) {
+        Com_Printf("Las marcas de clip funcionan al reproducir un demo (.dm2 o .mvd2).\n");
         return false;
     }
     return true;
@@ -813,8 +817,7 @@ static void Clip_In_f(void)
     if (!need_demo())
         return;
 
-    marks.in = cls.demo.frames_read;
-    marks.in_pos = cls.demo.file_progress;
+    CL_DemoPosition(&marks.in, &marks.in_pos, NULL);
     if (marks.out >= 0 && marks.out <= marks.in)
         marks.out = -1;
 
@@ -829,13 +832,15 @@ static void Clip_Out_f(void)
     if (!need_demo())
         return;
 
-    if (marks.in >= 0 && cls.demo.frames_read <= marks.in) {
+    int now;
+
+    CL_DemoPosition(&now, NULL, NULL);
+    if (marks.in >= 0 && now <= marks.in) {
         Com_Printf("El fin del clip debe estar despues del inicio.\n");
         return;
     }
 
-    marks.out = cls.demo.frames_read;
-    marks.out_pos = cls.demo.file_progress;
+    CL_DemoPosition(&marks.out, &marks.out_pos, NULL);
     format_frame(buf, sizeof(buf), marks.out);
     SCR_CenterPrint(va("Fin del clip: %s", buf), false);
 }
@@ -863,10 +868,13 @@ static void Clip_Export_f(void)
         return;
     }
 
-    start = marks.in >= 0 ? marks.in : cls.demo.frames_read;
+    int now;
+
+    CL_DemoPosition(&now, NULL, NULL);
+    start = marks.in >= 0 ? marks.in : now;
 
     // jump to the start mark first
-    if (start != cls.demo.frames_read)
+    if (start != now)
         Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", start / 10, start % 10));
 
     if (!capture_start(name))
