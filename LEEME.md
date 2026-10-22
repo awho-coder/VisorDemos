@@ -34,16 +34,26 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
    Quake2\
      VisorDemos.exe
      asociar-demos.bat
+     1-Instalacion.html
+     2-Guia-de-uso.html
      LEEME.txt
      baseq2\visor.cfg
      baseq2\q2pro.menu
      dday\ ...
    ```
 
+   No uses una carpeta dentro de *Archivos de programa*: ahí Windows no deja
+   guardar los videos.
 3. (Opcional) Haz doble clic en `asociar-demos.bat` para que los demos `.dm2`
    y `.mvd2` se abran con VisorDemos al hacerles doble clic.
-4. Abre `VisorDemos.exe`. Por defecto usa el mod D-Day. Para otro mod, crea un
-   acceso directo con `VisorDemos.exe +set game nombre_del_mod`.
+4. Abre `VisorDemos.exe`. La primera vez Windows puede mostrar *"Windows
+   protegió su PC"*: **Más información → Ejecutar de todas formas** (el
+   programa no tiene firma digital). Por defecto usa el mod D-Day; para otro
+   mod, crea un acceso directo con `VisorDemos.exe +set game nombre_del_mod`.
+
+**Actualizar a una versión nueva:** baja el `.zip` nuevo y reemplaza
+`VisorDemos.exe` y `baseq2\visor.cfg`. Tus videos, recorridos y ajustes se
+mantienen.
 
 ### Linux
 
@@ -74,9 +84,15 @@ los videos y los recorridos quedan en `~/.local/share/visordemos/<mod>/`.
 
 - Doble clic en el archivo `.dm2` / `.mvd2` (si hiciste el paso opcional), o
 - arrástralo sobre `VisorDemos.exe` / `visor.sh`, o
-- abre el visor, presiona **Esc → browse demos** y elígelo de la lista.
+- abre el visor, presiona **Esc → browse demos** y elígelo de la lista, o
+- en la consola (tecla **`**): `demo nombre_del_demo` (también sirve
+  `map nombre_del_demo.dm2`).
 
 Dentro del demo presiona **H** para ver la ayuda con todas las teclas.
+
+Para saber si estás en el visor: la ventana se llama **VisorDemos** y abajo
+aparece la barra con *H: AYUDA*. Si no ves eso, el demo se abrió con tu
+Quake 2 normal.
 
 ---
 
@@ -189,6 +205,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
+| `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
@@ -217,6 +234,11 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   ni pases a pantalla completa mientras se graba un clip.
 - **Windows: no abre al hacer doble clic en un demo**: ejecuta
   `asociar-demos.bat` o usa clic derecho → Abrir con → VisorDemos.exe.
+- **No veo la barra o las teclas del visor no hacen nada**: revisa que la
+  ventana se llame *VisorDemos*. Si dice otra cosa, el demo se abrió con otro
+  programa (tu Quake 2 normal).
+- **Las teclas de velocidad**: usa **Z / X** o **Av Pág / Re Pág**. Los
+  símbolos `[` `]` no funcionan en teclados en español.
 
 ---
 

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisorDemos</title>
+<style>
+  :root { --bg:#f6f4ee; --surface:#fff; --text:#23241f; --muted:#5f6157; --line:#dcd8cc; --accent:#5b6b2e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#171814; --surface:#212219; --text:#ecebe4; --muted:#a9aa9c; --line:#393a30; --accent:#b5c77a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:56px 16px 64px; }
+  .tag { color:var(--accent); font-weight:700; letter-spacing:.08em; font-size:13px; text-transform:uppercase; }
+  h1 { font-size:38px; line-height:1.1; margin:6px 0 12px; }
+  .lead { color:var(--muted); font-size:18px; margin:0 0 28px; }
+  .cards { display:grid; gap:14px; }
+  a.card { display:block; text-decoration:none; color:var(--text); background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 20px; }
+  a.card:hover { border-color:var(--accent); }
+  a.card strong { display:block; font-size:19px; margin-bottom:2px; }
+  a.card span { color:var(--muted); }
+  a.card.primary { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  a.card.primary span { color:var(--bg); opacity:.85; }
+  footer { margin-top:40px; color:var(--muted); font-size:14px; }
+  footer a { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="tag">Quake 2 · D-Day: Normandy</div>
+  <h1>VisorDemos</h1>
+  <p class="lead">Visor de demos de Quake 2 para hacer videos: cámara libre, seguir jugadores,
+  recorridos de cámara y clips MP4 a 1080p y 60 fps, listos para tu editor.</p>
+  <div class="cards">
+    <a class="card primary" href="https://github.com/awho-coder/VisorDemos/releases/latest">
+      <strong>Descargar para Windows</strong>
+      <span>El .zip de la última versión</span></a>
+    <a class="card" href="instalacion.html">
+      <strong>1. Instalación</strong>
+      <span>Dónde copiar los archivos y cómo abrir los demos con doble clic</span></a>
+    <a class="card" href="guia-de-uso.html">
+      <strong>2. Guía de uso</strong>
+      <span>Teclas, cámaras, cómo sacar clips y llevarlos al editor</span></a>
+  </div>
+  <footer>Código fuente y versión para Linux en
+  <a href="https://github.com/awho-coder/VisorDemos">github.com/awho-coder/VisorDemos</a>.
+  Basado en q2pro, licencia GNU GPL.</footer>
+</main>
+</body>
+</html>

@@ -156,6 +156,7 @@
     <li><strong>Doble clic</strong> en el archivo <code>.dm2</code> o <code>.mvd2</code> (si ejecutaste <code>asociar-demos.bat</code>).</li>
     <li>O <strong>arrástralo</strong> sobre <code>VisorDemos.exe</code>.</li>
     <li>O abre el visor, presiona <kbd>Esc</kbd> → <strong>browse demos</strong> y elige uno de la carpeta <code>dday\demos</code>.</li>
+    <li>O en la consola (<kbd>`</kbd>): <code>demo nombre_del_demo</code> (también sirve <code>map nombre_del_demo.dm2</code>).</li>
   </ul>
   <div class="note">Comprueba que estás en el visor: la ventana se llama <strong>VisorDemos</strong>
   y abajo aparece la barra con <em>H: AYUDA</em>. Si no ves eso, el demo se abrió con tu Quake 2
@@ -299,6 +300,7 @@
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
       <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues</td></tr>
       <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
+      <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
     </tbody>
   </table>
 
@@ -314,6 +316,7 @@
     cambian de jugador. El recorrido de cámara (<kbd>C</kbd>/<kbd>V</kbd>) por ahora es solo para <code>.dm2</code>.</li>
     <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
     <li>Si el video sale sin sonido: en la consola, <code>s_enable 1</code> y luego <code>snd_restart</code>.</li>
+    <li>Para cambiar la velocidad usa <kbd>Z</kbd> / <kbd>X</kbd> o <kbd>Av Pág</kbd> / <kbd>Re Pág</kbd>: los símbolos <code>[</code> <code>]</code> no funcionan en teclados en español.</li>
   </ul>
 
   <footer>VisorDemos se basa en q2pro y se distribuye bajo la licencia GNU GPL.</footer>

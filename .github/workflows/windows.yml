@@ -1,0 +1,41 @@
+# Arma el .zip de Windows en GitHub. Corre al publicar una version (tag v*)
+# y adjunta el .zip a esa Release; tambien se puede lanzar a mano desde la
+# pestana Actions (el .zip queda como artefacto descargable).
+name: Windows
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  zip:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # el numero de version del .zip sale del historial
+
+      - name: Herramientas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 nasm meson ninja-build zip
+
+      - name: Compilar
+        run: ./compilar-windows.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VisorDemos-windows
+          path: VisorDemos-windows-*.zip
+
+      - name: Adjuntar a la Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "VisorDemos ${GITHUB_REF_NAME#v}" --notes "Ver LEEME.md"
+          gh release upload "$GITHUB_REF_NAME" VisorDemos-windows-*.zip --clobber

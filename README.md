@@ -20,24 +20,27 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
 
 ## Descargar
 
-- **Windows**: baja el `.zip` desde [Releases](../../releases). Adentro vienen
-  `1-Instalacion.html` y `2-Guia-de-uso.html` con las instrucciones.
+- **Windows**: baja el `.zip` desde la [última versión](../../releases/latest).
+  Adentro vienen `1-Instalacion.html` y `2-Guia-de-uso.html`.
 - **Linux**: compila desde el código con `./compilar.sh` (dependencias en
   [LEEME.md](LEEME.md#linux)).
 
 ## Documentación
 
+- Guías en línea: **https://awho-coder.github.io/VisorDemos/**
+  ([instalación](https://awho-coder.github.io/VisorDemos/instalacion.html) ·
+  [guía de uso](https://awho-coder.github.io/VisorDemos/guia-de-uso.html)).
 - [LEEME.md](LEEME.md): instalación, teclas, cómo hacer clips, ajustes y límites.
-- [docs/instalacion.html](docs/instalacion.html) y
-  [docs/guia-de-uso.html](docs/guia-de-uso.html): las mismas guías en formato
-  página (se ven al abrirlas desde el `.zip`).
 
 ## Compilar
 
 | Plataforma | Comando |
 |---|---|
 | Linux | `./compilar.sh`, luego `./visor.sh` e (opcional) `./instalar-linux.sh` |
-| Windows (desde Linux) | `./compilar-windows.sh` genera `VisorDemos-windows-rN.zip`; no necesita instalar mingw |
+| Windows (desde Linux) | `./compilar-windows.sh` genera `VisorDemos-windows-rN.zip` (usa mingw si está instalado; si no, descarga uno portátil) |
+
+Al publicar una versión (tag `v*`), GitHub Actions arma el `.zip` de Windows y
+lo adjunta a la Release ([.github/workflows/windows.yml](.github/workflows/windows.yml)).
 
 ## Licencia
 
