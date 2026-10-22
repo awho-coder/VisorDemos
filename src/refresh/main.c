@@ -922,6 +922,16 @@ void R_EndFrame(void)
         gl_static.sync = qglFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 }
 
+// VisorDemos: read the finished back buffer as RGBA for video capture
+bool R_CaptureReadPixels(void *rgba, int width, int height)
+{
+    GL_Flush2D();
+    GL_ClearErrors();
+    qglPixelStorei(GL_PACK_ALIGNMENT, 4);
+    qglReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    return !GL_ShowErrors("Failed to read pixels for capture");
+}
+
 bool R_VideoSync(void)
 {
     if (!gl_static.sync)

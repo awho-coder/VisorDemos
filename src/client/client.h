@@ -760,6 +760,21 @@ void CL_CalcViewValues(void);
 
 
 //
+// capture.c
+//
+void CL_InitCapture(void);
+void CL_CaptureShutdown(void);
+bool CL_CaptureHideHud(void);
+int  CL_CaptureAudioSamples(void);
+void CL_CaptureAudio(const float *samples, int count);
+void CL_CaptureFrame(void);
+bool CL_CaptureStatus(char *buf, size_t size);
+int  CL_ClipMarkIn(void);
+int  CL_ClipMarkOut(void);
+void CL_ClipClearMarks(void);
+
+
+//
 // freecam.c
 //
 void CL_InitFreecam(void);

@@ -241,6 +241,7 @@ void    R_DrawFill32(int x, int y, int w, int h, uint32_t color);
 // video mode and refresh state management entry points
 void    R_BeginFrame(void);
 void    R_EndFrame(void);
+bool    R_CaptureReadPixels(void *rgba, int width, int height);
 void    R_ModeChanged(int width, int height, int flags);
 bool    R_VideoSync(void);
 

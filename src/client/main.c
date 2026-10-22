@@ -668,6 +668,7 @@ void CL_ClearState(void)
     LOC_FreeLocations();
     CL_FreeDemoSnapshots();
     CL_FreecamReset();
+    CL_CaptureShutdown();
 
     // wipe the entire cl structure
     BSP_Free(cl.bsp);
@@ -2708,6 +2709,7 @@ static void CL_InitLocal(void)
     CL_RegisterInput();
     CL_InitDemos();
     CL_InitFreecam();
+    CL_InitCapture();
     LOC_Init();
     CL_InitAscii();
     CL_InitEffects();
@@ -3245,7 +3247,8 @@ unsigned CL_Frame(unsigned msec)
 
     CL_ProcessEvents();
 
-    switch (sync_mode) {
+    // capturing a clip: time is fixed per frame, draw every single one
+    switch (CL_CaptureActive() ? SYNC_TIMEDEMO : sync_mode) {
     case SYNC_TIMEDEMO:
         // timedemo just runs at full speed
         break;

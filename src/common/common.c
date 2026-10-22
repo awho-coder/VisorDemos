@@ -1110,6 +1110,12 @@ void Qcommon_Frame(void)
         msec = 100; // time was unreasonable
     }
 
+#if USE_CLIENT
+    if (CL_CaptureActive()) {
+        // recording a video clip: advance exactly one video frame
+        msec = CL_CaptureFrameMsec();
+    } else
+#endif
     if (fixedtime->integer) {
         Cvar_ClampInteger(fixedtime, 1, 1000);
         msec = fixedtime->integer;

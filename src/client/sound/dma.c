@@ -39,6 +39,7 @@ static float    snd_vol;
 
 static int          s_rawend;
 static samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
+static bool s_was_capturing;
 
 /*
 ===============================================================================
@@ -256,6 +257,12 @@ static void TransferPaintBuffer(samplepair_t *samp, int endtime)
         for (i = 0; i < endtime - s_paintedtime; i++) {
             SWAP(float, samp[i].left, samp[i].right);
         }
+    }
+
+    if (CL_CaptureActive()) {
+        // recording a clip: samples go to the video file, not the device
+        CL_CaptureAudio((const float *)samp, endtime - s_paintedtime);
+        return;
     }
 
     if (dma.samplebits == 16 && dma.channels == 2) {
@@ -827,6 +834,13 @@ static void DMA_Update(void)
     }
 #endif
 
+    if (CL_CaptureActive()) {
+        // recording a clip: mix exactly the samples of this video frame
+        PaintChannels(s_paintedtime + CL_CaptureAudioSamples());
+        s_was_capturing = true;
+        return;
+    }
+
     snddma->begin_painting();
 
     if (!dma.buffer)
@@ -834,6 +848,12 @@ static void DMA_Update(void)
 
     // update DMA time
     soundtime = DMA_GetTime();
+
+    // after a clip recording the mixer is far from the device position
+    if (s_was_capturing) {
+        s_was_capturing = false;
+        s_paintedtime = soundtime;
+    }
 
     // check to make sure that we haven't overshot
     if (s_paintedtime < soundtime) {

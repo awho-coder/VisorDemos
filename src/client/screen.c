@@ -2246,13 +2246,16 @@ static void SCR_Draw2D(void)
     if (cls.key_dest & KEY_MENU)
         return;
 
+    if (CL_CaptureHideHud())
+        return;     // clean video clip
+
     R_SetScale(scr.hud_scale);
 
     scr.hud_height = Q_rint(scr.hud_height * scr.hud_scale);
     scr.hud_width = Q_rint(scr.hud_width * scr.hud_scale);
 
     // crosshair has its own color and alpha
-    if (!CL_FreecamActive())
+    if (!CL_FreecamActive() && !CL_CaptureActive())
         SCR_DrawCrosshair();
 
     // the rest of 2D elements share common alpha
@@ -2273,7 +2276,7 @@ static void SCR_Draw2D(void)
         SCR_DrawInventory();
     }
 
-    if (CL_FreecamActive())
+    if (CL_FreecamActive() && !CL_CaptureActive())
         SCR_DrawString(scr.hud_width / 2, CONCHAR_HEIGHT, UI_CENTER | UI_DROPSHADOW, "CAMARA LIBRE");
 
     SCR_DrawCenterString();
@@ -2299,6 +2302,19 @@ static void SCR_Draw2D(void)
     R_SetScale(1.0f);
 }
 
+static void SCR_DrawCaptureStatus(void)
+{
+    char buf[64];
+
+    if (!CL_CaptureStatus(buf, sizeof(buf)))
+        return;
+
+    R_SetScale(scr.hud_scale);
+    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT,
+                   UI_CENTER | UI_DROPSHADOW | UI_ALTCOLOR, buf);
+    R_SetScale(1.0f);
+}
+
 static void SCR_DrawActive(void)
 {
     // if full screen menu is up, do nothing at all
@@ -2320,7 +2336,8 @@ static void SCR_DrawActive(void)
     scr.hud_height = r_config.height;
     scr.hud_width = r_config.width;
 
-    SCR_DrawDemo();
+    if (!CL_CaptureActive())
+        SCR_DrawDemo();
 
     SCR_CalcVrect();
 
@@ -2374,6 +2391,10 @@ void SCR_UpdateScreen(void)
 
     // do 3D refresh drawing
     SCR_DrawActive();
+
+    // save the clean frame to the video clip, then show recording status
+    CL_CaptureFrame();
+    SCR_DrawCaptureStatus();
 
     // draw main menu
     UI_Draw(cls.realtime);
