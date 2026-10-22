@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisorDemos — Guía de uso</title>
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --surface: #ffffff;
+    --text: #23241f;
+    --muted: #5f6157;
+    --line: #dcd8cc;
+    --accent: #5b6b2e;
+    --accent-soft: #e9edd9;
+    --warn: #8a5a00;
+    --warn-soft: #fbf0d6;
+    --code: #efece3;
+    --hud: #141511;
+    --hud-text: #e8e6dc;
+    --hud-alt: #f0a43a;
+    --mark-in: #3cdc3c;
+    --mark-out: #e63c3c;
+    --clip: rgba(255, 170, 0, .6);
+    --path: #3c8cff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171814;
+      --surface: #212219;
+      --text: #ecebe4;
+      --muted: #a9aa9c;
+      --line: #393a30;
+      --accent: #b5c77a;
+      --accent-soft: #2c3220;
+      --warn: #f0c46a;
+      --warn-soft: #3a2f17;
+      --code: #2b2c23;
+      --hud: #0b0c09;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 800px; margin: 0 auto; padding: 40px 16px 64px; }
+  .tag { color: var(--accent); font-weight: 700; letter-spacing: .08em; font-size: 13px; text-transform: uppercase; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 6px 0 10px; }
+  h2 { font-size: 23px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 18px; margin: 24px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); font-size: 18px; }
+  nav.toc {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 18px; margin: 24px 0 8px; font-size: 16px;
+  }
+  nav.toc ol { margin: 6px 0 0; padding-left: 22px; columns: 2; column-gap: 32px; }
+  nav.toc a { color: var(--text); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); text-decoration: underline; }
+  code, kbd, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  code { background: var(--code); padding: 1px 6px; border-radius: 5px; font-size: .92em; }
+  kbd {
+    display: inline-block; min-width: 1.6em; text-align: center; white-space: nowrap;
+    padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 3px;
+    border-radius: 6px; background: var(--surface); font-size: .86em; font-weight: 600;
+  }
+  pre {
+    background: var(--code); padding: 12px 16px; border-radius: 10px;
+    overflow-x: auto; font-size: 14.5px; margin: 10px 0 16px;
+  }
+  .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 16px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  td, th { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { width: 42%; }
+  th { color: var(--muted); font-weight: 600; font-size: 14px; }
+  .steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  .steps > li {
+    position: relative; padding: 14px 16px 10px 60px; margin-bottom: 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 16px; top: 13px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: var(--bg);
+    display: grid; place-items: center; font-weight: 700;
+  }
+  .note, .warn {
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+  }
+  .warn { border-left-color: var(--warn); background: var(--warn-soft); }
+
+  /* mock of the in-game timeline bar */
+  .bar {
+    background: var(--hud); color: var(--hud-text); border-radius: 8px;
+    padding: 10px 14px 12px; margin: 14px 0 6px;
+    font: 600 12px/1.3 ui-monospace, Consolas, monospace; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .bar .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 9px; }
+  .bar .mid { color: var(--hud-alt); }
+  .track { position: relative; height: 8px; background: #464646; border-radius: 2px; }
+  .track .played { position: absolute; left: 0; top: 0; bottom: 0; width: 46%; background: #c8c8c8; }
+  .track .clip { position: absolute; left: 34%; width: 24%; top: 0; bottom: 0; background: var(--clip); }
+  .track .path { position: absolute; left: 32%; width: 30%; bottom: -5px; height: 3px; background: var(--path); }
+  .track .in, .track .out, .track .head { position: absolute; top: -5px; bottom: -5px; width: 3px; }
+  .track .in { left: 34%; background: var(--mark-in); }
+  .track .out { left: 58%; background: var(--mark-out); }
+  .track .head { left: 46%; background: #fff; top: -3px; bottom: -3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; color: var(--muted); margin-bottom: 8px; }
+  .legend span::before {
+    content: ""; display: inline-block; width: 14px; height: 10px; border-radius: 2px;
+    margin-right: 6px; vertical-align: 0; background: var(--c);
+  }
+  footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 560px) {
+    h1 { font-size: 28px; }
+    nav.toc ol { columns: 1; }
+    .keys { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="tag">VisorDemos</div>
+  <h1>Guía de uso</h1>
+  <p class="lead">Cómo ver tus demos, mover la cámara y sacar clips de video para
+  armar un video en tu editor. Dentro del visor, la tecla <kbd>H</kbd> muestra un
+  resumen de las teclas.</p>
+
+  <nav class="toc">
+    <strong>Contenido</strong>
+    <ol>
+      <li><a href="#abrir">Abrir un demo</a></li>
+      <li><a href="#barra">La barra de tiempo</a></li>
+      <li><a href="#teclas">Teclas</a></li>
+      <li><a href="#clip">Hacer un clip</a></li>
+      <li><a href="#camara">Cámaras</a></li>
+      <li><a href="#recorrido">Tomas con movimiento</a></li>
+      <li><a href="#editor">Llevarlo al editor</a></li>
+      <li><a href="#ajustes">Ajustes</a></li>
+      <li><a href="#limites">Límites y consejos</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="abrir">1. Abrir un demo</h2>
+  <ul>
+    <li><strong>Doble clic</strong> en el archivo <code>.dm2</code> o <code>.mvd2</code> (si ejecutaste <code>asociar-demos.bat</code>).</li>
+    <li>O <strong>arrástralo</strong> sobre <code>VisorDemos.exe</code>.</li>
+    <li>O abre el visor, presiona <kbd>Esc</kbd> → <strong>browse demos</strong> y elige uno de la carpeta <code>dday\demos</code>.</li>
+  </ul>
+  <p>Los <code>.dm2</code> son los demos que graba cualquier jugador. Los <code>.mvd2</code>
+  los graba el servidor e incluyen a todos los jugadores.</p>
+
+  <h2 id="barra">2. La barra de tiempo</h2>
+  <p>Abajo de la pantalla siempre ves esta barra. No aparece en los videos.</p>
+  <div class="bar" role="img" aria-label="Ejemplo de la barra de tiempo del visor">
+    <div class="row">
+      <span>1:23.4 &nbsp;(46%)</span>
+      <span class="mid">Pausa &nbsp; x0.5 &nbsp; Siguiendo: TOT+Vader!</span>
+      <span>Inicio 1:01.2 &nbsp;Fin 1:47.0 &nbsp; H: ayuda</span>
+    </div>
+    <div class="track">
+      <div class="played"></div><div class="clip"></div><div class="path"></div>
+      <div class="in"></div><div class="out"></div><div class="head"></div>
+    </div>
+  </div>
+  <div class="legend">
+    <span style="--c:#c8c8c8">lo ya visto</span>
+    <span style="--c:var(--mark-in)">inicio del clip</span>
+    <span style="--c:var(--mark-out)">fin del clip</span>
+    <span style="--c:var(--clip)">el clip</span>
+    <span style="--c:var(--path)">recorrido de cámara grabado</span>
+  </div>
+  <p>A la izquierda está el tiempo del demo; al centro, el estado (pausa, velocidad,
+  tipo de cámara); a la derecha, las marcas del clip.</p>
+
+  <h2 id="teclas">3. Teclas</h2>
+  <div class="keys">
+    <div class="card">
+      <h3>Reproducción</h3>
+      <table>
+        <tr><td><kbd>↓</kbd></td><td>Pausa / continuar</td></tr>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Retroceder / adelantar 10 s</td></tr>
+        <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Más lento / más rápido (x0.1 a x4)</td></tr>
+        <tr><td><kbd>Retroceso</kbd></td><td>Velocidad normal</td></tr>
+        <tr><td><kbd>F1</kbd> mantener</td><td>Tabla de puntos del demo</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Cámara</h3>
+      <table>
+        <tr><td><kbd>↑</kbd></td><td>Cámara libre sí / no</td></tr>
+        <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> + mouse</td><td>Mover y mirar</td></tr>
+        <tr><td><kbd>Espacio</kbd> <kbd>Ctrl</kbd></td><td>Subir / bajar</td></tr>
+        <tr><td><kbd>Shift</kbd> mantener</td><td>Mover más rápido</td></tr>
+        <tr><td><kbd>E</kbd> <kbd>Q</kbd></td><td>Seguir al siguiente / anterior jugador</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Volver a la vista de quien grabó</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Clips de video</h3>
+      <table>
+        <tr><td><kbd>I</kbd></td><td>Marcar inicio</td></tr>
+        <tr><td><kbd>O</kbd></td><td>Marcar fin</td></tr>
+        <tr><td><kbd>G</kbd></td><td>Grabar el clip a video</td></tr>
+        <tr><td><kbd>Supr</kbd></td><td>Borrar las marcas</td></tr>
+        <tr><td><kbd>C</kbd></td><td>Grabar recorrido de cámara / terminar</td></tr>
+        <tr><td><kbd>V</kbd></td><td>Usar el recorrido grabado sí / no</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Otros</h3>
+      <table>
+        <tr><td><kbd>H</kbd></td><td>Ayuda en pantalla</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Menú (abrir otro demo, salir)</td></tr>
+        <tr><td><kbd>`</kbd></td><td>Consola (al lado del 1)</td></tr>
+      </table>
+    </div>
+  </div>
+  <p style="margin-top:12px;color:var(--muted);font-size:15px">Las teclas se pueden cambiar en <code>baseq2\visor.cfg</code>.</p>
+
+  <h2 id="clip">4. Hacer un clip</h2>
+  <ol class="steps">
+    <li>Busca la jugada con <kbd>←</kbd> <kbd>→</kbd> y deja el demo en pausa con <kbd>↓</kbd> un poco antes de que empiece.</li>
+    <li>Presiona <kbd>I</kbd>: marca el inicio (rayita verde).</li>
+    <li>Avanza hasta el final de la jugada y presiona <kbd>O</kbd>: marca el fin (rayita roja).</li>
+    <li>Elige la cámara (ver <a href="#camara">Cámaras</a>). Si no haces nada, el clip sale desde la vista de quien grabó.</li>
+    <li>Presiona <kbd>G</kbd>. El demo salta al inicio, graba hasta el fin y se pausa. Arriba ves <em>GRABANDO</em> con el porcentaje, y al terminar, <em>Clip guardado</em>.</li>
+  </ol>
+  <p>Los videos quedan en <code>Quake2\dday\videos\</code> con el nombre del demo y el minuto,
+  por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben.</p>
+  <div class="note">Mientras graba, el juego puede verse lento o acelerado. Es normal:
+  el video se genera cuadro a cuadro y sale fluido igual.</div>
+
+  <h2 id="camara">5. Cámaras</h2>
+  <h3>Vista de quien grabó</h3>
+  <p>La vista normal del demo. Vuelves a ella con <kbd>R</kbd>.</p>
+  <h3>Seguir a un jugador</h3>
+  <p><kbd>E</kbd> / <kbd>Q</kbd> pasan de un jugador a otro y la barra muestra
+  <em>SIGUIENDO: nombre</em>. La cámara va detrás de él; con el mouse giras alrededor
+  y luego vuelve sola a su espalda.</p>
+  <h3>Cámara libre</h3>
+  <p><kbd>↑</kbd> suelta la cámara: vuela con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+  y el mouse, sube con <kbd>Espacio</kbd> y baja con <kbd>Ctrl</kbd>. Funciona también con el
+  demo en pausa, para encuadrar con calma.</p>
+  <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
+  se ve el zoom del rifle de francotirador.</p>
+
+  <h2 id="recorrido">6. Tomas con movimiento: recorrido de cámara</h2>
+  <p>Para que el video tenga paneos o vuelos, primero "actúas" la toma y el visor la recuerda:</p>
+  <ol class="steps">
+    <li>Ve al inicio del clip y presiona <kbd>C</kbd>: arriba aparece <em>GRABANDO CAMARA</em>.</li>
+    <li>Deja correr el demo y mueve la cámara: vuela, sigue jugadores, cambia entre ellos.
+    Con <kbd>[</kbd> lo pones en cámara lenta para tener más control.</li>
+    <li>Presiona <kbd>C</kbd> otra vez para terminar. Bajo la barra queda una línea azul.</li>
+    <li>Presiona <kbd>G</kbd>: el clip repite tu recorrido, suavizado.</li>
+  </ol>
+  <p>Si un tramo no te gustó, vuelve a ese momento y regrábalo con <kbd>C</kbd>: solo se
+  reemplaza esa parte. <kbd>V</kbd> activa o desactiva el recorrido. Se guarda solo y
+  vuelve a estar ahí la próxima vez que abras el mismo demo.</p>
+
+  <h2 id="editor">7. Llevarlo al editor</h2>
+  <p>Los clips salen en <strong>MP4, 1920×1080, 60 cuadros por segundo, con sonido y sin HUD</strong>:
+  los abre cualquier editor (DaVinci Resolve, Premiere, Vegas, CapCut, Filmora, Shotcut…).</p>
+  <ol class="steps">
+    <li>Saca un clip por cada jugada.</li>
+    <li>Importa todos los clips de <code>dday\videos</code> a tu editor.</li>
+    <li>Ordénalos en la línea de tiempo y agrega música, textos y transiciones.</li>
+    <li>Exporta el video final desde el editor (1080p, 60 fps).</li>
+  </ol>
+  <div class="note"><strong>Cámara lenta:</strong> baja la velocidad con <kbd>[</kbd> antes
+  de presionar <kbd>G</kbd>. El clip sale en cámara lenta y completamente fluido, mucho mejor
+  que si lo ralentizas después en el editor.</div>
+
+  <h2 id="ajustes">8. Ajustes</h2>
+  <p>Abre la consola con <kbd>`</kbd>, escribe el ajuste y su valor, y presiona Enter.
+  Por ejemplo: <code>clip_size 2560x1440</code>. Quedan guardados.</p>
+  <table>
+    <thead><tr><th>Ajuste</th><th>Por defecto</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td><code>clip_size</code></td><td>1920x1080</td><td>Resolución del video. <code>clip_size ""</code> usa el tamaño de la ventana</td></tr>
+      <tr><td><code>clip_fps</code></td><td>60</td><td>Cuadros por segundo</td></tr>
+      <tr><td><code>clip_format</code></td><td>mp4</td><td><code>mov</code> = ProRes, calidad de edición profesional (archivos muy grandes)</td></tr>
+      <tr><td><code>clip_hud</code></td><td>0</td><td><code>1</code> = incluir el HUD del juego en el video</td></tr>
+      <tr><td><code>clip_volume</code></td><td>0.7</td><td>Volumen del sonido en el video</td></tr>
+      <tr><td><code>freecam_speed</code></td><td>300</td><td>Velocidad de la cámara libre</td></tr>
+      <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
+      <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues</td></tr>
+      <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="limites">9. Límites y consejos</h2>
+  <ul>
+    <li><strong>En un <code>.dm2</code> solo existe lo que veía quien grabó.</strong> Si alejas la
+    cámara, puede haber jugadores que no aparecen o que aparecen de golpe. Si quien grabó estaba
+    encerrado, no hay a quién seguir (<em>"No hay jugadores a la vista"</em>). Los <code>.mvd2</code>
+    traen a todos.</li>
+    <li>En algunos servidores el <code>.dm2</code> no incluye el cuerpo de quien grabó: con cámara
+    libre no se le ve.</li>
+    <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>
+    cambian de jugador. El recorrido de cámara (<kbd>C</kbd>/<kbd>V</kbd>) por ahora es solo para <code>.dm2</code>.</li>
+    <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
+    <li>Si el video sale sin sonido: en la consola, <code>s_enable 1</code> y luego <code>snd_restart</code>.</li>
+  </ul>
+
+  <footer>VisorDemos se basa en q2pro y se distribuye bajo la licencia GNU GPL.</footer>
+</main>
+</body>
+</html>

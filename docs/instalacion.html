@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisorDemos — Instalación</title>
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --surface: #ffffff;
+    --text: #23241f;
+    --muted: #5f6157;
+    --line: #dcd8cc;
+    --accent: #5b6b2e;
+    --accent-soft: #e9edd9;
+    --warn: #8a5a00;
+    --warn-soft: #fbf0d6;
+    --code: #efece3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #171814;
+      --surface: #212219;
+      --text: #ecebe4;
+      --muted: #a9aa9c;
+      --line: #393a30;
+      --accent: #b5c77a;
+      --accent-soft: #2c3220;
+      --warn: #f0c46a;
+      --warn-soft: #3a2f17;
+      --code: #2b2c23;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  header { margin-bottom: 32px; }
+  .tag { color: var(--accent); font-weight: 700; letter-spacing: .08em; font-size: 13px; text-transform: uppercase; }
+  h1 { font-size: 34px; line-height: 1.15; margin: 6px 0 10px; }
+  h2 { font-size: 22px; margin: 40px 0 12px; }
+  h3 { font-size: 18px; margin: 24px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lead { color: var(--muted); font-size: 18px; }
+  code, kbd, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  code { background: var(--code); padding: 1px 6px; border-radius: 5px; font-size: .92em; }
+  kbd {
+    display: inline-block; min-width: 1.6em; text-align: center;
+    padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 3px;
+    border-radius: 6px; background: var(--surface); font-size: .88em; font-weight: 600;
+  }
+  pre {
+    background: var(--code); padding: 14px 16px; border-radius: 10px;
+    overflow-x: auto; font-size: 14.5px; line-height: 1.5; margin: 12px 0 16px;
+  }
+  .steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+  .steps > li {
+    position: relative; padding: 18px 18px 14px 64px; margin-bottom: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 18px; top: 16px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: var(--bg);
+    display: grid; place-items: center; font-weight: 700;
+  }
+  .steps h3 { margin-top: 2px; }
+  .note, .warn {
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+  }
+  .warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .warn strong { color: var(--warn); }
+  ul.check { padding-left: 20px; }
+  ul.check li { margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 14px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  @media (max-width: 520px) {
+    h1 { font-size: 28px; }
+    .steps > li { padding-left: 56px; }
+    .steps > li::before { left: 14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="tag">VisorDemos · Windows</div>
+    <h1>Instalación</h1>
+    <p class="lead">VisorDemos es un visor de demos de Quake 2 para hacer videos:
+    reproduce demos <code>.dm2</code> y <code>.mvd2</code>, te deja mover la cámara
+    y exporta clips de video listos para editar. Instalarlo toma un par de minutos.</p>
+  </header>
+
+  <h2>Antes de empezar</h2>
+  <ul class="check">
+    <li>Windows 10 u 11 de 64 bits.</li>
+    <li>Quake 2 con el mod <strong>D-Day: Normandy</strong> ya instalado (la carpeta que tiene <code>baseq2</code> y <code>dday</code>).</li>
+    <li>El archivo <code>VisorDemos-windows-….zip</code>.</li>
+  </ul>
+  <div class="note">VisorDemos <strong>no cambia tu configuración del juego</strong>.
+  Guarda la suya en un archivo aparte (<code>visordemos.cfg</code>), así que tus teclas
+  y ajustes para jugar quedan intactos.</div>
+
+  <h2>Pasos</h2>
+  <ol class="steps">
+    <li>
+      <h3>Descomprime el .zip</h3>
+      <p>Clic derecho sobre el archivo → <em>Extraer todo…</em>. Aparece una carpeta llamada <code>VisorDemos</code>.</p>
+    </li>
+    <li>
+      <h3>Copia su contenido a tu carpeta de Quake 2</h3>
+      <p>Abre la carpeta <code>VisorDemos</code>, selecciona <strong>todo lo que hay dentro</strong>
+      y cópialo en tu carpeta de Quake 2. Si Windows pregunta por la carpeta <code>baseq2</code>,
+      acepta combinarla. Debe quedar así:</p>
+<pre>Quake2\
+  VisorDemos.exe          ← el visor
+  asociar-demos.bat
+  1-Instalacion.html      ← esta página
+  2-Guia-de-uso.html
+  LEEME.txt
+  baseq2\
+    visor.cfg             ← teclas del visor
+    q2pro.menu
+    ...                   (tus archivos de siempre)
+  dday\
+    demos\                ← tus demos
+    ...</pre>
+      <div class="warn"><strong>Importante:</strong> si tu Quake 2 está dentro de
+      <code>C:\Archivos de programa</code> (<code>Program Files</code>), Windows no deja
+      guardar los videos. En ese caso copia la carpeta de Quake 2 completa a otro lugar,
+      por ejemplo <code>C:\Juegos\Quake2</code>.</div>
+    </li>
+    <li>
+      <h3>Ábrelo por primera vez</h3>
+      <p>Doble clic en <code>VisorDemos.exe</code>. Como es un programa nuevo y sin firma
+      digital, Windows puede mostrar <em>"Windows protegió su PC"</em>. Haz clic en
+      <strong>Más información</strong> → <strong>Ejecutar de todas formas</strong>.
+      Solo pasa la primera vez.</p>
+      <p>Debe abrirse con el menú de Quake 2. Presiona <kbd>Esc</kbd> si hace falta, entra a
+      <strong>browse demos</strong> y elige un demo para comprobar que se ve bien.</p>
+    </li>
+    <li>
+      <h3>Abrir demos con doble clic <span style="font-weight:400;color:var(--muted)">(opcional)</span></h3>
+      <p>Haz doble clic en <code>asociar-demos.bat</code>. Desde ahí, cualquier archivo
+      <code>.dm2</code> o <code>.mvd2</code> se abre con VisorDemos al hacerle doble clic,
+      esté donde esté. Si Windows pregunta con qué programa abrirlo, elige <strong>VisorDemos</strong>.</p>
+    </li>
+    <li>
+      <h3>Prueba rápida</h3>
+      <p>Dentro de un demo presiona <kbd>H</kbd> para ver la ayuda. Luego haz un clip corto:
+      <kbd>I</kbd> en un momento, deja avanzar unos segundos, <kbd>O</kbd>, y después
+      <kbd>G</kbd>. Al terminar aparece <em>"Clip guardado"</em> y el video queda en:</p>
+<pre>Quake2\dday\videos\</pre>
+      <p>Ábrelo con el reproductor de Windows y revisa que se vea y <strong>se escuche</strong> bien.</p>
+    </li>
+  </ol>
+
+  <h2>Si algo no funciona</h2>
+  <table>
+    <thead><tr><th style="width:40%">Problema</th><th>Qué hacer</th></tr></thead>
+    <tbody>
+      <tr><td>No abre o se cierra al instante</td>
+          <td>Revisa que <code>VisorDemos.exe</code> esté en la misma carpeta que <code>baseq2</code> y <code>dday</code>. Actualiza los drivers de la tarjeta de video.</td></tr>
+      <tr><td>"Couldn't load map" o no se ven los mapas</td>
+          <td>El visor no está en la carpeta correcta de Quake 2, o falta el mapa de ese demo en tu <code>dday</code>.</td></tr>
+      <tr><td>No se guardan los videos</td>
+          <td>La carpeta está dentro de <em>Archivos de programa</em>: muévela (ver paso 2).</td></tr>
+      <tr><td>El video no tiene sonido</td>
+          <td>Abre la consola con <kbd>`</kbd> (la tecla al lado del 1), escribe <code>s_enable 1</code>, Enter, luego <code>snd_restart</code>, Enter, y vuelve a grabar el clip.</td></tr>
+      <tr><td>El antivirus lo bloquea</td>
+          <td>Es un programa nuevo y sin firma. Puedes permitirlo en el antivirus; el código fuente es abierto (GPL).</td></tr>
+      <tr><td>Usas otro mod, no D-Day</td>
+          <td>Crea un acceso directo a <code>VisorDemos.exe</code> y agrega al final del destino: <code>+set game nombre_del_mod</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Qué contar después de probarlo</h2>
+  <ul class="check">
+    <li>Si abre y reproduce los demos.</li>
+    <li>Si el clip exportado se ve bien y <strong>tiene sonido</strong>.</li>
+    <li>Cualquier mensaje de error: abre la consola con <kbd>`</kbd> y saca una captura.</li>
+  </ul>
+
+  <p>Para aprender a usarlo, abre <strong>Guía de uso</strong> (<code>2-Guia-de-uso.html</code>).</p>
+
+  <footer>VisorDemos se basa en q2pro y se distribuye bajo la licencia GNU GPL.</footer>
+</main>
+</body>
+</html>
