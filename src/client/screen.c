@@ -76,6 +76,7 @@ static cvar_t   *scr_lag_max;
 static cvar_t   *scr_alpha;
 
 static cvar_t   *scr_demobar;
+static cvar_t   *visor_bar;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
 
@@ -1406,6 +1407,7 @@ void SCR_Init(void)
     scr_centertime->changed(scr_centertime);
     scr_printspeed = Cvar_Get("scr_printspeed", "16", 0);
     scr_demobar = Cvar_Get("scr_demobar", "1", 0);
+    visor_bar = Cvar_Get("visor_bar", "1", 0);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
     scr_scale = Cvar_Get("scr_scale", "0", 0);
@@ -2340,7 +2342,7 @@ static void SCR_DrawVisorBar(void)
     int frame;
     bool paused;
 
-    if (!scr_demobar->integer || (cls.key_dest & KEY_MENU))
+    if (!visor_bar->integer || (cls.key_dest & KEY_MENU))
         return;
     if (!CL_DemoPosition(&frame, &prog, &paused))
         return;
@@ -2426,9 +2428,9 @@ static const char *const visor_help_lines[] = {
     "!Reproduccion",
     "Flecha abajo      Pausa / continuar",
     "Flecha izq / der  Retroceder / adelantar 10 s",
-    "[  /  ]           Mas lento / mas rapido",
+    "Z  /  X           Mas lento / mas rapido",
     "Retroceso         Velocidad normal",
-    "F1 (mantener)     Ver tabla de puntos del demo",
+    "F1 (mantener)     Tabla de puntos (si quien grabo la abrio)",
     "",
     "!Camara",
     "Flecha arriba     Camara libre si / no",

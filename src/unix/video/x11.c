@@ -361,8 +361,8 @@ static bool init(void)
 
     XSetWMHints(x11.dpy, x11.win, &wm_hints);
 
-    XStoreName(x11.dpy, x11.win, PRODUCT);
-    XSetIconName(x11.dpy, x11.win, PRODUCT);
+    XStoreName(x11.dpy, x11.win, WINDOW_TITLE);
+    XSetIconName(x11.dpy, x11.win, WINDOW_TITLE);
 
     x11.atom.delete = XA(WM_DELETE_WINDOW);
     XSetWMProtocols(x11.dpy, x11.win, &x11.atom.delete, 1);

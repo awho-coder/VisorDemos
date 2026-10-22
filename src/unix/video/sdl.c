@@ -255,7 +255,7 @@ static void shutdown(void)
 
 static bool create_window_and_context(const vrect_t *rc)
 {
-    sdl.window = SDL_CreateWindow(PRODUCT, rc->x, rc->y, rc->width, rc->height,
+    sdl.window = SDL_CreateWindow(WINDOW_TITLE, rc->x, rc->y, rc->width, rc->height,
                                   SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!sdl.window) {
         Com_EPrintf("Couldn't create SDL window: %s\n", SDL_GetError());

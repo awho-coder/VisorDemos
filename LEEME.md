@@ -86,9 +86,9 @@ Dentro del demo presiona **H** para ver la ayuda con todas las teclas.
 |---|---|
 | **Flecha abajo** | Pausa / continuar |
 | **Flecha izquierda / derecha** | Retroceder / adelantar 10 segundos |
-| **[  /  ]** | Más lento / más rápido (x0.1 a x4) |
+| **Z / X** | Más lento / más rápido (x0.1 a x4). También Av Pág / Re Pág |
 | **Retroceso** (Backspace) | Velocidad normal |
-| **F1** (mantener) | Ver la tabla de puntos del demo |
+| **F1** (mantener) | Tabla de puntos, solo si quien grabó la abrió en ese momento |
 | **Flecha arriba** | Cámara libre sí / no |
 | **W A S D + mouse** | Mover y mirar con la cámara libre |
 | **Espacio / Ctrl** | Subir / bajar |
@@ -139,7 +139,7 @@ a cuadro.
 1. Ve al inicio del clip y presiona **C**: empieza a grabar la cámara.
 2. Deja correr el demo y mueve la cámara como quieras (vuela con la cámara
    libre, sigue jugadores, cambia entre ellos). Puedes usar cámara lenta
-   (**[**) para tener más control.
+   (**Z**) para tener más control.
 3. Presiona **C** de nuevo para terminar. El recorrido se guarda solo.
 4. Presiona **G**: el clip repite tu recorrido, suavizado.
 
@@ -159,7 +159,7 @@ Shotcut, Kdenlive, DaVinci Resolve en Windows y Mac.
 - Importa los clips, ordénalos en la línea de tiempo y agrega música,
   textos y transiciones.
 - Para cámara lenta extra en el editor conviene grabar el clip ya en cámara
-  lenta dentro del visor (**[** antes de **G**): queda fluido porque se
+  lenta dentro del visor (**Z** antes de **G**): queda fluido porque se
   generan todos los cuadros.
 - Graba los clips **sin HUD** (es lo predeterminado) y agrega los textos en
   el editor. Si quieres el HUD del juego en el video: `clip_hud 1` en la

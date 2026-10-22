@@ -801,7 +801,7 @@ static bool init(void)
 
     CHECK_UNK(wl.libdecor = libdecor_new(wl.display, &libdecor_interface), "libdecor_new");
     CHECK_UNK(wl.frame = libdecor_decorate(wl.libdecor, wl.surface, &frame_interface, NULL), "libdecor_decorate");
-    libdecor_frame_set_title(wl.frame, PRODUCT);
+    libdecor_frame_set_title(wl.frame, WINDOW_TITLE);
     libdecor_frame_set_app_id(wl.frame, APPLICATION);
     libdecor_frame_set_min_content_size(wl.frame, 320, 240);
 

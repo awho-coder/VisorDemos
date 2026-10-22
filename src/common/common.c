@@ -1201,6 +1201,10 @@ void Qcommon_Init(int argc, char **argv)
     Com_Printf("====== " PRODUCT " initialized ======\n\n");
     Com_NPrintf(APPLICATION " " VERSION ", " __DATE__ "\n");
     Com_Printf("https://github.com/skullernet/q2pro\n\n");
+#if USE_CLIENT
+    Com_Printf("VisorDemos - visor de demos para hacer videos. Abre un demo y presiona H.\n"
+               "https://github.com/awho-coder/VisorDemos\n\n");
+#endif
     Com_DPrintf("Compiled features: %s\n", Com_GetFeatures());
 
     time(&com_startTime);

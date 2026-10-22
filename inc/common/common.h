@@ -26,6 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 
 #define PRODUCT         "Q2PRO"
+#define WINDOW_TITLE    "VisorDemos"   // window caption, so it is not confused with a normal Q2PRO
 
 #if USE_CLIENT
 #define APPLICATION     "q2pro"
