@@ -2276,7 +2276,7 @@ static void SCR_Draw2D(void)
         SCR_DrawInventory();
     }
 
-    if (CL_FreecamActive() && !CL_CaptureActive())
+    if (CL_FreecamFlying() && !CL_CaptureActive())
         SCR_DrawString(scr.hud_width / 2, CONCHAR_HEIGHT, UI_CENTER | UI_DROPSHADOW, "CAMARA LIBRE");
 
     SCR_DrawCenterString();
@@ -2302,17 +2302,193 @@ static void SCR_Draw2D(void)
     R_SetScale(1.0f);
 }
 
-static void SCR_DrawCaptureStatus(void)
+/*
+===============================================================================
+
+VISOR OVERLAY
+
+Drawn after the frame was captured, so none of this ends up in video clips.
+
+===============================================================================
+*/
+
+static void format_demo_time(char *buf, size_t size, int frame)
+{
+    if (frame < 0)
+        Q_strlcpy(buf, "--", size);
+    else
+        Q_snprintf(buf, size, "%d:%02d.%d", frame / 600, frame / 10 % 60, frame % 10);
+}
+
+#define VISOR_BG        MakeColor(  0,   0,   0, 160)
+#define VISOR_TRACK     MakeColor( 70,  70,  70, 255)
+#define VISOR_PLAYED    MakeColor(200, 200, 200, 255)
+#define VISOR_CLIP      MakeColor(255, 170,   0, 150)
+#define VISOR_IN        MakeColor( 60, 220,  60, 255)
+#define VISOR_OUT       MakeColor(230,  60,  60, 255)
+#define VISOR_HEAD      MakeColor(255, 255, 255, 255)
+
+static void SCR_DrawVisorBar(void)
+{
+    char left[64], mid[96], right[96], t_in[16], t_out[16];
+    int W = r_config.width, H = r_config.height;
+    int ch, pad, bar_h, strip_h, y0, ty, tx0, tx1, tw;
+    float s = scr.hud_scale, prog;
+    int in = CL_ClipMarkIn(), out = CL_ClipMarkOut();
+    bool paused;
+
+    if (!cls.demo.playback || cls.demo.compat || !scr_demobar->integer)
+        return;
+    if (cls.state != ca_active || (cls.key_dest & KEY_MENU))
+        return;
+
+    ch = Q_rint(CONCHAR_HEIGHT / s);
+    pad = max(ch / 2, 2);
+    bar_h = max(ch / 2, 4);
+    strip_h = pad + ch + pad + bar_h + pad;
+    y0 = H - strip_h;
+
+    // background strip
+    R_DrawFill32(0, y0, W, strip_h, VISOR_BG);
+
+    // timeline track
+    tx0 = pad * 2;
+    tx1 = W - pad * 2;
+    tw = tx1 - tx0;
+    ty = y0 + pad + ch + pad;
+    prog = Q_clipf(cls.demo.file_progress, 0, 1);
+
+    R_DrawFill32(tx0, ty, tw, bar_h, VISOR_TRACK);
+    R_DrawFill32(tx0, ty, Q_rint(tw * prog), bar_h, VISOR_PLAYED);
+
+    if (in >= 0) {
+        int xi = tx0 + Q_rint(tw * CL_ClipMarkPos(false));
+        int xo = out >= 0 ? tx0 + Q_rint(tw * CL_ClipMarkPos(true)) : tx1;
+        R_DrawFill32(xi, ty, max(xo - xi, 1), bar_h, VISOR_CLIP);
+        R_DrawFill32(xi - 1, ty - pad, 3, bar_h + pad * 2, VISOR_IN);
+    }
+    if (out >= 0) {
+        int xo = tx0 + Q_rint(tw * CL_ClipMarkPos(true));
+        R_DrawFill32(xo - 1, ty - pad, 3, bar_h + pad * 2, VISOR_OUT);
+    }
+    R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
+
+    // text line
+    paused = sv_paused->integer && cl_paused->integer;
+
+    format_demo_time(t_in, sizeof(t_in), cls.demo.frames_read);
+    Q_snprintf(left, sizeof(left), "%s  (%d%%)", t_in, Q_rint(prog * 100));
+
+    mid[0] = 0;
+    if (paused)
+        Q_strlcat(mid, "PAUSA   ", sizeof(mid));
+    if (CL_DemoSpeed() != 1.0f)
+        Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
+    if (CL_FreecamFlying())
+        Q_strlcat(mid, "CAMARA LIBRE", sizeof(mid));
+    else if (CL_ChaseTargetName())
+        Q_strlcat(mid, va("SIGUIENDO: %s", CL_ChaseTargetName()), sizeof(mid));
+
+    format_demo_time(t_in, sizeof(t_in), in);
+    format_demo_time(t_out, sizeof(t_out), out);
+    Q_snprintf(right, sizeof(right), "INICIO %s  FIN %s   H: ayuda", t_in, t_out);
+
+    R_SetScale(s);
+    {
+        int y = Q_rint((y0 + pad) * s);
+        int w = Q_rint(W * s);
+        int x = Q_rint(tx0 * s);
+
+        SCR_DrawString(x, y, 0, left);
+        SCR_DrawString(w / 2, y, UI_CENTER | UI_ALTCOLOR, mid);
+        SCR_DrawString(w - x, y, UI_RIGHT, right);
+    }
+    R_SetScale(1.0f);
+}
+
+static const char *const visor_help_lines[] = {
+    "!VISOR DE DEMOS - AYUDA",
+    "",
+    "!Reproduccion",
+    "Flecha abajo      Pausa / continuar",
+    "Flecha izq / der  Retroceder / adelantar 10 s",
+    "[  /  ]           Mas lento / mas rapido",
+    "Retroceso         Velocidad normal",
+    "F1 (mantener)     Ver tabla de puntos del demo",
+    "",
+    "!Camara",
+    "Flecha arriba     Camara libre si / no",
+    "W A S D + mouse   Mover y mirar (camara libre)",
+    "Espacio / Ctrl    Subir / bajar",
+    "Shift (mantener)  Mover mas rapido",
+    "E / Q             Seguir al siguiente / anterior jugador",
+    "R                 Volver a la vista de quien grabo",
+    "",
+    "!Clips de video",
+    "I                 Marcar inicio del clip",
+    "O                 Marcar fin del clip",
+    "G                 Grabar el clip a video",
+    "Supr              Borrar marcas",
+    "",
+    "!Otros",
+    "H                 Mostrar / ocultar esta ayuda",
+    "Esc               Menu (Demos: abrir otro demo)",
+    "",
+    "Los videos se guardan en la carpeta  videos/",
+};
+
+static void SCR_DrawVisorHelp(void)
+{
+    int i, n = q_countof(visor_help_lines);
+    int lw = 0, x, y, w, h;
+    float s = scr.hud_scale;
+
+    if (!CL_VisorHelpVisible() || (cls.key_dest & KEY_MENU))
+        return;
+
+    for (i = 0; i < n; i++)
+        lw = max(lw, (int)strlen(visor_help_lines[i]));
+
+    R_SetScale(s);
+    w = Q_rint(r_config.width * s);
+    h = Q_rint(r_config.height * s);
+
+    x = (w - lw * CONCHAR_WIDTH) / 2;
+    y = (h - n * CONCHAR_HEIGHT) / 2;
+    R_SetScale(1.0f);
+
+    R_DrawFill32(Q_rint((x - CONCHAR_WIDTH * 2) / s), Q_rint((y - CONCHAR_HEIGHT) / s),
+                 Q_rint((lw + 4) * CONCHAR_WIDTH / s), Q_rint((n + 2) * CONCHAR_HEIGHT / s),
+                 MakeColor(0, 0, 0, 200));
+
+    R_SetScale(s);
+    for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
+        const char *line = visor_help_lines[i];
+        if (*line == '!')
+            SCR_DrawString(x, y, UI_ALTCOLOR, line + 1);
+        else
+            SCR_DrawString(x, y, 0, line);
+    }
+    R_SetScale(1.0f);
+}
+
+static void SCR_DrawVisorOverlay(void)
 {
     char buf[64];
 
-    if (!CL_CaptureStatus(buf, sizeof(buf)))
+    if (cls.state != ca_active)
         return;
 
-    R_SetScale(scr.hud_scale);
-    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT,
-                   UI_CENTER | UI_DROPSHADOW | UI_ALTCOLOR, buf);
-    R_SetScale(1.0f);
+    SCR_DrawVisorBar();
+
+    if (CL_CaptureStatus(buf, sizeof(buf))) {
+        R_SetScale(scr.hud_scale);
+        SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT * 2,
+                       UI_CENTER | UI_DROPSHADOW | UI_ALTCOLOR, buf);
+        R_SetScale(1.0f);
+    }
+
+    SCR_DrawVisorHelp();
 }
 
 static void SCR_DrawActive(void)
@@ -2336,7 +2512,8 @@ static void SCR_DrawActive(void)
     scr.hud_height = r_config.height;
     scr.hud_width = r_config.width;
 
-    if (!CL_CaptureActive())
+    // DM2 playback uses the visor timeline overlay instead
+    if (!CL_CaptureActive() && !cls.demo.playback)
         SCR_DrawDemo();
 
     SCR_CalcVrect();
@@ -2394,7 +2571,7 @@ void SCR_UpdateScreen(void)
 
     // save the clean frame to the video clip, then show recording status
     CL_CaptureFrame();
-    SCR_DrawCaptureStatus();
+    SCR_DrawVisorOverlay();
 
     // draw main menu
     UI_Draw(cls.realtime);

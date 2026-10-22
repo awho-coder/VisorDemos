@@ -38,6 +38,7 @@ static cvar_t   *clip_size;
 
 static struct {
     int     in, out;            // demo frame marks, -1 if unset
+    float   in_pos, out_pos;    // position in the demo file (0..1), for the timeline
 } marks = { -1, -1 };
 
 #if USE_AVCODEC
@@ -63,6 +64,7 @@ static struct {
     int64_t     time_ms;        // ms issued so far
     int64_t     audio_target;   // samples that should exist after this frame
     int64_t     audio_painted;  // samples mixed so far
+    float       game_frac;      // leftover game time when playing slow/fast
 
     // video
     AVFormatContext     *oc;
@@ -128,6 +130,7 @@ unsigned CL_CaptureFrameMsec(void)
 {
     int64_t next;
     unsigned msec;
+    float scaled;
 
     cap.ticks++;
     next = cap.ticks * 1000 / cap.fps;
@@ -137,7 +140,13 @@ unsigned CL_CaptureFrameMsec(void)
     if (cap.rate)
         cap.audio_target = cap.ticks * cap.rate / cap.fps;
 
-    return msec;
+    // slow motion / fast forward: the video keeps its frame rate, the game
+    // advances by a scaled amount
+    cap.game_frac += msec * CL_DemoSpeed();
+    scaled = floorf(cap.game_frac);
+    cap.game_frac -= scaled;
+
+    return scaled;
 }
 
 /*
@@ -778,6 +787,7 @@ static void format_frame(char *buf, size_t size, int frame)
 
 int CL_ClipMarkIn(void)  { return marks.in; }
 int CL_ClipMarkOut(void) { return marks.out; }
+float CL_ClipMarkPos(bool out) { return out ? marks.out_pos : marks.in_pos; }
 
 void CL_ClipClearMarks(void)
 {
@@ -801,6 +811,7 @@ static void Clip_In_f(void)
         return;
 
     marks.in = cls.demo.frames_read;
+    marks.in_pos = cls.demo.file_progress;
     if (marks.out >= 0 && marks.out <= marks.in)
         marks.out = -1;
 
@@ -821,6 +832,7 @@ static void Clip_Out_f(void)
     }
 
     marks.out = cls.demo.frames_read;
+    marks.out_pos = cls.demo.file_progress;
     format_frame(buf, sizeof(buf), marks.out);
     SCR_CenterPrint(va("Fin del clip: %s", buf), false);
 }

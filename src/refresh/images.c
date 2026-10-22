@@ -953,7 +953,7 @@ static void my_png_warning_fn(png_structp png_ptr, png_const_charp warning_msg)
     my_png_error *err = png_get_error_ptr(png_ptr);
 
     if (err->filename)
-        Com_WPrintf("libpng: %s: %s\n", err->filename, warning_msg);
+        Com_DPrintf("libpng: %s: %s\n", err->filename, warning_msg);  // harmless metadata warnings
 }
 
 static int my_png_read_header(png_structp png_ptr, png_infop info_ptr,

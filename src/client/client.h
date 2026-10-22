@@ -771,7 +771,16 @@ void CL_CaptureFrame(void);
 bool CL_CaptureStatus(char *buf, size_t size);
 int  CL_ClipMarkIn(void);
 int  CL_ClipMarkOut(void);
+float CL_ClipMarkPos(bool out);
 void CL_ClipClearMarks(void);
+
+
+//
+// visor.c
+//
+void CL_InitVisor(void);
+bool CL_VisorHelpVisible(void);
+float CL_DemoSpeed(void);
 
 
 //
@@ -781,6 +790,8 @@ void CL_InitFreecam(void);
 void CL_FreecamReset(void);
 bool CL_FreecamActive(void);
 bool CL_FreecamHideHud(void);
+bool CL_FreecamFlying(void);
+const char *CL_ChaseTargetName(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
 

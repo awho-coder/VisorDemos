@@ -12,29 +12,54 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 */
 
-// freecam.c -- free (detached) camera for demo playback
+// freecam.c -- detached cameras for demo playback
 //
-// While active, the view no longer follows the player who recorded the demo.
-// The camera flies with the usual movement binds (+forward, +moveleft,
-// +moveup...) and looks around with the mouse. It keeps working while the
-// demo is paused, so shots can be framed on a frozen moment.
+// Three camera modes while watching a DM2 demo:
+//   off    - the view of the player who recorded the demo (normal q2pro)
+//   free   - fly anywhere with the movement binds, look with the mouse
+//   chase  - follow any player from behind; the mouse orbits around them
+//            and the camera eases back behind the player on its own
+// Both detached modes keep working while the demo is paused.
 
 #include "client.h"
 
+typedef enum {
+    CAM_OFF,
+    CAM_FREE,
+    CAM_CHASE
+} cammode_t;
+
 static struct {
-    bool    enabled;
-    vec3_t  origin;
-    vec3_t  velocity;
+    cammode_t   mode;
+    vec3_t      origin;     // current camera position
+    vec3_t      velocity;   // free camera
+    int         target;     // chase: entity number
+    vec3_t      target_pos; // chase: last known position of the target
+    bool        target_seen;
 } fc;
 
 static cvar_t   *freecam_speed;
 static cvar_t   *freecam_fast;
 static cvar_t   *freecam_smooth;
 static cvar_t   *freecam_hud;
+static cvar_t   *chase_dist;
+static cvar_t   *chase_height;
+static cvar_t   *chase_auto;
 
+// any detached camera (free or chase)
 bool CL_FreecamActive(void)
 {
-    return fc.enabled && cls.demo.playback && cls.state == ca_active;
+    return fc.mode != CAM_OFF && cls.demo.playback && cls.state == ca_active;
+}
+
+static bool free_active(void)
+{
+    return fc.mode == CAM_FREE && CL_FreecamActive();
+}
+
+static bool chase_active(void)
+{
+    return fc.mode == CAM_CHASE && CL_FreecamActive();
 }
 
 // true when the recorder's HUD (stats, layouts, crosshair) should be hidden
@@ -43,39 +68,89 @@ bool CL_FreecamHideHud(void)
     return CL_FreecamActive() && !freecam_hud->integer;
 }
 
+// shown on the timeline; NULL when not chasing
+const char *CL_ChaseTargetName(void)
+{
+    const char *name;
+
+    if (!chase_active())
+        return NULL;
+
+    name = cl.clientinfo[(fc.target - 1) & 0xff].name;
+    if (!*name)
+        name = va("jugador %d", fc.target);
+    if (!fc.target_seen)
+        return va("%s (fuera de vista)", name);
+    return name;
+}
+
+bool CL_FreecamFlying(void)
+{
+    return free_active();
+}
+
 void CL_FreecamReset(void)
 {
-    fc.enabled = false;
+    fc.mode = CAM_OFF;
+    fc.target = 0;
     VectorClear(fc.velocity);
 }
 
-static void Freecam_Set(bool enable)
+static bool can_detach(void)
 {
-    if (enable && (!cls.demo.playback || cls.state != ca_active)) {
-        Com_Printf("freecam: only available while playing a demo.\n");
-        enable = false;
+    if (!cls.demo.playback || cls.state != ca_active) {
+        Com_Printf("La camara solo se puede mover al ver un demo .dm2.\n");
+        return false;
     }
+    return true;
+}
 
-    if (enable && !fc.enabled) {
+static void normalize_view_angles(void)
+{
+    if (cl.viewangles[PITCH] > 180)
+        cl.viewangles[PITCH] -= 360;
+    cl.viewangles[PITCH] = Q_clipf(cl.viewangles[PITCH], -89, 89);
+    cl.viewangles[ROLL] = 0;
+}
+
+static void set_mode(cammode_t mode)
+{
+    if (mode != CAM_OFF && fc.mode == CAM_OFF) {
         // start from wherever the view currently is
         VectorCopy(cl.refdef.vieworg, fc.origin);
         VectorCopy(cl.refdef.viewangles, cl.viewangles);
-        if (cl.viewangles[PITCH] > 180)
-            cl.viewangles[PITCH] -= 360;
-        cl.viewangles[ROLL] = 0;
-        VectorClear(fc.velocity);
+        normalize_view_angles();
     }
 
-    fc.enabled = enable;
+    if (mode == CAM_FREE)
+        VectorClear(fc.velocity);
+
+    fc.mode = mode;
     IN_Activate();  // grab or release the mouse
 }
 
+/*
+===============================================================================
+
+FREE CAMERA
+
+===============================================================================
+*/
+
 static void Freecam_f(void)
 {
+    bool enable;
+
     if (Cmd_Argc() > 1)
-        Freecam_Set(Q_atoi(Cmd_Argv(1)));
+        enable = Q_atoi(Cmd_Argv(1));
     else
-        Freecam_Set(!fc.enabled);
+        enable = fc.mode != CAM_FREE;
+
+    if (enable && !can_detach())
+        return;
+
+    // from chase mode the free camera starts where the chase camera was
+    set_mode(enable ? CAM_FREE : CAM_OFF);
 }
 
 /*
@@ -94,10 +169,12 @@ void CL_FreecamMove(int msec, const vec3_t dir, bool fast)
     if (msec <= 0)
         return;
 
-    dt = msec * 0.001f;
+    normalize_view_angles();
 
-    cl.viewangles[PITCH] = Q_clipf(cl.viewangles[PITCH], -89, 89);
-    cl.viewangles[ROLL] = 0;
+    if (!free_active())
+        return;     // chase camera only uses the mouse
+
+    dt = msec * 0.001f;
 
     // fly where you look; up/down is always world vertical
     AngleVectors(cl.viewangles, forward, right, NULL);
@@ -125,10 +202,141 @@ void CL_FreecamMove(int msec, const vec3_t dir, bool fast)
 }
 
 /*
+===============================================================================
+
+CHASE CAMERA
+
+===============================================================================
+*/
+
+static bool is_player_entity(int num)
+{
+    const centity_t *ent;
+
+    if (num < 1 || num > cl.maxclients)
+        return false;   // bodies and other entities
+
+    ent = &cl_entities[num];
+    return ent->serverframe == cl.frame.number &&
+           ent->current.modelindex == MODELINDEX_PLAYER;
+}
+
+// position of a player entity this frame, false if not in the demo now
+static bool player_position(int num, vec3_t out, float *yaw)
+{
+    const centity_t *ent;
+
+    if (!is_player_entity(num))
+        return false;
+
+    ent = &cl_entities[num];
+    if (num == cl.frame.clientNum + 1) {
+        VectorCopy(cl.playerEntityOrigin, out);
+        *yaw = cl.playerEntityAngles[YAW];
+    } else {
+        LerpVector(ent->prev.origin, ent->current.origin, cl.lerpfrac, out);
+        *yaw = LerpAngle(ent->prev.angles[YAW], ent->current.angles[YAW], cl.lerpfrac);
+    }
+    return true;
+}
+
+static void chase_cycle(int dir)
+{
+    int start, num, max_ent;
+    vec3_t pos;
+    float yaw;
+
+    if (!can_detach())
+        return;
+
+    max_ent = cl.maxclients;
+    if (max_ent < 1) {
+        Com_Printf("No hay jugadores en este demo.\n");
+        return;
+    }
+
+    start = chase_active() ? fc.target : (dir > 0 ? 0 : max_ent + 1);
+    num = start;
+
+    for (int i = 0; i < max_ent; i++) {
+        num += dir;
+        if (num > max_ent)
+            num = 1;
+        else if (num < 1)
+            num = max_ent;
+
+        if (player_position(num, pos, &yaw)) {
+            set_mode(CAM_CHASE);
+            fc.target = num;
+            fc.target_seen = true;
+            VectorCopy(pos, fc.target_pos);
+            cl.viewangles[YAW] = yaw;
+            cl.viewangles[PITCH] = 15;
+            return;
+        }
+    }
+
+    Com_Printf("No hay jugadores a la vista en este momento.\n"
+               "(El demo solo trae a los jugadores que veia quien lo grabo.)\n");
+    SCR_CenterPrint("No hay jugadores a la vista", false);
+}
+
+static void Chase_Next_f(void) { chase_cycle(1); }
+static void Chase_Prev_f(void) { chase_cycle(-1); }
+
+static void Camera_Reset_f(void)
+{
+    set_mode(CAM_OFF);
+}
+
+// shortest signed difference between two angles, in -180..180
+static float angle_delta(float to, float from)
+{
+    float d = fmodf(to - from, 360.0f);
+    if (d > 180)
+        d -= 360;
+    else if (d < -180)
+        d += 360;
+    return d;
+}
+
+static void chase_view(void)
+{
+    static const vec3_t mins = { -4, -4, -4 };
+    static const vec3_t maxs = {  4,  4,  4 };
+    static unsigned last_time;
+    vec3_t focus, forward, wanted;
+    trace_t trace;
+    float yaw, dt;
+
+    dt = (cls.realtime - last_time) * 0.001f;
+    last_time = cls.realtime;
+    dt = Q_clipf(dt, 0, 0.1f);
+
+    fc.target_seen = player_position(fc.target, fc.target_pos, &yaw);
+
+    // drift back behind the player unless the mouse is pointing elsewhere
+    if (fc.target_seen && chase_auto->value > 0) {
+        float delta = angle_delta(yaw, cl.viewangles[YAW]);
+        cl.viewangles[YAW] += delta * (1.0f - expf(-dt / chase_auto->value));
+    }
+
+    VectorCopy(fc.target_pos, focus);
+    focus[2] += chase_height->value;
+
+    AngleVectors(cl.viewangles, forward, NULL, NULL);
+    VectorMA(focus, -Cvar_ClampValue(chase_dist, 16, 1000), forward, wanted);
+
+    // don't go through walls
+    CL_Trace(&trace, focus, wanted, mins, maxs, CONTENTS_SOLID);
+    VectorCopy(trace.endpos, fc.origin);
+}
+
+/*
 ===============
 CL_FreecamView
 
-Overrides the computed view with the free camera. Called at the end of
+Overrides the computed view with the detached camera. Called at the end of
 CL_CalcViewValues, after the player entity position has been worked out.
 ===============
 */
@@ -136,6 +344,9 @@ void CL_FreecamView(void)
 {
     if (!CL_FreecamActive())
         return;
+
+    if (fc.mode == CAM_CHASE)
+        chase_view();
 
     VectorCopy(fc.origin, cl.refdef.vieworg);
     VectorCopy(cl.viewangles, cl.refdef.viewangles);
@@ -148,6 +359,9 @@ void CL_FreecamView(void)
 
 static const cmdreg_t c_freecam[] = {
     { "freecam", Freecam_f },
+    { "chase_next", Chase_Next_f },
+    { "chase_prev", Chase_Prev_f },
+    { "camera_reset", Camera_Reset_f },
     { NULL }
 };
 
@@ -157,6 +371,9 @@ void CL_InitFreecam(void)
     freecam_fast = Cvar_Get("freecam_fast", "3", CVAR_ARCHIVE);
     freecam_smooth = Cvar_Get("freecam_smooth", "0.15", CVAR_ARCHIVE);
     freecam_hud = Cvar_Get("freecam_hud", "0", CVAR_ARCHIVE);
+    chase_dist = Cvar_Get("chase_dist", "110", CVAR_ARCHIVE);
+    chase_height = Cvar_Get("chase_height", "28", CVAR_ARCHIVE);
+    chase_auto = Cvar_Get("chase_auto", "0.6", CVAR_ARCHIVE);
 
     Cmd_Register(c_freecam);
 }
