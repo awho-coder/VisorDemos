@@ -2327,6 +2327,8 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_IN        MakeColor( 60, 220,  60, 255)
 #define VISOR_OUT       MakeColor(230,  60,  60, 255)
 #define VISOR_HEAD      MakeColor(255, 255, 255, 255)
+#define VISOR_PATH      MakeColor( 60, 140, 255, 255)
+#define VISOR_REC       MakeColor(255,  40,  40, 255)
 
 static void SCR_DrawVisorBar(void)
 {
@@ -2371,6 +2373,16 @@ static void SCR_DrawVisorBar(void)
         int xo = tx0 + Q_rint(tw * CL_ClipMarkPos(true));
         R_DrawFill32(xo - 1, ty - pad, 3, bar_h + pad * 2, VISOR_OUT);
     }
+    {
+        // camera path coverage, as a thin line under the track
+        float p0, p1;
+        if (CL_CamPathRange(&p0, &p1)) {
+            int xa = tx0 + Q_rint(tw * Q_clipf(p0, 0, 1));
+            int xb = tx0 + Q_rint(tw * Q_clipf(p1, 0, 1));
+            R_DrawFill32(xa, ty + bar_h, max(xb - xa, 1), max(pad / 2, 2),
+                         CL_CamPathRecording() ? VISOR_REC : VISOR_PATH);
+        }
+    }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
     // text line
@@ -2384,8 +2396,12 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, "PAUSA   ", sizeof(mid));
     if (CL_DemoSpeed() != 1.0f)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
+    if (CL_CamPathRecording())
+        Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
     if (CL_FreecamFlying())
         Q_strlcat(mid, "CAMARA LIBRE", sizeof(mid));
+    else if (CL_FreecamActive() && !CL_ChaseTargetName())
+        Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
     else if (CL_ChaseTargetName())
         Q_strlcat(mid, va("SIGUIENDO: %s", CL_ChaseTargetName()), sizeof(mid));
 
@@ -2423,11 +2439,14 @@ static const char *const visor_help_lines[] = {
     "Shift (mantener)  Mover mas rapido",
     "E / Q             Seguir al siguiente / anterior jugador",
     "R                 Volver a la vista de quien grabo",
+    "C                 Grabar recorrido de camara / terminar",
+    "V                 Usar recorrido grabado si / no",
     "",
     "!Clips de video",
     "I                 Marcar inicio del clip",
     "O                 Marcar fin del clip",
     "G                 Grabar el clip a video",
+    "                  (usa el recorrido de camara si hay uno)",
     "Supr              Borrar marcas",
     "",
     "!Otros",

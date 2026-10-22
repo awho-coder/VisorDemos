@@ -37,6 +37,7 @@ common_src = [
 
 client_src = [
   'src/client/ascii.c',
+  'src/client/campath.c',
   'src/client/capture.c',
   'src/client/console.c',
   'src/client/demo.c',

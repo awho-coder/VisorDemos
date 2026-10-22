@@ -2711,6 +2711,7 @@ static void CL_InitLocal(void)
     CL_InitFreecam();
     CL_InitCapture();
     CL_InitVisor();
+    CL_InitCamPath();
     LOC_Init();
     CL_InitAscii();
     CL_InitEffects();

@@ -624,6 +624,9 @@ static bool capture_start(const char *name)
         return false;
     }
 
+    if (CL_CamPathRecording())
+        Cmd_ExecuteString(&cmd_buffer, "campath_record");
+
     memset(&cap, 0, sizeof(cap));
 
     if (!capture_open(name))

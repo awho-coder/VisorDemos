@@ -46,20 +46,28 @@ static cvar_t   *chase_dist;
 static cvar_t   *chase_height;
 static cvar_t   *chase_auto;
 
-// any detached camera (free or chase)
-bool CL_FreecamActive(void)
+static bool     path_driving;   // a recorded camera path moves the view
+
+// camera moved by the user right now (free or chase)
+static bool live_active(void)
 {
     return fc.mode != CAM_OFF && cls.demo.playback && cls.state == ca_active;
 }
 
+// any detached camera: live, or played back from a recorded path
+bool CL_FreecamActive(void)
+{
+    return live_active() || (path_driving && cls.demo.playback && cls.state == ca_active);
+}
+
 static bool free_active(void)
 {
-    return fc.mode == CAM_FREE && CL_FreecamActive();
+    return fc.mode == CAM_FREE && live_active();
 }
 
 static bool chase_active(void)
 {
-    return fc.mode == CAM_CHASE && CL_FreecamActive();
+    return fc.mode == CAM_CHASE && live_active();
 }
 
 // true when the recorder's HUD (stats, layouts, crosshair) should be hidden
@@ -342,19 +350,35 @@ CL_CalcViewValues, after the player entity position has been worked out.
 */
 void CL_FreecamView(void)
 {
-    if (!CL_FreecamActive())
+    vec3_t org, ang;
+
+    path_driving = false;
+
+    if (!cls.demo.playback || cls.state != ca_active)
         return;
 
-    if (fc.mode == CAM_CHASE)
-        chase_view();
+    if (live_active()) {
+        // the user is moving the camera
+        if (fc.mode == CAM_CHASE)
+            chase_view();
+        VectorCopy(fc.origin, cl.refdef.vieworg);
+        VectorCopy(cl.viewangles, cl.refdef.viewangles);
+    } else if (CL_CamPathView(org, ang)) {
+        // a recorded camera path covers this moment
+        path_driving = true;
+        VectorCopy(org, cl.refdef.vieworg);
+        VectorCopy(ang, cl.refdef.viewangles);
+    }
 
-    VectorCopy(fc.origin, cl.refdef.vieworg);
-    VectorCopy(cl.viewangles, cl.refdef.viewangles);
-    AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
+    if (CL_FreecamActive()) {
+        AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
 
-    // the recorder's damage flashes and underwater tint don't belong here
-    Vector4Clear(cl.refdef.screen_blend);
-    Vector4Clear(cl.refdef.damage_blend);
+        // the recorder's damage flashes and underwater tint don't belong here
+        Vector4Clear(cl.refdef.screen_blend);
+        Vector4Clear(cl.refdef.damage_blend);
+    }
+
+    CL_CamPathRecord(live_active());
 }
 
 static const cmdreg_t c_freecam[] = {

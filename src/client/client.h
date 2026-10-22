@@ -776,6 +776,17 @@ void CL_ClipClearMarks(void);
 
 
 //
+// campath.c
+//
+void CL_InitCamPath(void);
+void CL_CamPathRecord(bool detached);
+bool CL_CamPathView(vec3_t org, vec3_t ang);
+bool CL_CamPathRecording(void);
+bool CL_CamPathPlaying(void);
+bool CL_CamPathRange(float *start, float *end);
+
+
+//
 // visor.c
 //
 void CL_InitVisor(void);
