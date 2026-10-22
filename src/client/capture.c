@@ -34,6 +34,7 @@ static cvar_t   *clip_format;
 static cvar_t   *clip_quality;
 static cvar_t   *clip_hud;
 static cvar_t   *clip_volume;
+static cvar_t   *clip_size;
 
 static struct {
     int     in, out;            // demo frame marks, -1 if unset
@@ -72,6 +73,8 @@ static struct {
     AVPacket            *pkt;
     byte                *rgba;
     int                 src_w, src_h;   // render size
+    int                 crop_x, crop_y; // source region kept (top-left)
+    int                 crop_w, crop_h;
     int                 width, height;  // encoded size (even)
     int64_t             vframes;
 
@@ -281,7 +284,7 @@ static bool open_video(bool prores)
     if (av_frame_get_buffer(cap.vframe, 0) < 0)
         return false;
 
-    cap.sws = sws_getContext(cap.width, cap.height, AV_PIX_FMT_RGBA,
+    cap.sws = sws_getContext(cap.crop_w, cap.crop_h, AV_PIX_FMT_RGBA,
                              cap.width, cap.height, c->pix_fmt,
                              SWS_BICUBIC, NULL, NULL, NULL);
     if (!cap.sws)
@@ -448,6 +451,24 @@ static void free_encoder(void)
     cap.vst = cap.ast = NULL;
 }
 
+// "1920x1080" -> 1920, 1080; empty means "same as the window"
+static bool parse_size(const char *s, int *w, int *h)
+{
+    char *p;
+    long x, y;
+
+    x = strtol(s, &p, 10);
+    if (p == s || (*p != 'x' && *p != 'X'))
+        return false;
+    y = strtol(p + 1, &p, 10);
+    if (*p || x < 16 || y < 16 || x > 8192 || y > 8192)
+        return false;
+
+    *w = x;
+    *h = y;
+    return true;
+}
+
 static void make_filename(const char *name, const char *ext)
 {
     char base[MAX_QPATH];
@@ -494,13 +515,29 @@ static bool capture_open(const char *name)
     cap.fps = Cvar_ClampInteger(clip_fps, 10, 240);
     cap.src_w = r_config.width;
     cap.src_h = r_config.height;
-    cap.width = cap.src_w & ~1;
-    cap.height = cap.src_h & ~1;
 
-    if (cap.width < 16 || cap.height < 16) {
-        Com_EPrintf("Captura: resolucion de ventana invalida.\n");
+    if (!parse_size(clip_size->string, &cap.width, &cap.height)) {
+        cap.width = cap.src_w;
+        cap.height = cap.src_h;
+    }
+    cap.width &= ~1;
+    cap.height &= ~1;
+
+    if (cap.width < 16 || cap.height < 16 || cap.src_w < 16 || cap.src_h < 16) {
+        Com_EPrintf("Captura: resolucion invalida.\n");
         return false;
     }
+
+    // keep the output aspect ratio: crop the window in the middle
+    if ((int64_t)cap.src_w * cap.height > (int64_t)cap.src_h * cap.width) {
+        cap.crop_h = cap.src_h;
+        cap.crop_w = (int64_t)cap.src_h * cap.width / cap.height;
+    } else {
+        cap.crop_w = cap.src_w;
+        cap.crop_h = (int64_t)cap.src_w * cap.height / cap.width;
+    }
+    cap.crop_x = (cap.src_w - cap.crop_w) / 2;
+    cap.crop_y = (cap.src_h - cap.crop_h) / 2;
 
     make_filename(name, mov ? "mov" : "mp4");
     FS_CreatePath(cap.filename);
@@ -653,15 +690,16 @@ void CL_CaptureFrame(void)
         return;
     }
 
-    // GL rows are bottom-up: start at the top row and walk backwards
-    src[0] = cap.rgba + (size_t)(cap.src_h - 1) * cap.src_w * 4;
+    // GL rows are bottom-up: start at the top row of the cropped region
+    // and walk backwards
+    src[0] = cap.rgba + (size_t)(cap.src_h - 1 - cap.crop_y) * cap.src_w * 4 + cap.crop_x * 4;
     stride[0] = -cap.src_w * 4;
     src[1] = src[2] = src[3] = NULL;
     stride[1] = stride[2] = stride[3] = 0;
 
     ret = av_frame_make_writable(cap.vframe);
     if (ret >= 0) {
-        sws_scale(cap.sws, src, stride, 0, cap.height, cap.vframe->data, cap.vframe->linesize);
+        sws_scale(cap.sws, src, stride, 0, cap.crop_h, cap.vframe->data, cap.vframe->linesize);
         cap.vframe->pts = cap.vframes++;
         ret = encode(cap.venc, cap.vst, cap.vframe);
     }
@@ -862,6 +900,7 @@ void CL_InitCapture(void)
     clip_quality = Cvar_Get("clip_quality", "16", CVAR_ARCHIVE);
     clip_hud = Cvar_Get("clip_hud", "0", CVAR_ARCHIVE);
     clip_volume = Cvar_Get("clip_volume", "0.7", CVAR_ARCHIVE);
+    clip_size = Cvar_Get("clip_size", "1920x1080", CVAR_ARCHIVE);
 
     Cmd_Register(c_capture);
 }
