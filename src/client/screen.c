@@ -2399,11 +2399,11 @@ static void SCR_DrawVisorBar(void)
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
     if (CL_FreecamFlying())
-        Q_strlcat(mid, "CAMARA LIBRE", sizeof(mid));
+        Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
     else if (CL_ChaseTargetName())
-        Q_strlcat(mid, va("SIGUIENDO: %s", CL_ChaseTargetName()), sizeof(mid));
+        Q_strlcat(mid, va("SIGUIENDO: %s (dist. %g)", CL_ChaseTargetName(), CL_ChaseDistance()), sizeof(mid));
 
     format_demo_time(t_in, sizeof(t_in), in);
     format_demo_time(t_out, sizeof(t_out), out);
@@ -2437,6 +2437,8 @@ static const char *const visor_help_lines[] = {
     "W A S D + mouse   Mover y mirar (camara libre)",
     "Espacio / Ctrl    Subir / bajar",
     "Shift (mantener)  Mover mas rapido",
+    "Rueda del mouse   Velocidad de la camara libre",
+    "                  (siguiendo a alguien: acercar / alejar)",
     "E / Q             Seguir al siguiente / anterior jugador",
     "R                 Volver a la vista de quien grabo",
     "C                 Grabar recorrido de camara / terminar",
