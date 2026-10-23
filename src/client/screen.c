@@ -77,6 +77,8 @@ static cvar_t   *scr_alpha;
 
 static cvar_t   *scr_demobar;
 static cvar_t   *visor_bar;
+static cvar_t   *visor_name;
+static cvar_t   *clip_name;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
 
@@ -1408,6 +1410,8 @@ void SCR_Init(void)
     scr_printspeed = Cvar_Get("scr_printspeed", "16", 0);
     scr_demobar = Cvar_Get("scr_demobar", "1", 0);
     visor_bar = Cvar_Get("visor_bar", "1", 0);
+    visor_name = Cvar_Get("visor_name", "1", CVAR_ARCHIVE);
+    clip_name = Cvar_Get("clip_name", "0", CVAR_ARCHIVE);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
     scr_scale = Cvar_Get("scr_scale", "0", 0);
@@ -1761,6 +1765,34 @@ static void SCR_DrawHealthBar(int x, int y, int value)
     R_DrawFill8(x + w, y, bar_width - w, h, 4);
 }
 
+// VisorDemos: an if-block of the status bar that prints this stat with
+// stat_string is skipped (the spectator "who am I chasing" block, which the
+// viewer replaces with its own VIENDO label). -1 = skip nothing.
+static int scr_hide_stat = -1;
+
+static bool block_prints_stat(const char *s, int stat)
+{
+    const char *token;
+    int depth = 1;
+
+    while (s) {
+        token = COM_Parse(&s);
+        if (!s)
+            break;
+        if (!strcmp(token, "if")) {
+            depth++;
+        } else if (!strcmp(token, "endif")) {
+            if (--depth == 0)
+                break;
+        } else if (!strcmp(token, "stat_string")) {
+            token = COM_Parse(&s);
+            if (Q_atoi(token) == stat)
+                return true;
+        }
+    }
+    return false;
+}
+
 static void SCR_ExecuteLayoutString(const char *s)
 {
     char    buffer[MAX_QPATH];
@@ -2076,6 +2108,10 @@ static void SCR_ExecuteLayoutString(const char *s)
                 Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
             }
             value = cl.frame.ps.stats[value];
+            if (value && scr_hide_stat >= 0 && block_prints_stat(s, scr_hide_stat)) {
+                SCR_SkipToEndif(&s);
+                continue;
+            }
             if (!value) {   // skip to endif
                 if (cl.csr.extended) {
                     SCR_SkipToEndif(&s);
@@ -2222,7 +2258,9 @@ static void SCR_DrawStats(void)
     if (cl.frame.ps.stats[STAT_LAYOUTS] & LAYOUTS_HIDE_HUD)
         return;
 
+    scr_hide_stat = visor_name->integer ? CL_SpectatorChaseStat() : -1;
     SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR]);
+    scr_hide_stat = -1;
 }
 
 static void SCR_DrawLayout(void)
@@ -2399,11 +2437,11 @@ static void SCR_DrawVisorBar(void)
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
     if (CL_FreecamFlying())
-        Q_strlcat(mid, "CAMARA LIBRE", sizeof(mid));
+        Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
     else if (CL_ChaseTargetName())
-        Q_strlcat(mid, va("SIGUIENDO: %s", CL_ChaseTargetName()), sizeof(mid));
+        Q_strlcat(mid, va("SIGUIENDO: %s (dist. %g)", CL_ChaseTargetName(), CL_ChaseDistance()), sizeof(mid));
 
     format_demo_time(t_in, sizeof(t_in), in);
     format_demo_time(t_out, sizeof(t_out), out);
@@ -2437,6 +2475,8 @@ static const char *const visor_help_lines[] = {
     "W A S D + mouse   Mover y mirar (camara libre)",
     "Espacio / Ctrl    Subir / bajar",
     "Shift (mantener)  Mover mas rapido",
+    "Rueda del mouse   Velocidad de la camara libre",
+    "                  (siguiendo a alguien: acercar / alejar)",
     "E / Q             Seguir al siguiente / anterior jugador",
     "R                 Volver a la vista de quien grabo",
     "C                 Grabar recorrido de camara / terminar",
@@ -2491,6 +2531,40 @@ static void SCR_DrawVisorHelp(void)
     R_SetScale(1.0f);
 }
 
+// nick of the watched player, top center. In clips just the nick, on screen
+// with what it is (watching through their eyes, or following them).
+static void SCR_DrawViewedName(bool in_clip)
+{
+    const char *name, *text;
+    viewkind_t kind;
+
+    name = CL_ViewedPlayer(&kind);
+    if (in_clip)
+        text = name;
+    else if (kind == VIEW_OBSERVER)
+        text = "OBSERVADOR (vista libre)";
+    else if (kind == VIEW_FOLLOW)
+        text = va("SIGUIENDO: %s", name);
+    else if (name)
+        text = va("VIENDO: %s", name);
+    else
+        text = NULL;
+
+    if (!text)
+        return;
+
+    // on screen, below the chat / kill messages so they don't cover it;
+    // in a clip there are no such messages, so right at the top
+    int y = CONCHAR_HEIGHT;
+    if (!in_clip)
+        y = CONCHAR_HEIGHT * (Q_clip(Cvar_VariableInteger("con_notifylines"), 0, 10) + 2);
+
+    R_SetScale(scr.hud_scale);
+    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, y,
+                   UI_CENTER | UI_DROPSHADOW, text);
+    R_SetScale(1.0f);
+}
+
 static void SCR_DrawVisorOverlay(void)
 {
     char buf[64];
@@ -2499,6 +2573,11 @@ static void SCR_DrawVisorOverlay(void)
         return;
 
     SCR_DrawVisorBar();
+
+    // on screen only (a clip with clip_name already has it drawn in)
+    if (visor_name->integer && !(CL_CaptureActive() && clip_name->integer) &&
+        !(cls.key_dest & KEY_MENU))
+        SCR_DrawViewedName(false);
 
     if (CL_CaptureStatus(buf, sizeof(buf))) {
         R_SetScale(scr.hud_scale);
@@ -2545,6 +2624,10 @@ static void SCR_DrawActive(void)
 
     // draw all 2D elements
     SCR_Draw2D();
+
+    // nick burned into the video clip, if wanted
+    if (CL_CaptureActive() && clip_name->integer)
+        SCR_DrawViewedName(true);
 }
 
 //=======================================================

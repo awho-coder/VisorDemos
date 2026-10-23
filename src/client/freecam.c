@@ -49,6 +49,8 @@ static cvar_t   *chase_auto;
 
 static bool     path_driving;   // a recorded camera path moves the view
 
+static bool mvd_playing(void);
+
 // camera moved by the user right now (free or chase)
 static bool live_active(void)
 {
@@ -90,6 +92,166 @@ const char *CL_ChaseTargetName(void)
         name = va("jugador %d", fc.target);
     if (!fc.target_seen)
         return va("%s (fuera de vista)", name);
+    return name;
+}
+
+/*
+===============
+spectator_target
+
+The recorder of a DM2 was a spectator chasing someone: who? Game mods put
+the chased player's skin configstring index in a stat (STAT_CHASE in baseq2,
+another slot in D-Day), so look for a stat pointing at a player. Mods that
+don't: the chased player's body is where the camera is.
+===============
+*/
+static int chase_stat_index(void)
+{
+    const player_state_t *ps = &cl.frame.ps;
+
+    for (int i = 16; i < MAX_STATS_OLD; i++) {
+        int n = ps->stats[i] - cl.csr.playerskins;
+        if (n >= 0 && n < cl.maxclients && n < MAX_CLIENTS && cl.clientinfo[n].name[0])
+            return i;
+    }
+    return -1;
+}
+
+static int spectator_target(void)
+{
+    const player_state_t *ps = &cl.frame.ps;
+    int best = -1;
+    float bestd = 64;
+    vec3_t org;
+    int stat = chase_stat_index();
+
+    if (stat >= 0)
+        return ps->stats[stat] - cl.csr.playerskins;
+
+    for (int k = 0; k < 3; k++)
+        org[k] = SHORT2COORD(ps->pmove.origin[k]);
+
+    for (int i = 1; i <= cl.maxclients; i++) {
+        const centity_t *e = &cl_entities[i];
+        float d;
+
+        if (e->serverframe != cl.frame.number || e->current.modelindex != MODELINDEX_PLAYER)
+            continue;
+        d = Distance(org, e->current.origin);
+        if (d < bestd) {
+            bestd = d;
+            best = i - 1;
+        }
+    }
+    return best;
+}
+
+/*
+===============
+CL_SpectatorChaseStat
+
+Stat the game uses to name the player a spectator recorder was chasing
+(the HUD prints it with stat_string), or -1. The viewer shows its own label
+instead, so the HUD block that prints it can be left out.
+===============
+*/
+int CL_SpectatorChaseStat(void)
+{
+    viewkind_t kind;
+
+    if (!CL_ViewedPlayer(&kind) || kind != VIEW_CHASED)
+        return -1;
+    return chase_stat_index();
+}
+
+/*
+===============
+CL_ChasedBodyToHide
+
+The recorder was a spectator watching through another player's eyes: that
+player's own body sits on the camera and fills the screen from the inside.
+Returns its entity number so it is not drawn (0 = nothing to hide).
+===============
+*/
+int CL_ChasedBodyToHide(void)
+{
+    const centity_t *e;
+    vec3_t org;
+    int n;
+
+    if (!cls.demo.playback || cls.state != ca_active || CL_FreecamActive())
+        return 0;
+    if (cl.frame.ps.pmove.pm_type != PM_FREEZE)
+        return 0;
+
+    n = spectator_target();
+    if (n < 0)
+        return 0;
+
+    e = &cl_entities[n + 1];
+    if (e->serverframe != cl.frame.number)
+        return 0;
+
+    for (int k = 0; k < 3; k++)
+        org[k] = SHORT2COORD(cl.frame.ps.pmove.origin[k]);
+
+    // only "in the eyes" chasing; a camera behind the player keeps the body
+    return Distance(org, e->current.origin) < 40 ? n + 1 : 0;
+}
+
+/*
+===============
+CL_ViewedPlayer
+
+Nick of the player the view belongs to, and what kind of view it is:
+VIEW_OWN    through their own eyes (the recorder, or the player a MVD chases)
+VIEW_CHASED the recorder was a spectator chasing this player
+VIEW_FOLLOW we follow them with the chase camera (E / Q)
+VIEW_OBSERVER the recorder was a free-flying spectator (returns NULL)
+NULL and VIEW_NONE with our free camera or a recorded path.
+===============
+*/
+const char *CL_ViewedPlayer(viewkind_t *kind)
+{
+    const char *name;
+    int num;
+
+    *kind = VIEW_NONE;
+
+    if (cls.state != ca_active || (!cls.demo.playback && !mvd_playing()))
+        return NULL;
+
+    if (chase_active()) {
+        *kind = VIEW_FOLLOW;
+        num = fc.target - 1;
+    } else if (CL_FreecamActive()) {
+        return NULL;
+    } else if (mvd_playing()) {
+        // flying around as a MVD spectator: not looking through anyone
+        if (cl.frame.ps.pmove.pm_type == PM_SPECTATOR)
+            return NULL;
+        *kind = VIEW_OWN;
+        num = cl.frame.clientNum;
+    } else if (cl.frame.ps.pmove.pm_type == PM_SPECTATOR) {
+        *kind = VIEW_OBSERVER;      // recorder flying around as a spectator
+        return NULL;
+    } else if (cl.frame.ps.pmove.pm_type == PM_FREEZE &&
+               (num = spectator_target()) >= 0) {
+        *kind = VIEW_CHASED;        // recorder chasing someone as a spectator
+    } else {
+        *kind = VIEW_OWN;
+        num = cl.frame.clientNum;
+    }
+
+    if (num < 0 || num >= MAX_CLIENTS) {
+        *kind = VIEW_NONE;
+        return NULL;
+    }
+    name = cl.clientinfo[num].name;
+    if (!*name) {
+        *kind = VIEW_NONE;
+        return NULL;
+    }
     return name;
 }
 
@@ -326,6 +488,77 @@ static void Chase_Prev_f(void)
         chase_cycle(-1);
 }
 
+/*
+===============
+Camera_Speed_f
+
+camera_speed up | down | reset | <value>
+Free camera: flying speed. Chase camera: distance to the player (the mouse
+wheel is bound to this, so it "zooms" when following someone).
+===============
+*/
+static const float camera_speeds[] = { 50, 100, 150, 200, 300, 450, 650, 900, 1300, 2000 };
+static const float chase_dists[] = { 40, 60, 80, 110, 150, 200, 260, 340, 450 };
+
+static float step_value(const float *steps, int n, float cur, int dir)
+{
+    int i;
+
+    if (dir > 0) {
+        for (i = 0; i < n - 1 && steps[i] <= cur + 0.5f; i++)
+            ;
+    } else {
+        for (i = n - 1; i > 0 && steps[i] >= cur - 0.5f; i--)
+            ;
+    }
+    return steps[i];
+}
+
+static void Camera_Speed_f(void)
+{
+    const char *arg = Cmd_Argv(1);
+    bool chase = chase_active();
+    cvar_t *var = chase ? chase_dist : freecam_speed;
+    const float *steps = chase ? chase_dists : camera_speeds;
+    int n = chase ? q_countof(chase_dists) : q_countof(camera_speeds);
+    float value;
+
+    if (!*arg) {
+        Com_Printf("Velocidad de la camara libre: %g\nDistancia al seguir jugadores: %g\n"
+                   "Uso: %s up | down | reset | <valor>\n",
+                   freecam_speed->value, chase_dist->value, Cmd_Argv(0));
+        return;
+    }
+
+    if (!Q_stricmp(arg, "up"))
+        value = step_value(steps, n, var->value, 1);
+    else if (!Q_stricmp(arg, "down"))
+        value = step_value(steps, n, var->value, -1);
+    else if (!Q_stricmp(arg, "reset"))
+        value = Q_atof(var->default_string);
+    else
+        value = Q_atof(arg);
+
+    value = Q_clipf(value, chase ? 16 : 1, chase ? 1000 : 10000);
+    Cvar_SetValue(var, value, FROM_CONSOLE);
+
+    if (chase)
+        SCR_CenterPrint(va("Distancia de la camara: %g", value), false);
+    else
+        SCR_CenterPrint(va("Velocidad de la camara: %g", value), false);
+}
+
+// shown on the timeline next to the camera mode
+float CL_FreecamSpeed(void)
+{
+    return freecam_speed->value;
+}
+
+float CL_ChaseDistance(void)
+{
+    return chase_dist->value;
+}
+
 static void Camera_Reset_f(void)
 {
     if (mvd_command("follow", NULL))
@@ -426,6 +659,7 @@ static const cmdreg_t c_freecam[] = {
     { "chase_next", Chase_Next_f },
     { "chase_prev", Chase_Prev_f },
     { "camera_reset", Camera_Reset_f },
+    { "camera_speed", Camera_Speed_f },
     { NULL }
 };
 

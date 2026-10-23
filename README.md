@@ -42,6 +42,22 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
 Al publicar una versión (tag `v*`), GitHub Actions arma el `.zip` de Windows y
 lo adjunta a la Release ([.github/workflows/windows.yml](.github/workflows/windows.yml)).
 
+## Desarrollo
+
+El proyecto sigue **gitflow**:
+
+| Rama | Para qué |
+|---|---|
+| `main` | Versiones publicadas. Cada versión lleva un tag `vX.Y.Z` |
+| `develop` | Integración: aquí se juntan las funciones terminadas |
+| `feature/…` | Una función nueva, sale de `develop` y vuelve a `develop` |
+| `release/X.Y.Z` | Preparar una versión: sale de `develop`, se une a `main` (con tag) y a `develop` |
+| `hotfix/X.Y.Z` | Arreglo urgente de una versión publicada: sale de `main`, vuelve a `main` y `develop` |
+
+Al subir un tag `v*` a `main`, GitHub Actions arma el `.zip` de Windows y lo
+adjunta a la Release. El q2pro original está como remote `upstream` para traer
+sus mejoras.
+
 ## Licencia
 
 GNU GPL versión 2 o posterior, igual que q2pro (ver [LICENSE](LICENSE)).
