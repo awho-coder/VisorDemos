@@ -805,6 +805,8 @@ bool CL_FreecamActive(void);
 bool CL_FreecamHideHud(void);
 bool CL_FreecamFlying(void);
 const char *CL_ChaseTargetName(void);
+float CL_FreecamSpeed(void);
+float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
 

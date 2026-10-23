@@ -206,6 +206,7 @@
         <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> + mouse</td><td>Mover y mirar</td></tr>
         <tr><td><kbd>Espacio</kbd> <kbd>Ctrl</kbd></td><td>Subir / bajar</td></tr>
         <tr><td><kbd>Shift</kbd> mantener</td><td>Mover más rápido</td></tr>
+        <tr><td>Rueda del mouse<br><kbd>+</kbd> <kbd>−</kbd> numérico</td><td>Velocidad de la cámara libre (siguiendo a alguien: acercar / alejar)</td></tr>
         <tr><td><kbd>E</kbd> <kbd>Q</kbd></td><td>Seguir al siguiente / anterior jugador</td></tr>
         <tr><td><kbd>R</kbd></td><td>Volver a la vista de quien grabó</td></tr>
       </table>
@@ -256,6 +257,11 @@
   <p><kbd>↑</kbd> suelta la cámara: vuela con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
   y el mouse, sube con <kbd>Espacio</kbd> y baja con <kbd>Ctrl</kbd>. Funciona también con el
   demo en pausa, para encuadrar con calma.</p>
+  <p>Con la <strong>rueda del mouse</strong> (o <kbd>+</kbd> / <kbd>−</kbd> del teclado numérico)
+  cambias la velocidad de vuelo por pasos, de 50 a 2000; la barra muestra el valor
+  (<em>CAMARA LIBRE (vel. 300)</em>). Para tomas lentas y cinematográficas, bájala; para cruzar
+  el mapa, súbela. <kbd>Shift</kbd> la multiplica mientras lo mantienes. Cuando sigues a un
+  jugador, la rueda acerca o aleja la cámara.</p>
   <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
   se ve el zoom del rifle de francotirador.</p>
 
@@ -296,9 +302,9 @@
       <tr><td><code>clip_format</code></td><td>mp4</td><td><code>mov</code> = ProRes, calidad de edición profesional (archivos muy grandes)</td></tr>
       <tr><td><code>clip_hud</code></td><td>0</td><td><code>1</code> = incluir el HUD del juego en el video</td></tr>
       <tr><td><code>clip_volume</code></td><td>0.7</td><td>Volumen del sonido en el video</td></tr>
-      <tr><td><code>freecam_speed</code></td><td>300</td><td>Velocidad de la cámara libre</td></tr>
+      <tr><td><code>freecam_speed</code></td><td>300</td><td>Velocidad de la cámara libre (también con la rueda del mouse)</td></tr>
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
-      <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues</td></tr>
+      <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues (también con la rueda del mouse)</td></tr>
       <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
     </tbody>

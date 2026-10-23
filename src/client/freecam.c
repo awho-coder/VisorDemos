@@ -326,6 +326,77 @@ static void Chase_Prev_f(void)
         chase_cycle(-1);
 }
 
+/*
+===============
+Camera_Speed_f
+
+camera_speed up | down | reset | <value>
+Free camera: flying speed. Chase camera: distance to the player (the mouse
+wheel is bound to this, so it "zooms" when following someone).
+===============
+*/
+static const float camera_speeds[] = { 50, 100, 150, 200, 300, 450, 650, 900, 1300, 2000 };
+static const float chase_dists[] = { 40, 60, 80, 110, 150, 200, 260, 340, 450 };
+
+static float step_value(const float *steps, int n, float cur, int dir)
+{
+    int i;
+
+    if (dir > 0) {
+        for (i = 0; i < n - 1 && steps[i] <= cur + 0.5f; i++)
+            ;
+    } else {
+        for (i = n - 1; i > 0 && steps[i] >= cur - 0.5f; i--)
+            ;
+    }
+    return steps[i];
+}
+
+static void Camera_Speed_f(void)
+{
+    const char *arg = Cmd_Argv(1);
+    bool chase = chase_active();
+    cvar_t *var = chase ? chase_dist : freecam_speed;
+    const float *steps = chase ? chase_dists : camera_speeds;
+    int n = chase ? q_countof(chase_dists) : q_countof(camera_speeds);
+    float value;
+
+    if (!*arg) {
+        Com_Printf("Velocidad de la camara libre: %g\nDistancia al seguir jugadores: %g\n"
+                   "Uso: %s up | down | reset | <valor>\n",
+                   freecam_speed->value, chase_dist->value, Cmd_Argv(0));
+        return;
+    }
+
+    if (!Q_stricmp(arg, "up"))
+        value = step_value(steps, n, var->value, 1);
+    else if (!Q_stricmp(arg, "down"))
+        value = step_value(steps, n, var->value, -1);
+    else if (!Q_stricmp(arg, "reset"))
+        value = Q_atof(var->default_string);
+    else
+        value = Q_atof(arg);
+
+    value = Q_clipf(value, chase ? 16 : 1, chase ? 1000 : 10000);
+    Cvar_SetValue(var, value, FROM_CONSOLE);
+
+    if (chase)
+        SCR_CenterPrint(va("Distancia de la camara: %g", value), false);
+    else
+        SCR_CenterPrint(va("Velocidad de la camara: %g", value), false);
+}
+
+// shown on the timeline next to the camera mode
+float CL_FreecamSpeed(void)
+{
+    return freecam_speed->value;
+}
+
+float CL_ChaseDistance(void)
+{
+    return chase_dist->value;
+}
+
 static void Camera_Reset_f(void)
 {
     if (mvd_command("follow", NULL))
@@ -426,6 +497,7 @@ static const cmdreg_t c_freecam[] = {
     { "chase_next", Chase_Next_f },
     { "chase_prev", Chase_Prev_f },
     { "camera_reset", Camera_Reset_f },
+    { "camera_speed", Camera_Speed_f },
     { NULL }
 };
 

@@ -109,6 +109,7 @@ Quake 2 normal.
 | **W A S D + mouse** | Mover y mirar con la cámara libre |
 | **Espacio / Ctrl** | Subir / bajar |
 | **Shift** (mantener) | Mover la cámara más rápido |
+| **Rueda del mouse** (o **+ / −** del teclado numérico) | Velocidad de la cámara libre; siguiendo a alguien, acercar / alejar |
 | **E / Q** | Seguir al siguiente / anterior jugador |
 | **R** | Volver a la vista de quien grabó el demo |
 | **C** | Grabar recorrido de cámara / terminar |
@@ -201,9 +202,9 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_quality` | `16` | Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien) |
 | `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
 | `clip_volume` | `0.7` | Volumen del sonido en el video |
-| `freecam_speed` | `300` | Velocidad de la cámara libre |
+| `freecam_speed` | `300` | Velocidad de la cámara libre (también con la rueda del mouse) |
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
-| `chase_dist` | `110` | Distancia al jugador que sigues |
+| `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
 
