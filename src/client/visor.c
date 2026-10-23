@@ -121,13 +121,92 @@ bool CL_DemoAtEnd(void)
     return !CL_DemoPosition(NULL, NULL, NULL);
 }
 
+/*
+===============================================================================
+
+X-RAY (local only, never published)
+
+Players hidden behind walls are drawn as a flat colored silhouette. Only for
+demos played from a file (.dm2, or .mvd2 through the local MVD player):
+never while connected to a server or watching a live GTV stream.
+
+===============================================================================
+*/
+
+static cvar_t   *xray;
+static cvar_t   *xray_color;
+static cvar_t   *xray_alpha;
+
+// demo read from a file, not a game or a live stream
+static bool xray_allowed(void)
+{
+    if (cls.state != ca_active)
+        return false;
+    if (cls.demo.playback)
+        return true;
+    return MVD_GetDemoStatus(NULL, NULL, NULL);
+}
+
+bool CL_XrayWants(const centity_state_t *s1)
+{
+    if (!xray->integer || !xray_allowed())
+        return false;
+    if (s1->modelindex != MODELINDEX_PLAYER)
+        return false;
+    // players only: bodies left behind use the same model
+    return s1->number >= 1 && s1->number <= cl.maxclients;
+}
+
+uint64_t CL_XrayShell(void)
+{
+    static const struct {
+        const char *name;
+        uint64_t bits;
+    } colors[] = {
+        { "red",     RF_SHELL_RED },
+        { "green",   RF_SHELL_GREEN },
+        { "blue",    RF_SHELL_BLUE },
+        { "yellow",  RF_SHELL_RED | RF_SHELL_GREEN },
+        { "magenta", RF_SHELL_RED | RF_SHELL_BLUE },
+        { "cyan",    RF_SHELL_GREEN | RF_SHELL_BLUE },
+        { "white",   RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE },
+    };
+
+    for (int i = 0; i < q_countof(colors); i++)
+        if (!Q_stricmp(xray_color->string, colors[i].name))
+            return colors[i].bits;
+    return RF_SHELL_GREEN | RF_SHELL_BLUE;
+}
+
+float CL_XrayAlpha(void)
+{
+    return Cvar_ClampValue(xray_alpha, 0.1f, 1);
+}
+
+static void Visor_Xray_f(void)
+{
+    bool on = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : !xray->integer;
+
+    if (on && !xray_allowed()) {
+        Com_Printf("El x-ray solo funciona al ver un demo desde un archivo.\n");
+        on = false;
+    }
+    Cvar_SetInteger(xray, on, FROM_CODE);
+    SCR_CenterPrint(on ? "X-ray: si" : "X-ray: no", false);
+}
+
 static const cmdreg_t c_visor[] = {
     { "visor_help", Visor_Help_f },
     { "demo_speed", Demo_Speed_f },
+    { "visor_xray", Visor_Xray_f },
     { NULL }
 };
 
 void CL_InitVisor(void)
 {
+    xray = Cvar_Get("xray", "0", 0);
+    xray_color = Cvar_Get("xray_color", "magenta", CVAR_ARCHIVE);
+    xray_alpha = Cvar_Get("xray_alpha", "0.45", CVAR_ARCHIVE);
+
     Cmd_Register(c_visor);
 }

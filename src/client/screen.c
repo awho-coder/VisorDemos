@@ -2398,6 +2398,8 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
+    if (Cvar_VariableInteger("xray"))
+        Q_strlcat(mid, "X-RAY   ", sizeof(mid));
     if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
@@ -2443,6 +2445,7 @@ static const char *const visor_help_lines[] = {
     "R                 Volver a la vista de quien grabo",
     "C                 Grabar recorrido de camara / terminar",
     "V                 Usar recorrido grabado si / no",
+    "T                 Siluetas detras de paredes (x-ray)",
     "",
     "!Clips de video",
     "I                 Marcar inicio del clip",

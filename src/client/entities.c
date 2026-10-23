@@ -852,6 +852,16 @@ static void CL_AddPacketEntities(void)
         // add to refresh list
         V_AddEntity(&ent);
 
+        // VisorDemos (local) x-ray: flat colored copy of the player, the
+        // renderer shows it only where a wall hides the player
+        if (CL_XrayWants(s1)) {
+            entity_t x = ent;
+            x.flags = RF_XRAY | RF_TRANSLUCENT | RF_NOSHADOW | CL_XrayShell();
+            x.alpha = CL_XrayAlpha();
+            x.skin = 0;
+            V_AddEntity(&x);
+        }
+
         // color shells generate a separate entity for the main model
         if (effects & EF_COLOR_SHELL) {
             // PMM - at this point, all of the shells have been handled

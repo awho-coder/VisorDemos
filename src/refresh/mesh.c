@@ -667,7 +667,8 @@ static void draw_alias_mesh(const uint16_t *indices, int num_indices,
 
     // avoid drawing hidden faces by pre-filling depth buffer, but not for
     // explosions and muzzleflashes
-    if ((glr.ent->flags & (RF_FULLBRIGHT | RF_TRANSLUCENT)) == RF_TRANSLUCENT) {
+    // (not for x-ray silhouettes: they must never write depth)
+    if ((glr.ent->flags & (RF_FULLBRIGHT | RF_TRANSLUCENT | RF_XRAY)) == RF_TRANSLUCENT) {
         if (gls.currentva) {
             GL_StateBits(GLS_DEFAULT);
             GL_ArrayBits(GLA_VERTEX);
