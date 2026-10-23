@@ -511,6 +511,7 @@ static void CL_AddPacketEntities(void)
     bool                    has_alpha, has_trail;
     float                   custom_alpha;
     uint64_t                custom_flags;
+    int                     hide_ent = CL_ChasedBodyToHide();
 
     // bonus items rotate at a fixed rate
     autorotate = anglemod(cl.time * 0.1f);
@@ -783,7 +784,9 @@ static void CL_AddPacketEntities(void)
         if (s1->morefx & EFX_GRENADE_LIGHT)
             V_AddLight(ent.origin, 100, 1, 1, 0);
 
-        if (s1->number == cl.frame.clientNum + 1 && !cl.thirdPersonView) {
+        // own body in first person; or, when the recorder was a spectator
+        // looking through someone's eyes, that player's body
+        if ((s1->number == cl.frame.clientNum + 1 && !cl.thirdPersonView) || s1->number == hide_ent) {
             if (effects & EF_FLAG1)
                 V_AddLight(ent.origin, 225, 1.0f, 0.1f, 0.1f);
             else if (effects & EF_FLAG2)

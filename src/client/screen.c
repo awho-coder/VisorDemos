@@ -2504,17 +2504,27 @@ static void SCR_DrawVisorHelp(void)
 // with what it is (watching through their eyes, or following them).
 static void SCR_DrawViewedName(bool in_clip)
 {
-    const char *name;
-    bool chasing;
+    const char *name, *text;
+    viewkind_t kind;
 
-    name = CL_ViewedPlayer(&chasing);
-    if (!name)
+    name = CL_ViewedPlayer(&kind);
+    if (in_clip)
+        text = name;
+    else if (kind == VIEW_OBSERVER)
+        text = "OBSERVADOR (vista libre)";
+    else if (kind == VIEW_FOLLOW)
+        text = va("SIGUIENDO: %s", name);
+    else if (name)
+        text = va("VIENDO: %s", name);
+    else
+        text = NULL;
+
+    if (!text)
         return;
 
     R_SetScale(scr.hud_scale);
     SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT,
-                   UI_CENTER | UI_DROPSHADOW,
-                   in_clip ? name : va("%s: %s", chasing ? "SIGUIENDO" : "VIENDO", name));
+                   UI_CENTER | UI_DROPSHADOW, text);
     R_SetScale(1.0f);
 }
 
