@@ -97,39 +97,134 @@ const char *CL_ChaseTargetName(void)
 
 /*
 ===============
-CL_ViewedPlayer
+spectator_target
 
-Nick of the player the view belongs to: the one being followed, or the one
-whose eyes we see (the demo's recorder, or the player a MVD is chasing).
-NULL with the free camera or a recorded path, where nobody is "watched".
+The recorder of a DM2 was a spectator chasing someone: who? Game mods put
+the chased player's skin configstring index in a stat (STAT_CHASE in baseq2,
+another slot in D-Day), so look for a stat pointing at a player. Mods that
+don't: the chased player's body is where the camera is.
 ===============
 */
-const char *CL_ViewedPlayer(bool *chasing)
+static int spectator_target(void)
+{
+    const player_state_t *ps = &cl.frame.ps;
+    int best = -1;
+    float bestd = 64;
+    vec3_t org;
+
+    for (int i = 16; i < MAX_STATS_OLD; i++) {
+        int n = ps->stats[i] - cl.csr.playerskins;
+        if (n >= 0 && n < cl.maxclients && n < MAX_CLIENTS && cl.clientinfo[n].name[0])
+            return n;
+    }
+
+    for (int k = 0; k < 3; k++)
+        org[k] = SHORT2COORD(ps->pmove.origin[k]);
+
+    for (int i = 1; i <= cl.maxclients; i++) {
+        const centity_t *e = &cl_entities[i];
+        float d;
+
+        if (e->serverframe != cl.frame.number || e->current.modelindex != MODELINDEX_PLAYER)
+            continue;
+        d = Distance(org, e->current.origin);
+        if (d < bestd) {
+            bestd = d;
+            best = i - 1;
+        }
+    }
+    return best;
+}
+
+/*
+===============
+CL_ChasedBodyToHide
+
+The recorder was a spectator watching through another player's eyes: that
+player's own body sits on the camera and fills the screen from the inside.
+Returns its entity number so it is not drawn (0 = nothing to hide).
+===============
+*/
+int CL_ChasedBodyToHide(void)
+{
+    const centity_t *e;
+    vec3_t org;
+    int n;
+
+    if (!cls.demo.playback || cls.state != ca_active || CL_FreecamActive())
+        return 0;
+    if (cl.frame.ps.pmove.pm_type != PM_FREEZE)
+        return 0;
+
+    n = spectator_target();
+    if (n < 0)
+        return 0;
+
+    e = &cl_entities[n + 1];
+    if (e->serverframe != cl.frame.number)
+        return 0;
+
+    for (int k = 0; k < 3; k++)
+        org[k] = SHORT2COORD(cl.frame.ps.pmove.origin[k]);
+
+    // only "in the eyes" chasing; a camera behind the player keeps the body
+    return Distance(org, e->current.origin) < 40 ? n + 1 : 0;
+}
+
+/*
+===============
+CL_ViewedPlayer
+
+Nick of the player the view belongs to, and what kind of view it is:
+VIEW_OWN    through their own eyes (the recorder, or the player a MVD chases)
+VIEW_CHASED the recorder was a spectator chasing this player
+VIEW_FOLLOW we follow them with the chase camera (E / Q)
+VIEW_OBSERVER the recorder was a free-flying spectator (returns NULL)
+NULL and VIEW_NONE with our free camera or a recorded path.
+===============
+*/
+const char *CL_ViewedPlayer(viewkind_t *kind)
 {
     const char *name;
     int num;
 
-    *chasing = false;
+    *kind = VIEW_NONE;
 
     if (cls.state != ca_active || (!cls.demo.playback && !mvd_playing()))
         return NULL;
 
     if (chase_active()) {
-        *chasing = true;
+        *kind = VIEW_FOLLOW;
         num = fc.target - 1;
-    } else {
-        if (CL_FreecamActive())
-            return NULL;
+    } else if (CL_FreecamActive()) {
+        return NULL;
+    } else if (mvd_playing()) {
         // flying around as a MVD spectator: not looking through anyone
-        if (mvd_playing() && cl.frame.ps.pmove.pm_type == PM_SPECTATOR)
+        if (cl.frame.ps.pmove.pm_type == PM_SPECTATOR)
             return NULL;
+        *kind = VIEW_OWN;
+        num = cl.frame.clientNum;
+    } else if (cl.frame.ps.pmove.pm_type == PM_SPECTATOR) {
+        *kind = VIEW_OBSERVER;      // recorder flying around as a spectator
+        return NULL;
+    } else if (cl.frame.ps.pmove.pm_type == PM_FREEZE &&
+               (num = spectator_target()) >= 0) {
+        *kind = VIEW_CHASED;        // recorder chasing someone as a spectator
+    } else {
+        *kind = VIEW_OWN;
         num = cl.frame.clientNum;
     }
 
-    if (num < 0 || num >= MAX_CLIENTS)
+    if (num < 0 || num >= MAX_CLIENTS) {
+        *kind = VIEW_NONE;
         return NULL;
+    }
     name = cl.clientinfo[num].name;
-    return *name ? name : NULL;
+    if (!*name) {
+        *kind = VIEW_NONE;
+        return NULL;
+    }
+    return name;
 }
 
 bool CL_FreecamFlying(void)
