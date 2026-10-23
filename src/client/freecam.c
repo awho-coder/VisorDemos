@@ -105,18 +105,28 @@ another slot in D-Day), so look for a stat pointing at a player. Mods that
 don't: the chased player's body is where the camera is.
 ===============
 */
+static int chase_stat_index(void)
+{
+    const player_state_t *ps = &cl.frame.ps;
+
+    for (int i = 16; i < MAX_STATS_OLD; i++) {
+        int n = ps->stats[i] - cl.csr.playerskins;
+        if (n >= 0 && n < cl.maxclients && n < MAX_CLIENTS && cl.clientinfo[n].name[0])
+            return i;
+    }
+    return -1;
+}
+
 static int spectator_target(void)
 {
     const player_state_t *ps = &cl.frame.ps;
     int best = -1;
     float bestd = 64;
     vec3_t org;
+    int stat = chase_stat_index();
 
-    for (int i = 16; i < MAX_STATS_OLD; i++) {
-        int n = ps->stats[i] - cl.csr.playerskins;
-        if (n >= 0 && n < cl.maxclients && n < MAX_CLIENTS && cl.clientinfo[n].name[0])
-            return n;
-    }
+    if (stat >= 0)
+        return ps->stats[stat] - cl.csr.playerskins;
 
     for (int k = 0; k < 3; k++)
         org[k] = SHORT2COORD(ps->pmove.origin[k]);
@@ -134,6 +144,24 @@ static int spectator_target(void)
         }
     }
     return best;
+}
+
+/*
+===============
+CL_SpectatorChaseStat
+
+Stat the game uses to name the player a spectator recorder was chasing
+(the HUD prints it with stat_string), or -1. The viewer shows its own label
+instead, so the HUD block that prints it can be left out.
+===============
+*/
+int CL_SpectatorChaseStat(void)
+{
+    viewkind_t kind;
+
+    if (!CL_ViewedPlayer(&kind) || kind != VIEW_CHASED)
+        return -1;
+    return chase_stat_index();
 }
 
 /*

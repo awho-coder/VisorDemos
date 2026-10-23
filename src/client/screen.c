@@ -1765,6 +1765,34 @@ static void SCR_DrawHealthBar(int x, int y, int value)
     R_DrawFill8(x + w, y, bar_width - w, h, 4);
 }
 
+// VisorDemos: an if-block of the status bar that prints this stat with
+// stat_string is skipped (the spectator "who am I chasing" block, which the
+// viewer replaces with its own VIENDO label). -1 = skip nothing.
+static int scr_hide_stat = -1;
+
+static bool block_prints_stat(const char *s, int stat)
+{
+    const char *token;
+    int depth = 1;
+
+    while (s) {
+        token = COM_Parse(&s);
+        if (!s)
+            break;
+        if (!strcmp(token, "if")) {
+            depth++;
+        } else if (!strcmp(token, "endif")) {
+            if (--depth == 0)
+                break;
+        } else if (!strcmp(token, "stat_string")) {
+            token = COM_Parse(&s);
+            if (Q_atoi(token) == stat)
+                return true;
+        }
+    }
+    return false;
+}
+
 static void SCR_ExecuteLayoutString(const char *s)
 {
     char    buffer[MAX_QPATH];
@@ -2080,6 +2108,10 @@ static void SCR_ExecuteLayoutString(const char *s)
                 Com_Error(ERR_DROP, "%s: invalid stat index", __func__);
             }
             value = cl.frame.ps.stats[value];
+            if (value && scr_hide_stat >= 0 && block_prints_stat(s, scr_hide_stat)) {
+                SCR_SkipToEndif(&s);
+                continue;
+            }
             if (!value) {   // skip to endif
                 if (cl.csr.extended) {
                     SCR_SkipToEndif(&s);
@@ -2226,7 +2258,9 @@ static void SCR_DrawStats(void)
     if (cl.frame.ps.stats[STAT_LAYOUTS] & LAYOUTS_HIDE_HUD)
         return;
 
+    scr_hide_stat = visor_name->integer ? CL_SpectatorChaseStat() : -1;
     SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR]);
+    scr_hide_stat = -1;
 }
 
 static void SCR_DrawLayout(void)
@@ -2522,8 +2556,14 @@ static void SCR_DrawViewedName(bool in_clip)
     if (!text)
         return;
 
+    // on screen, below the chat / kill messages so they don't cover it;
+    // in a clip there are no such messages, so right at the top
+    int y = CONCHAR_HEIGHT;
+    if (!in_clip)
+        y = CONCHAR_HEIGHT * (Q_clip(Cvar_VariableInteger("con_notifylines"), 0, 10) + 2);
+
     R_SetScale(scr.hud_scale);
-    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT,
+    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, y,
                    UI_CENTER | UI_DROPSHADOW, text);
     R_SetScale(1.0f);
 }
