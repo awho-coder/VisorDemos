@@ -135,6 +135,8 @@ never while connected to a server or watching a live GTV stream.
 
 static cvar_t   *xray;
 static cvar_t   *xray_color;
+static cvar_t   *xray_color_allies;
+static cvar_t   *xray_color_axis;
 static cvar_t   *xray_alpha;
 
 // demo read from a file, not a game or a live stream
@@ -157,7 +159,7 @@ bool CL_XrayWants(const centity_state_t *s1)
     return s1->number >= 1 && s1->number <= cl.maxclients;
 }
 
-uint64_t CL_XrayShell(void)
+static uint64_t color_bits(const char *name)
 {
     static const struct {
         const char *name;
@@ -173,9 +175,33 @@ uint64_t CL_XrayShell(void)
     };
 
     for (int i = 0; i < q_countof(colors); i++)
-        if (!Q_stricmp(xray_color->string, colors[i].name))
+        if (!Q_stricmp(name, colors[i].name))
             return colors[i].bits;
-    return RF_SHELL_GREEN | RF_SHELL_BLUE;
+    return RF_SHELL_RED | RF_SHELL_BLUE;
+}
+
+// D-Day: the player model is the nation; these ones fight for the Axis
+static bool is_axis_model(const char *model)
+{
+    static const char *const axis[] = { "grm", "ger", "ita", "jpn", "axis" };
+
+    for (int i = 0; i < q_countof(axis); i++)
+        if (!Q_stricmp(model, axis[i]))
+            return true;
+    return false;
+}
+
+// silhouette color: fixed (xray_color <color>) or by team (xray_color team)
+uint64_t CL_XrayShell(const centity_state_t *s1)
+{
+    const clientinfo_t *ci;
+
+    if (Q_stricmp(xray_color->string, "team"))
+        return color_bits(xray_color->string);
+
+    ci = &cl.clientinfo[s1->skinnum & 0xff];   // same lookup the renderer uses
+    return color_bits(is_axis_model(ci->model_name) ? xray_color_axis->string
+                                                   : xray_color_allies->string);
 }
 
 float CL_XrayAlpha(void)
@@ -195,17 +221,32 @@ static void Visor_Xray_f(void)
     SCR_CenterPrint(on ? "X-ray: si" : "X-ray: no", false);
 }
 
+static void Visor_Players_f(void)
+{
+    for (int i = 0; i < cl.maxclients && i < MAX_CLIENTS; i++) {
+        const clientinfo_t *ci = &cl.clientinfo[i];
+        if (!ci->name[0])
+            continue;
+        Com_Printf("%2d  %-24s %-8s %s/%s\n", i + 1, ci->name,
+                   is_axis_model(ci->model_name) ? "Eje" : "Aliados",
+                   ci->model_name, ci->skin_name);
+    }
+}
+
 static const cmdreg_t c_visor[] = {
     { "visor_help", Visor_Help_f },
     { "demo_speed", Demo_Speed_f },
     { "visor_xray", Visor_Xray_f },
+    { "visor_players", Visor_Players_f },
     { NULL }
 };
 
 void CL_InitVisor(void)
 {
     xray = Cvar_Get("xray", "0", 0);
-    xray_color = Cvar_Get("xray_color", "magenta", CVAR_ARCHIVE);
+    xray_color = Cvar_Get("xray_color", "team", CVAR_ARCHIVE);
+    xray_color_allies = Cvar_Get("xray_color_allies", "blue", CVAR_ARCHIVE);
+    xray_color_axis = Cvar_Get("xray_color_axis", "red", CVAR_ARCHIVE);
     xray_alpha = Cvar_Get("xray_alpha", "0.45", CVAR_ARCHIVE);
 
     Cmd_Register(c_visor);

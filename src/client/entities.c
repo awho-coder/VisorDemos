@@ -856,7 +856,7 @@ static void CL_AddPacketEntities(void)
         // renderer shows it only where a wall hides the player
         if (CL_XrayWants(s1)) {
             entity_t x = ent;
-            x.flags = RF_XRAY | RF_TRANSLUCENT | RF_NOSHADOW | CL_XrayShell();
+            x.flags = RF_XRAY | RF_TRANSLUCENT | RF_NOSHADOW | CL_XrayShell(s1);
             x.alpha = CL_XrayAlpha();
             x.skin = 0;
             V_AddEntity(&x);
