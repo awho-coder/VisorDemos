@@ -805,7 +805,15 @@ bool CL_FreecamActive(void);
 bool CL_FreecamHideHud(void);
 bool CL_FreecamFlying(void);
 const char *CL_ChaseTargetName(void);
-const char *CL_ViewedPlayer(bool *chasing);
+typedef enum {
+    VIEW_NONE,
+    VIEW_OWN,       // through the player's own eyes
+    VIEW_CHASED,    // the recorder was a spectator chasing this player
+    VIEW_FOLLOW,    // our chase camera follows this player
+    VIEW_OBSERVER   // the recorder was a free-flying spectator
+} viewkind_t;
+const char *CL_ViewedPlayer(viewkind_t *kind);
+int CL_ChasedBodyToHide(void);
 float CL_FreecamSpeed(void);
 float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
