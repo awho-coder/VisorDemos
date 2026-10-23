@@ -78,6 +78,8 @@ static cvar_t   *scr_alpha;
 static cvar_t   *scr_demobar;
 static cvar_t   *visor_bar;
 static cvar_t   *visor_name;
+static cvar_t   *visor_help_pos;
+static cvar_t   *visor_help_size;
 static cvar_t   *clip_name;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
@@ -1411,6 +1413,8 @@ void SCR_Init(void)
     scr_demobar = Cvar_Get("scr_demobar", "1", 0);
     visor_bar = Cvar_Get("visor_bar", "1", 0);
     visor_name = Cvar_Get("visor_name", "1", CVAR_ARCHIVE);
+    visor_help_pos = Cvar_Get("visor_help_pos", "right", CVAR_ARCHIVE);
+    visor_help_size = Cvar_Get("visor_help_size", "0.8", CVAR_ARCHIVE);
     clip_name = Cvar_Get("clip_name", "0", CVAR_ARCHIVE);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
@@ -2460,73 +2464,90 @@ static void SCR_DrawVisorBar(void)
     R_SetScale(1.0f);
 }
 
-static const char *const visor_help_lines[] = {
-    "!VISOR DE DEMOS - AYUDA",
-    "",
-    "!Reproduccion",
-    "Flecha abajo      Pausa / continuar",
-    "Flecha izq / der  Retroceder / adelantar 10 s",
-    "Z  /  X           Mas lento / mas rapido",
-    "Retroceso         Velocidad normal",
-    "F1 (mantener)     Tabla de puntos (si quien grabo la abrio)",
-    "",
-    "!Camara",
-    "Flecha arriba     Camara libre si / no",
-    "W A S D + mouse   Mover y mirar (camara libre)",
-    "Espacio / Ctrl    Subir / bajar",
-    "Shift (mantener)  Mover mas rapido",
-    "Rueda del mouse   Velocidad de la camara libre",
-    "                  (siguiendo a alguien: acercar / alejar)",
-    "E / Q             Seguir al siguiente / anterior jugador",
-    "R                 Volver a la vista de quien grabo",
-    "C                 Grabar recorrido de camara / terminar",
-    "V                 Usar recorrido grabado si / no",
-    "",
-    "!Clips de video",
-    "I                 Marcar inicio del clip",
-    "O                 Marcar fin del clip",
-    "G                 Grabar el clip a video",
-    "                  (usa el recorrido de camara si hay uno)",
-    "Supr              Borrar marcas",
-    "",
-    "!Otros",
-    "H                 Mostrar / ocultar esta ayuda",
-    "Esc               Menu (Demos: abrir otro demo)",
-    "",
-    "Los videos se guardan en la carpeta  videos/",
+// help panel: key (orange) + what it does; key NULL = section title,
+// text NULL = blank line
+typedef struct {
+    const char *key;
+    const char *text;
+} helpline_t;
+
+static const helpline_t visor_help[] = {
+    { NULL,         "AYUDA  (H para cerrar)" },
+    { "",           NULL },
+    { NULL,         "Reproduccion" },
+    { "Abajo",      "Pausa / seguir" },
+    { "Izq / Der",  "-10 s / +10 s" },
+    { "Z / X",      "Mas lento / rapido" },
+    { "Retroceso",  "Velocidad normal" },
+    { "F1",         "Tabla de puntos" },
+    { "",           NULL },
+    { NULL,         "Camara" },
+    { "Arriba",     "Camara libre" },
+    { "WASD+mouse", "Mover y mirar" },
+    { "Esp / Ctrl", "Subir / bajar" },
+    { "Shift",      "Mas rapido" },
+    { "Rueda",      "Velocidad / distancia" },
+    { "E / Q",      "Seguir jugador" },
+    { "R",          "Vista de quien grabo" },
+    { "C",          "Grabar recorrido" },
+    { "V",          "Usar recorrido" },
+    { "",           NULL },
+    { NULL,         "Clips de video" },
+    { "I / O",      "Inicio / fin" },
+    { "G",          "Grabar el clip" },
+    { "Supr",       "Borrar marcas" },
+    { "",           NULL },
+    { "Esc",        "Menu / otro demo" },
 };
 
+// a side panel in the free band between the game's top and bottom HUD,
+// smaller text and see-through, so the demo stays visible
 static void SCR_DrawVisorHelp(void)
 {
-    int i, n = q_countof(visor_help_lines);
-    int lw = 0, x, y, w, h;
-    float s = scr.hud_scale;
+    const int n = q_countof(visor_help);
+    const int keycol = 11, pad = 1;
+    int i, tw = 0, cols, x, y, w, h, bx, by, bw, bh;
+    float s;
 
     if (!CL_VisorHelpVisible() || (cls.key_dest & KEY_MENU))
         return;
 
-    for (i = 0; i < n; i++)
-        lw = max(lw, (int)strlen(visor_help_lines[i]));
+    // larger scale value = smaller characters
+    s = scr.hud_scale / Cvar_ClampValue(visor_help_size, 0.5f, 1.5f);
 
-    R_SetScale(s);
+    for (i = 0; i < n; i++) {
+        const helpline_t *l = &visor_help[i];
+        int len = l->key ? keycol + (l->text ? strlen(l->text) : 0)
+                         : strlen(l->text);
+        tw = max(tw, len);
+    }
+    cols = tw + pad * 2;
+
     w = Q_rint(r_config.width * s);
     h = Q_rint(r_config.height * s);
+    bw = cols * CONCHAR_WIDTH;
+    bh = (n + pad * 2) * CONCHAR_HEIGHT;
+    by = (h - bh) / 2;
+    if (!Q_stricmp(visor_help_pos->string, "left"))
+        bx = CONCHAR_WIDTH;
+    else
+        bx = w - bw - CONCHAR_WIDTH;
 
-    x = (w - lw * CONCHAR_WIDTH) / 2;
-    y = (h - n * CONCHAR_HEIGHT) / 2;
-    R_SetScale(1.0f);
-
-    R_DrawFill32(Q_rint((x - CONCHAR_WIDTH * 2) / s), Q_rint((y - CONCHAR_HEIGHT) / s),
-                 Q_rint((lw + 4) * CONCHAR_WIDTH / s), Q_rint((n + 2) * CONCHAR_HEIGHT / s),
-                 MakeColor(0, 0, 0, 200));
+    R_DrawFill32(Q_rint(bx / s), Q_rint(by / s), Q_rint(bw / s), Q_rint(bh / s),
+                 MakeColor(0, 0, 0, 150));
 
     R_SetScale(s);
+    x = bx + pad * CONCHAR_WIDTH;
+    y = by + pad * CONCHAR_HEIGHT;
     for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
-        const char *line = visor_help_lines[i];
-        if (*line == '!')
-            SCR_DrawString(x, y, UI_ALTCOLOR, line + 1);
-        else
-            SCR_DrawString(x, y, 0, line);
+        const helpline_t *l = &visor_help[i];
+
+        if (!l->key) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->text);
+        } else if (l->text) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->key);
+            SCR_DrawString(x + keycol * CONCHAR_WIDTH, y, 0, l->text);
+        }
     }
     R_SetScale(1.0f);
 }

@@ -215,6 +215,8 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
+| `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
+| `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
