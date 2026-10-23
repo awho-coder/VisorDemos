@@ -49,6 +49,8 @@ static cvar_t   *chase_auto;
 
 static bool     path_driving;   // a recorded camera path moves the view
 
+static bool mvd_playing(void);
+
 // camera moved by the user right now (free or chase)
 static bool live_active(void)
 {
@@ -91,6 +93,43 @@ const char *CL_ChaseTargetName(void)
     if (!fc.target_seen)
         return va("%s (fuera de vista)", name);
     return name;
+}
+
+/*
+===============
+CL_ViewedPlayer
+
+Nick of the player the view belongs to: the one being followed, or the one
+whose eyes we see (the demo's recorder, or the player a MVD is chasing).
+NULL with the free camera or a recorded path, where nobody is "watched".
+===============
+*/
+const char *CL_ViewedPlayer(bool *chasing)
+{
+    const char *name;
+    int num;
+
+    *chasing = false;
+
+    if (cls.state != ca_active || (!cls.demo.playback && !mvd_playing()))
+        return NULL;
+
+    if (chase_active()) {
+        *chasing = true;
+        num = fc.target - 1;
+    } else {
+        if (CL_FreecamActive())
+            return NULL;
+        // flying around as a MVD spectator: not looking through anyone
+        if (mvd_playing() && cl.frame.ps.pmove.pm_type == PM_SPECTATOR)
+            return NULL;
+        num = cl.frame.clientNum;
+    }
+
+    if (num < 0 || num >= MAX_CLIENTS)
+        return NULL;
+    name = cl.clientinfo[num].name;
+    return *name ? name : NULL;
 }
 
 bool CL_FreecamFlying(void)

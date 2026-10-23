@@ -77,6 +77,8 @@ static cvar_t   *scr_alpha;
 
 static cvar_t   *scr_demobar;
 static cvar_t   *visor_bar;
+static cvar_t   *visor_name;
+static cvar_t   *clip_name;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
 
@@ -1408,6 +1410,8 @@ void SCR_Init(void)
     scr_printspeed = Cvar_Get("scr_printspeed", "16", 0);
     scr_demobar = Cvar_Get("scr_demobar", "1", 0);
     visor_bar = Cvar_Get("visor_bar", "1", 0);
+    visor_name = Cvar_Get("visor_name", "1", CVAR_ARCHIVE);
+    clip_name = Cvar_Get("clip_name", "0", CVAR_ARCHIVE);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
     scr_scale = Cvar_Get("scr_scale", "0", 0);
@@ -2496,6 +2500,24 @@ static void SCR_DrawVisorHelp(void)
     R_SetScale(1.0f);
 }
 
+// nick of the watched player, top center. In clips just the nick, on screen
+// with what it is (watching through their eyes, or following them).
+static void SCR_DrawViewedName(bool in_clip)
+{
+    const char *name;
+    bool chasing;
+
+    name = CL_ViewedPlayer(&chasing);
+    if (!name)
+        return;
+
+    R_SetScale(scr.hud_scale);
+    SCR_DrawString(Q_rint(r_config.width * scr.hud_scale) / 2, CONCHAR_HEIGHT,
+                   UI_CENTER | UI_DROPSHADOW,
+                   in_clip ? name : va("%s: %s", chasing ? "SIGUIENDO" : "VIENDO", name));
+    R_SetScale(1.0f);
+}
+
 static void SCR_DrawVisorOverlay(void)
 {
     char buf[64];
@@ -2504,6 +2526,11 @@ static void SCR_DrawVisorOverlay(void)
         return;
 
     SCR_DrawVisorBar();
+
+    // on screen only (a clip with clip_name already has it drawn in)
+    if (visor_name->integer && !(CL_CaptureActive() && clip_name->integer) &&
+        !(cls.key_dest & KEY_MENU))
+        SCR_DrawViewedName(false);
 
     if (CL_CaptureStatus(buf, sizeof(buf))) {
         R_SetScale(scr.hud_scale);
@@ -2550,6 +2577,10 @@ static void SCR_DrawActive(void)
 
     // draw all 2D elements
     SCR_Draw2D();
+
+    // nick burned into the video clip, if wanted
+    if (CL_CaptureActive() && clip_name->integer)
+        SCR_DrawViewedName(true);
 }
 
 //=======================================================
