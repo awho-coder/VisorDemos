@@ -123,6 +123,10 @@ Quake 2 normal.
 
 Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
 
+Arriba al centro aparece el nick del jugador que estás viendo (*VIENDO:*,
+la vista de quien grabó) o siguiendo (*SIGUIENDO:*). Con la cámara libre no
+aparece ningún nick.
+
 La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
 las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
 **azul** (línea fina) = tramo con recorrido de cámara grabado. Nada de esto
@@ -201,6 +205,8 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_format` | `mp4` | `mp4` (H.264+AAC) o `mov` (ProRes+PCM) |
 | `clip_quality` | `16` | Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien) |
 | `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
+| `clip_name` | `0` | `1` = el nick del jugador que se ve o se sigue sale en el video |
+| `visor_name` | `1` | Muestra arriba el nick del jugador que ves o sigues (`0` = no) |
 | `clip_volume` | `0.7` | Volumen del sonido en el video |
 | `freecam_speed` | `300` | Velocidad de la cámara libre (también con la rueda del mouse) |
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
