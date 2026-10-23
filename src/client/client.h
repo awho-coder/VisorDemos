@@ -814,6 +814,7 @@ typedef enum {
 } viewkind_t;
 const char *CL_ViewedPlayer(viewkind_t *kind);
 int CL_ChasedBodyToHide(void);
+int CL_SpectatorChaseStat(void);
 float CL_FreecamSpeed(void);
 float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);

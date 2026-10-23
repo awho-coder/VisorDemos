@@ -124,8 +124,10 @@ Quake 2 normal.
 Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
 
 Arriba al centro aparece el nick del jugador que estás viendo (*VIENDO:*,
-la vista de quien grabó) o siguiendo (*SIGUIENDO:*). Con la cámara libre no
-aparece ningún nick.
+la vista de quien grabó) o siguiendo (*SIGUIENDO:*). Si grabaste el demo
+como espectador siguiendo a alguien, muestra a quién seguías (y oculta el
+texto de espectador de D-Day, que repetía lo mismo); si volabas libre, dice
+*OBSERVADOR*. Con la cámara libre no aparece ningún nick.
 
 La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
 las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
