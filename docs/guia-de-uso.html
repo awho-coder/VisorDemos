@@ -184,6 +184,7 @@
     <span style="--c:var(--mark-out)">fin del clip</span>
     <span style="--c:var(--clip)">el clip</span>
     <span style="--c:var(--path)">recorrido de cámara grabado</span>
+    <span style="--c:#ffd200">frags del jugador que ves (rayitas)</span>
   </div>
   <p>A la izquierda está el tiempo del demo; al centro, el estado (pausa, velocidad,
   tipo de cámara); a la derecha, las marcas del clip.</p>
@@ -198,6 +199,7 @@
         <tr><td><kbd>Z</kbd> <kbd>X</kbd></td><td>Más lento / más rápido (x0.1 a x4). También <kbd>Av Pág</kbd> <kbd>Re Pág</kbd></td></tr>
         <tr><td><kbd>Retroceso</kbd></td><td>Velocidad normal</td></tr>
         <tr><td><kbd>F1</kbd> mantener</td><td>Tabla de puntos, solo si quien grabó la abrió en ese momento</td></tr>
+        <tr><td><kbd>N</kbd> <kbd>B</kbd></td><td>Siguiente / anterior frag del jugador que ves o sigues</td></tr>
       </table>
     </div>
     <div class="card">
@@ -301,8 +303,15 @@
     / <code>clip_chat 1</code> (también aceptan <code>2</code>, como arriba).</li>
     <li><code>visor_feed_size 1.5</code> agranda la letra de los dos, en pantalla y en el clip.</li>
   </ul>
-  <div class="note">Al saltar en el demo, las muertes y mensajes de justo antes del salto no se
-  muestran, y un clip empieza con el kill feed vacío.</div>
+  <h3>Buscar frags</h3>
+  <p>Al abrir un demo, el visor lo lee entero una vez (es una fracción de segundo). Por eso,
+  después de cualquier salto ves las muertes y el chat de los segundos anteriores, y un clip
+  empieza con el kill feed ya lleno.</p>
+  <p>Con <kbd>N</kbd> saltas al <strong>siguiente frag</strong> del jugador que ves o sigues, un
+  par de segundos antes de que pase, y con <kbd>B</kbd> al anterior. En el centro aparece
+  <em>Frag 3 de 14</em>. Sus frags se marcan con rayitas amarillas en la barra de tiempo. Con
+  <kbd>E</kbd> / <kbd>Q</kbd> eliges a otro jugador y ves los suyos. Con la cámara libre (sin
+  jugador) salta entre todas las muertes.</p>
 
   <h2 id="editor">8. Llevarlo al editor</h2>
   <p>Los clips salen en <strong>MP4, 1920×1080, 60 cuadros por segundo, con sonido y sin HUD</strong> (solo con el kill feed):
