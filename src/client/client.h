@@ -806,7 +806,7 @@ void CL_FeedPrint(int level, const char *s);
 void CL_FeedIndexBegin(void);
 void CL_FeedIndexEnd(void);
 bool CL_FeedIndexed(void);
-int  CL_FeedFragMarks(float *pos, int max);
+int  CL_FeedMarks(bool deaths, float *pos, int max);
 bool CL_FeedKillsOn(void);
 bool CL_FeedChatOn(void);
 bool CL_FeedHidesNotify(void);
