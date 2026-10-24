@@ -586,13 +586,14 @@ static bool is_frag(const kill_t *k, const char *name)
 
 /*
 ===============
-CL_FeedFragMarks
+CL_FeedMarks
 
-Timeline positions (0-1) of the watched player's frags. Returns how many,
-none without a watched player.
+Timeline positions (0-1) of the watched player's frags, or of their deaths
+(killed by anyone, team kills and suicides too). Returns how many, none
+without a watched player.
 ===============
 */
-int CL_FeedFragMarks(float *pos, int max)
+int CL_FeedMarks(bool deaths, float *pos, int max)
 {
     const char *name = frag_player();
     int n = 0;
@@ -600,9 +601,11 @@ int CL_FeedFragMarks(float *pos, int max)
     if (!name || !watching_demo())
         return 0;
 
-    for (int i = 0; i < num_kills && n < max; i++)
-        if (is_frag(&kills[i], name))
-            pos[n++] = kills[i].pos;
+    for (int i = 0; i < num_kills && n < max; i++) {
+        const kill_t *k = &kills[i];
+        if (deaths ? !strcmp(k->victim, name) : is_frag(k, name))
+            pos[n++] = k->pos;
+    }
     return n;
 }
 
