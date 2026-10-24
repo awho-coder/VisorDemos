@@ -102,6 +102,18 @@ bool CL_CaptureHideHud(void)
     return CL_CaptureActive() && !clip_hud->integer;
 }
 
+// part of the window that ends up in the clip (cropped to the clip's aspect)
+bool CL_CaptureRect(int *x, int *y, int *w, int *h)
+{
+    if (!CL_CaptureActive())
+        return false;
+    *x = cap.crop_x;
+    *y = cap.crop_y;
+    *w = cap.crop_w;
+    *h = cap.crop_h;
+    return true;
+}
+
 // Cvar_SetValue doesn't run change callbacks, the mixer needs them
 static void set_cvar_now(const char *name, float value)
 {
@@ -809,6 +821,7 @@ bool CL_CaptureStatus(char *buf, size_t size)
 
 bool CL_CaptureActive(void) { return false; }
 bool CL_CaptureHideHud(void) { return false; }
+bool CL_CaptureRect(int *x, int *y, int *w, int *h) { return false; }
 unsigned CL_CaptureFrameMsec(void) { return 0; }
 int CL_CaptureAudioSamples(void) { return 0; }
 void CL_CaptureAudio(const float *samples, int count) { }

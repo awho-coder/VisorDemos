@@ -1051,6 +1051,7 @@ static void CL_ParsePrint(void)
     SHOWNET(3, "    %i \"%s\"\n", level, Com_MakePrintable(s));
 
     if (level != PRINT_CHAT) {
+        CL_FeedPrint(level, s);     // kill feed (demos)
         if (cl.csr.extended && (level == PRINT_TYPEWRITER || level == PRINT_CENTER))
             SCR_CenterPrint(s, level == PRINT_TYPEWRITER);
         else
@@ -1065,6 +1066,8 @@ static void CL_ParsePrint(void)
     if (CL_CheckForIgnore(s)) {
         return;
     }
+
+    CL_FeedPrint(level, s);         // chat panel (demos)
 
 #if USE_AUTOREPLY
     if (!cls.demo.playback && cl.serverstate != ss_broadcast) {
