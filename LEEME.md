@@ -105,6 +105,7 @@ Quake 2 normal.
 | **Z / X** | Más lento / más rápido (x0.1 a x4). También Av Pág / Re Pág |
 | **Retroceso** (Backspace) | Velocidad normal |
 | **F1** (mantener) | Tabla de puntos, solo si quien grabó la abrió en ese momento |
+| **N / B** | Saltar al siguiente / anterior frag del jugador que ves o sigues |
 | **Flecha arriba** | Cámara libre sí / no |
 | **W A S D + mouse** | Mover y mirar con la cámara libre |
 | **Espacio / Ctrl** | Subir / bajar |
@@ -131,8 +132,9 @@ texto de espectador de D-Day, que repetía lo mismo); si volabas libre, dice
 
 La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
 las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
-**azul** (línea fina) = tramo con recorrido de cámara grabado. Nada de esto
-sale en los videos.
+**azul** (línea fina) = tramo con recorrido de cámara grabado, **amarillo**
+(rayitas arriba) = frags del jugador que ves o sigues. Nada de esto sale en
+los videos.
 
 ---
 
@@ -178,10 +180,16 @@ con el color de cada equipo; `HS` es headshot y `TK` fuego amigo. Se resaltan
 las líneas del jugador que ves o sigues. Abajo a la izquierda va el chat.
 Van con el tiempo del demo (en pausa se quedan, en cámara lenta duran más).
 
+Al abrir un demo el visor lo lee entero una vez (toma una fracción de
+segundo), así que después de cualquier salto ves las muertes y el chat de
+los segundos anteriores, y un clip empieza con el kill feed ya lleno. Con
+**N** / **B** saltas al siguiente / anterior frag del jugador que ves o
+sigues (un par de segundos antes); sus frags se marcan en amarillo en la
+barra. Sin jugador (cámara libre) salta entre todas las muertes.
+
 En los clips sale el kill feed y no el chat: `clip_chat 1` lo agrega y
 `clip_killfeed 0` lo quita. `visor_killfeed 2` / `clip_killfeed 2` muestran
-solo las muertes del jugador que ves. Al saltar en el demo no aparecen las
-muertes de justo antes del salto, y un clip empieza con el kill feed vacío.
+solo las muertes del jugador que ves.
 
 ---
 

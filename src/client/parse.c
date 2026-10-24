@@ -1482,9 +1482,14 @@ bool CL_SeekDemoMessage(void)
             Com_Error(ERR_DISCONNECT, "Server disconnected");
             break;
 
-        case svc_print:
-            MSG_ReadByte();
-            // fall through
+        case svc_print: {
+            // the kill feed wants the prints we skip over too
+            char s[MAX_STRING_CHARS];
+            index = MSG_ReadByte();
+            MSG_ReadString(s, sizeof(s));
+            CL_FeedPrint(index, s);
+            break;
+        }
 
         case svc_centerprint:
         case svc_stufftext:

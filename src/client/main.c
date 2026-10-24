@@ -667,6 +667,7 @@ void CL_ClearState(void)
     CL_ClearTEnts();
     LOC_FreeLocations();
     CL_FreeDemoSnapshots();
+    CL_FeedClear();
     CL_FreecamReset();
     CL_CaptureShutdown();
 
@@ -710,7 +711,6 @@ void CL_Disconnect(error_type_t type)
     SCR_EndLoadingPlaque(); // get rid of loading plaque
 
     SCR_ClearChatHUD_f();   // clear chat HUD on server change
-    CL_FeedClear();
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);

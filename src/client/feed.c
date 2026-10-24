@@ -20,17 +20,25 @@ GNU General Public License for more details.
 // stay up while paused, last longer in slow motion and come out the same in
 // video clips rendered at a fixed frame rate.
 //
+// When a DM2 demo opens, demo.c reads it to the end once (the same way a
+// seek does) and every print lands here: the whole list of deaths and chat
+// is known, so after any jump the panels show exactly what was said and who
+// died in the seconds before, the timeline marks the frags of the watched
+// player and frag_next / frag_prev jump between them. MVD demos and demos
+// that can't be read ahead fill the list as they play.
+//
 // D-Day sends an obituary in pieces: victim, " was sniped by ", killer, tail
 // ("'s rifle - ** HEADSHOT **\n"). Mods that send one whole line are parsed
 // by looking for the players' names in it.
 
 #include "client.h"
 
-#define FEED_KILLS      16
-#define FEED_CHATS      32
 #define FEED_NAME       32
 #define FEED_TEXT       160
 #define MAX_PIECES      8
+#define MAX_LINES       16
+
+#define FRAG_LEAD       2000    // a jump to a frag lands this long before it, ms
 
 typedef enum {
     TEAM_NONE,
@@ -39,7 +47,9 @@ typedef enum {
 } team_t;
 
 typedef struct {
-    int     time;
+    int64_t time;               // demo time, ms
+    int     frame;              // demo frame, for seeking (1/10 s)
+    float   pos;                // demo position 0-1, for the timeline
     char    killer[FEED_NAME];  // empty: died on their own
     char    victim[FEED_NAME];
     char    label[FEED_NAME];   // "sniped", "grenade", "suicide"...
@@ -49,7 +59,7 @@ typedef struct {
 } kill_t;
 
 typedef struct {
-    int     time;
+    int64_t time;
     bool    server;             // a server message, not chat
     char    tag[8];             // "usa", "grm"... (D-Day team chat)
     char    name[FEED_NAME];
@@ -57,11 +67,14 @@ typedef struct {
     char    text[FEED_TEXT];
 } chat_t;
 
-static kill_t   kills[FEED_KILLS];
-static int      kill_head;
-static chat_t   chats[FEED_CHATS];
-static int      chat_head;
-static int      newest_time;
+// both lists are sorted by time
+static kill_t   *kills;
+static int      num_kills, max_kills;
+static chat_t   *chats;
+static int      num_chats, max_chats;
+
+static bool     indexing;       // demo.c is reading the demo ahead
+static bool     indexed;        // ...and finished: the lists are complete
 
 // obituary pieces of the current server frame
 static struct {
@@ -80,10 +93,17 @@ static cvar_t   *visor_chat_time;
 static cvar_t   *visor_chat_lines;
 static cvar_t   *visor_feed_size;
 
-// same clock as the camera paths: follows the demo through seeks
-static int demo_time(void)
+// same clock as the camera paths: follows the demo through seeks. It works
+// out to the number of the server frame on screen, in ms.
+static int64_t demo_time(void)
 {
-    return cl.time + cl.serverdelta * CL_FRAMETIME;
+    return cl.time + (int64_t)cl.serverdelta * CL_FRAMETIME;
+}
+
+// when a print arrives: the last server frame parsed (also while seeking)
+static int64_t print_time(void)
+{
+    return (int64_t)cl.frame.number * CL_FRAMETIME;
 }
 
 static bool watching_demo(void)
@@ -97,22 +117,128 @@ static bool watching_demo(void)
     return cls.demo.playback;
 }
 
+// where in the demo we are right now, also in the middle of a seek
+static void demo_position(int *frame, float *pos)
+{
+    *frame = 0;
+    *pos = 0;
+    if (cls.demo.playback) {
+        int64_t at = FS_Tell(cls.demo.playback);
+        *frame = cls.demo.frames_read;
+        if (cls.demo.file_size && at > cls.demo.file_offset)
+            *pos = Q_clipf((float)(at - cls.demo.file_offset) / cls.demo.file_size, 0, 1);
+    } else {
+        CL_DemoPosition(frame, pos, NULL);
+    }
+}
+
+static void flush_pieces(void);
+
 void CL_FeedClear(void)
 {
-    memset(kills, 0, sizeof(kills));
-    memset(chats, 0, sizeof(chats));
-    kill_head = chat_head = 0;
-    newest_time = 0;
+    Z_Freep(&kills);
+    Z_Freep(&chats);
+    num_kills = max_kills = 0;
+    num_chats = max_chats = 0;
+    indexing = indexed = false;
     acc.count = 0;
 }
 
-// went back in the demo (or a new map started): what we have is from the future
-static void check_rewind(void)
+void CL_FeedIndexBegin(void)
 {
-    int now = demo_time();
+    indexing = true;
+}
 
-    if (now + 500 < newest_time)
-        CL_FeedClear();
+void CL_FeedIndexEnd(void)
+{
+    flush_pieces();
+    indexing = false;
+    indexed = true;
+    Com_DPrintf("Feed index: %d deaths, %d chat lines\n", num_kills, num_chats);
+}
+
+bool CL_FeedIndexed(void)
+{
+    return indexed;
+}
+
+/*
+===============================================================================
+
+PLAYERS
+
+Names and models come straight from the configstrings ("name\model/skin"):
+while the demo is read ahead those are up to date, the client's player info
+isn't.
+
+===============================================================================
+*/
+
+static const char *player_string(int i)
+{
+    if (i < 0 || i >= cl.maxclients || i >= MAX_CLIENTS)
+        return "";
+    return cl.configstrings[cl.csr.playerskins + i];
+}
+
+static size_t player_name_len(const char *s)
+{
+    const char *p = strchr(s, '\\');
+    return p ? p - s : strlen(s);
+}
+
+static int find_player(const char *name)
+{
+    size_t len = strlen(name);
+
+    for (int i = 0; i < MAX_CLIENTS && i < cl.maxclients; i++) {
+        const char *s = player_string(i);
+        if (len && player_name_len(s) == len && !strncmp(s, name, len))
+            return i;
+    }
+    return -1;
+}
+
+// D-Day teams by model folder (usa/class_infantry...)
+static team_t player_team(const char *name)
+{
+    static const char *const allies[] = { "usa", "gbr", "rus", "pol", "aus", "fra" };
+    static const char *const axis[] = { "grm", "ita", "jpn" };
+    char model[MAX_QPATH];
+    const char *s, *p;
+    int i = find_player(name);
+
+    if (i < 0)
+        return TEAM_NONE;
+    s = player_string(i);
+    p = strchr(s, '\\');
+    if (!p)
+        return TEAM_NONE;
+    Q_strlcpy(model, p + 1, sizeof(model));
+    if ((p = strchr(model, '/')))
+        model[p - model] = 0;
+
+    for (int k = 0; k < q_countof(allies); k++)
+        if (!Q_stricmp(model, allies[k]))
+            return TEAM_ALLIES;
+    for (int k = 0; k < q_countof(axis); k++)
+        if (!Q_stricmp(model, axis[k]))
+            return TEAM_AXIS;
+    return TEAM_NONE;
+}
+
+// longest player name that s starts with (raw names, as the server sends them)
+static size_t name_prefix(const char *s)
+{
+    size_t best = 0;
+
+    for (int i = 0; i < MAX_CLIENTS && i < cl.maxclients; i++) {
+        const char *n = player_string(i);
+        size_t len = player_name_len(n);
+        if (len > best && !strncmp(s, n, len))
+            best = len;
+    }
+    return best;
 }
 
 /*
@@ -143,48 +269,6 @@ static void clean_copy(char *dst, size_t size, const char *src, size_t len)
     while (n && dst[n - 1] == ' ')
         n--;
     dst[n] = 0;
-}
-
-static int find_player(const char *name)
-{
-    for (int i = 0; i < MAX_CLIENTS; i++)
-        if (cl.clientinfo[i].name[0] && !strcmp(cl.clientinfo[i].name, name))
-            return i;
-    return -1;
-}
-
-// D-Day teams by model folder (usa/infantry...)
-static team_t player_team(const char *name)
-{
-    static const char *const allies[] = { "usa", "gbr", "rus", "pol", "aus", "fra" };
-    static const char *const axis[] = { "grm", "ita", "jpn" };
-    int i = find_player(name);
-    const char *model;
-
-    if (i < 0)
-        return TEAM_NONE;
-    model = cl.clientinfo[i].model_name;
-    for (int k = 0; k < q_countof(allies); k++)
-        if (!Q_stricmp(model, allies[k]))
-            return TEAM_ALLIES;
-    for (int k = 0; k < q_countof(axis); k++)
-        if (!Q_stricmp(model, axis[k]))
-            return TEAM_AXIS;
-    return TEAM_NONE;
-}
-
-// longest player name that s starts with (raw names, as the server sends them)
-static size_t name_prefix(const char *s)
-{
-    size_t best = 0;
-
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        const char *n = cl.clientinfo[i].name;
-        size_t len = strlen(n);
-        if (len > best && !strncmp(s, n, len))
-            best = len;
-    }
-    return best;
 }
 
 static const char *short_weapon(const char *w)
@@ -240,13 +324,36 @@ static void make_label(char *dst, size_t size, const char *mid, const char *weap
     clean_copy(dst, size, mid, len);
 }
 
+// Lists stay sorted. Something older than the newest entry means we went back
+// in a demo that isn't indexed: what follows it is heard again, drop it.
+#define PUSH(list, num, max, t) do {                                    \
+        while (num && list[num - 1].time > t)                           \
+            num--;                                                      \
+        if (num == max) {                                               \
+            max = max ? max * 2 : 256;                                  \
+            list = Z_Realloc(list, max * sizeof(list[0]));              \
+        }                                                               \
+        memset(&list[num], 0, sizeof(list[0]));                         \
+        list[num].time = t;                                             \
+    } while (0)
+
 static kill_t *new_kill(void)
 {
-    kill_t *k = &kills[kill_head++ & (FEED_KILLS - 1)];
+    int64_t t = print_time();
+    kill_t *k;
 
-    memset(k, 0, sizeof(*k));
-    k->time = newest_time = demo_time();
+    PUSH(kills, num_kills, max_kills, t);
+    k = &kills[num_kills++];
+    demo_position(&k->frame, &k->pos);
     return k;
+}
+
+static chat_t *new_chat(void)
+{
+    int64_t t = print_time();
+
+    PUSH(chats, num_chats, max_chats, t);
+    return &chats[num_chats++];
 }
 
 static bool add_kill(const char *victim, const char *mid, const char *killer, const char *tail)
@@ -340,15 +447,6 @@ static bool parse_line(const char *s)
     return add_death(va("%.*s", (int)vlen, s), s + vlen);
 }
 
-static chat_t *new_chat(void)
-{
-    chat_t *c = &chats[chat_head++ & (FEED_CHATS - 1)];
-
-    memset(c, 0, sizeof(*c));
-    c->time = newest_time = demo_time();
-    return c;
-}
-
 static void add_server_message(const char *s)
 {
     char text[FEED_TEXT];
@@ -424,15 +522,18 @@ static void add_chat(const char *s)
 ===============
 CL_FeedPrint
 
-Every svc_print of a demo goes through here (the console still gets it).
+Every svc_print of a demo goes through here, also the ones skipped over by
+a seek (the console only gets the ones played).
 ===============
 */
 void CL_FeedPrint(int level, const char *s)
 {
-    if (!watching_demo() || cls.demo.seeking)
+    if (!watching_demo())
         return;
 
-    check_rewind();
+    // the list is complete already
+    if (indexed && !indexing)
+        return;
 
     if (level == PRINT_CHAT) {
         flush_pieces();
@@ -459,6 +560,106 @@ void CL_FeedPrint(int level, const char *s)
 
     if (strchr(s, '\n') || acc.count == MAX_PIECES)
         flush_pieces();
+}
+
+/*
+===============================================================================
+
+FRAGS OF THE WATCHED PLAYER
+
+===============================================================================
+*/
+
+// the player whose frags count: the one watched or followed (NULL = anyone)
+static const char *frag_player(void)
+{
+    viewkind_t kind;
+    return CL_ViewedPlayer(&kind);
+}
+
+static bool is_frag(const kill_t *k, const char *name)
+{
+    if (!*k->killer || k->teamkill)
+        return false;
+    return !name || !strcmp(k->killer, name);
+}
+
+/*
+===============
+CL_FeedFragMarks
+
+Timeline positions (0-1) of the watched player's frags. Returns how many,
+none without a watched player.
+===============
+*/
+int CL_FeedFragMarks(float *pos, int max)
+{
+    const char *name = frag_player();
+    int n = 0;
+
+    if (!name || !watching_demo())
+        return 0;
+
+    for (int i = 0; i < num_kills && n < max; i++)
+        if (is_frag(&kills[i], name))
+            pos[n++] = kills[i].pos;
+    return n;
+}
+
+// frag_next / frag_prev: jump to just before the next / previous frag
+static void jump_to_frag(int dir)
+{
+    const char *name = frag_player();
+    int64_t now = demo_time();
+    const kill_t *k = NULL;
+    int i, num = 0, which = 0;
+
+    if (!watching_demo()) {
+        Com_Printf("Abre un demo primero.\n");
+        return;
+    }
+
+    for (i = 0; i < num_kills; i++) {
+        const kill_t *t = &kills[i];
+        int64_t at = t->time - FRAG_LEAD;
+
+        if (!is_frag(t, name))
+            continue;
+        num++;
+        if (dir > 0 && !k && at > now + 500) {
+            k = t;
+            which = num;
+        } else if (dir < 0 && at < now - 500) {
+            k = t;
+            which = num;
+        }
+    }
+
+    if (!k) {
+        if (!num)
+            SCR_CenterPrint(name ? va("%s no tiene frags", name) : "No hay frags", false);
+        else
+            SCR_CenterPrint(dir > 0 ? "No hay mas frags" : "No hay frags antes", false);
+        return;
+    }
+
+    int frame = max(k->frame - FRAG_LEAD / 100, 0);
+    const char *what = name ? "Frag" : "Muerte";    // nobody watched: any death
+    Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", frame / 10, frame % 10));
+    if (indexed)
+        SCR_CenterPrint(va("%s %d de %d", what, which, num), false);
+    else
+        SCR_CenterPrint(va("%s %d", what, which), false);
+}
+
+static void Frag_Next_f(void)
+{
+    jump_to_frag(1);
+}
+
+static void Frag_Prev_f(void)
+{
+    jump_to_frag(-1);
 }
 
 /*
@@ -492,19 +693,39 @@ static uint32_t with_alpha(uint32_t color, float alpha)
     return c.u32;
 }
 
-// 1 while fresh, fades out over the last half second
-static float fade(int time, float seconds)
+// 1 while fresh, fades out over the last half second; 0 once gone or if it
+// hasn't happened yet
+static float fade(int64_t time, int64_t now, float seconds)
 {
-    int age = demo_time() - time;
-    int life = Q_rint(seconds * 1000);
+    int64_t age = now - time;
+    int64_t life = Q_rint(seconds * 1000);
 
-    if (age < 0)
-        age = 0;
-    if (age >= life)
+    if (age < 0 || age >= life)
         return 0;
     if (life - age < 500)
         return (life - age) / 500.0f;
     return 1;
+}
+
+// index of the first entry newer than now (entries before it have happened)
+static int kills_until(int64_t now)
+{
+    int l = 0, r = num_kills;
+    while (l < r) {
+        int m = (l + r) / 2;
+        if (kills[m].time <= now) l = m + 1; else r = m;
+    }
+    return l;
+}
+
+static int chats_until(int64_t now)
+{
+    int l = 0, r = num_chats;
+    while (l < r) {
+        int m = (l + r) / 2;
+        if (chats[m].time <= now) l = m + 1; else r = m;
+    }
+    return l;
 }
 
 static int draw_text(int x, int y, int flags, const char *s, size_t len,
@@ -532,20 +753,17 @@ bool CL_FeedHidesNotify(void)
 
 static void draw_kills(qhandle_t font, int right, int y)
 {
-    const char *watched;
-    viewkind_t kind;
-    int i, lines, max_lines = Cvar_ClampInteger(visor_killfeed_lines, 1, FEED_KILLS);
-    const kill_t *list[FEED_KILLS];
+    const char *watched = frag_player();
+    int64_t now = demo_time();
+    int i, lines = 0, max_lines = Cvar_ClampInteger(visor_killfeed_lines, 1, MAX_LINES);
+    const kill_t *list[MAX_LINES];
     int only_mine = (CL_CaptureActive() ? clip_killfeed : visor_killfeed)->integer == 2;
     float time = Cvar_ClampValue(visor_killfeed_time, 1, 60);
 
-    watched = CL_ViewedPlayer(&kind);
-
     // newest ones that are still up, oldest first
-    lines = 0;
-    for (i = 1; i <= FEED_KILLS && lines < max_lines; i++) {
-        const kill_t *k = &kills[(kill_head - i) & (FEED_KILLS - 1)];
-        if (!k->time || !fade(k->time, time))
+    for (i = kills_until(now) - 1; i >= 0 && lines < max_lines; i--) {
+        const kill_t *k = &kills[i];
+        if (!fade(k->time, now, time))
             break;
         if (only_mine && watched && strcmp(k->killer, watched) && strcmp(k->victim, watched))
             continue;
@@ -554,7 +772,7 @@ static void draw_kills(qhandle_t font, int right, int y)
 
     for (i = lines - 1; i >= 0; i--) {
         const kill_t *k = list[i];
-        float a = fade(k->time, time);
+        float a = fade(k->time, now, time);
         bool mine = watched && (!strcmp(k->killer, watched) || !strcmp(k->victim, watched));
         // [killer  ]label[ HS][ TK]  victim
         size_t len = strlen(k->label) + 2 + strlen(k->victim);
@@ -644,19 +862,20 @@ static int draw_chat(const chat_t *c, int x, int y_bottom, int cols, float a,
 
 static void draw_chats(qhandle_t font, int left, int w, int y_bottom)
 {
-    int i, rows = 0, max_rows = Cvar_ClampInteger(visor_chat_lines, 1, FEED_CHATS);
+    int64_t now = demo_time();
+    int i, rows = 0, max_rows = Cvar_ClampInteger(visor_chat_lines, 1, MAX_LINES * 2);
     int cols = max(w / 2 / CONCHAR_WIDTH, 20);
     int with_server = (CL_CaptureActive() ? clip_chat : visor_chat)->integer == 2;
     float time = Cvar_ClampValue(visor_chat_time, 1, 120);
     int x = left + CONCHAR_WIDTH;
 
     // newest at the bottom, older ones above
-    for (i = 1; i <= FEED_CHATS; i++) {
-        const chat_t *c = &chats[(chat_head - i) & (FEED_CHATS - 1)];
-        float a;
+    for (i = chats_until(now) - 1; i >= 0; i--) {
+        const chat_t *c = &chats[i];
+        float a = fade(c->time, now, time);
         int n;
 
-        if (!c->time || !(a = fade(c->time, time)))
+        if (!a)
             break;
         if (c->server && !with_server)
             continue;
@@ -686,8 +905,6 @@ void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows)
     if (!watching_demo())
         return;
 
-    check_rewind();
-
     // in a clip, stay inside the part of the window that is recorded
     CL_CaptureRect(&x, &y, &w, &h);
 
@@ -713,6 +930,12 @@ void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows)
     R_SetScale(1.0f);
 }
 
+static const cmdreg_t c_feed[] = {
+    { "frag_next", Frag_Next_f },
+    { "frag_prev", Frag_Prev_f },
+    { NULL }
+};
+
 void CL_InitFeed(void)
 {
     visor_killfeed = Cvar_Get("visor_killfeed", "1", CVAR_ARCHIVE);
@@ -724,4 +947,6 @@ void CL_InitFeed(void)
     visor_chat_time = Cvar_Get("visor_chat_time", "10", CVAR_ARCHIVE);
     visor_chat_lines = Cvar_Get("visor_chat_lines", "6", CVAR_ARCHIVE);
     visor_feed_size = Cvar_Get("visor_feed_size", "1", CVAR_ARCHIVE);
+
+    Cmd_Register(c_feed);
 }

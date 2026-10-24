@@ -2373,6 +2373,7 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_HEAD      MakeColor(255, 255, 255, 255)
 #define VISOR_PATH      MakeColor( 60, 140, 255, 255)
 #define VISOR_REC       MakeColor(255,  40,  40, 255)
+#define VISOR_FRAG      MakeColor(255, 210,   0, 255)
 
 static void SCR_DrawVisorBar(void)
 {
@@ -2427,6 +2428,13 @@ static void SCR_DrawVisorBar(void)
                          CL_CamPathRecording() ? VISOR_REC : VISOR_PATH);
         }
     }
+    {
+        // frags of the watched player, as ticks above the track
+        static float frags[1024];
+        int n = CL_FeedFragMarks(frags, q_countof(frags));
+        for (int i = 0; i < n; i++)
+            R_DrawFill32(tx0 + Q_rint(tw * frags[i]) - 1, ty - pad, 2, pad, VISOR_FRAG);
+    }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
     // text line
@@ -2480,6 +2488,7 @@ static const helpline_t visor_help[] = {
     { "Z / X",      "Mas lento / rapido" },
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
+    { "N / B",      "Frag siguiente / ant." },
     { "",           NULL },
     { NULL,         "Camara" },
     { "Arriba",     "Camara libre" },
