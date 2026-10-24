@@ -145,6 +145,7 @@
       <li><a href="#clip">Hacer un clip</a></li>
       <li><a href="#camara">Cámaras</a></li>
       <li><a href="#recorrido">Tomas con movimiento</a></li>
+      <li><a href="#feed">Muertes y chat</a></li>
       <li><a href="#editor">Llevarlo al editor</a></li>
       <li><a href="#ajustes">Ajustes</a></li>
       <li><a href="#limites">Límites y consejos</a></li>
@@ -285,8 +286,26 @@
   reemplaza esa parte. <kbd>V</kbd> activa o desactiva el recorrido. Se guarda solo y
   vuelve a estar ahí la próxima vez que abras el mismo demo.</p>
 
-  <h2 id="editor">7. Llevarlo al editor</h2>
-  <p>Los clips salen en <strong>MP4, 1920×1080, 60 cuadros por segundo, con sonido y sin HUD</strong>:
+  <h2 id="feed">7. Muertes y chat</h2>
+  <p>Mientras miras el demo, arriba a la derecha aparece quién mató a quién, en corto:
+  <em>asesino &nbsp;sniped&nbsp; víctima</em>. Los nombres van con el color de su equipo
+  (aliados en azul, eje en rojo); <em>HS</em> es un headshot y <em>TK</em> una muerte por
+  fuego amigo. Las líneas donde está el jugador que ves o sigues se resaltan en dorado.
+  Abajo a la izquierda va el chat, con el equipo entre paréntesis cuando es chat de equipo.</p>
+  <p>Se rigen por el tiempo del demo: en pausa se quedan en pantalla y en cámara lenta duran más.
+  Reemplazan a las líneas de texto que el juego ponía arriba a la izquierda.</p>
+  <ul>
+    <li><code>visor_killfeed 2</code>: solo las muertes del jugador que ves o sigues.</li>
+    <li><code>visor_chat 2</code>: el chat más los avisos del servidor.</li>
+    <li>En los clips sale el kill feed y no el chat. Para cambiarlo: <code>clip_killfeed 0</code>
+    / <code>clip_chat 1</code> (también aceptan <code>2</code>, como arriba).</li>
+    <li><code>visor_feed_size 1.5</code> agranda la letra de los dos, en pantalla y en el clip.</li>
+  </ul>
+  <div class="note">Al saltar en el demo, las muertes y mensajes de justo antes del salto no se
+  muestran, y un clip empieza con el kill feed vacío.</div>
+
+  <h2 id="editor">8. Llevarlo al editor</h2>
+  <p>Los clips salen en <strong>MP4, 1920×1080, 60 cuadros por segundo, con sonido y sin HUD</strong> (solo con el kill feed):
   los abre cualquier editor (DaVinci Resolve, Premiere, Vegas, CapCut, Filmora, Shotcut…).</p>
   <ol class="steps">
     <li>Saca un clip por cada jugada.</li>
@@ -298,7 +317,7 @@
   de presionar <kbd>G</kbd>. El clip sale en cámara lenta y completamente fluido, mucho mejor
   que si lo ralentizas después en el editor.</div>
 
-  <h2 id="ajustes">8. Ajustes</h2>
+  <h2 id="ajustes">9. Ajustes</h2>
   <p>Abre la consola con <kbd>`</kbd>, escribe el ajuste y su valor, y presiona Enter.
   Por ejemplo: <code>clip_size 2560x1440</code>. Quedan guardados.</p>
   <table>
@@ -310,6 +329,13 @@
       <tr><td><code>clip_hud</code></td><td>0</td><td><code>1</code> = incluir el HUD del juego en el video</td></tr>
       <tr><td><code>clip_name</code></td><td>0</td><td><code>1</code> = el nick del jugador que se ve o se sigue sale en el video</td></tr>
       <tr><td><code>visor_name</code></td><td>1</td><td>Muestra arriba el nick del jugador que ves o sigues (<code>0</code> = no)</td></tr>
+      <tr><td><code>visor_killfeed</code></td><td>1</td><td>Quién mató a quién, arriba a la derecha. <code>2</code> = solo el jugador que ves, <code>0</code> = no</td></tr>
+      <tr><td><code>visor_chat</code></td><td>1</td><td>Chat abajo a la izquierda. <code>2</code> = también avisos del servidor, <code>0</code> = no</td></tr>
+      <tr><td><code>clip_killfeed</code></td><td>1</td><td>Lo mismo, en el video (<code>0</code>, <code>1</code> o <code>2</code>)</td></tr>
+      <tr><td><code>clip_chat</code></td><td>0</td><td>Chat en el video (<code>0</code>, <code>1</code> o <code>2</code>)</td></tr>
+      <tr><td><code>visor_feed_size</code></td><td>1</td><td>Tamaño de la letra del kill feed y el chat (0.5 a 3)</td></tr>
+      <tr><td><code>visor_killfeed_time</code> / <code>visor_chat_time</code></td><td>6 / 10</td><td>Segundos que queda cada línea</td></tr>
+      <tr><td><code>visor_killfeed_lines</code> / <code>visor_chat_lines</code></td><td>5 / 6</td><td>Cuántas líneas se muestran a la vez</td></tr>
       <tr><td><code>clip_volume</code></td><td>0.7</td><td>Volumen del sonido en el video</td></tr>
       <tr><td><code>freecam_speed</code></td><td>300</td><td>Velocidad de la cámara libre (también con la rueda del mouse)</td></tr>
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
@@ -321,7 +347,7 @@
     </tbody>
   </table>
 
-  <h2 id="limites">9. Límites y consejos</h2>
+  <h2 id="limites">10. Límites y consejos</h2>
   <ul>
     <li><strong>En un <code>.dm2</code> solo existe lo que veía quien grabó.</strong> Si alejas la
     cámara, puede haber jugadores que no aparecen o que aparecen de golpe. Si quien grabó estaba

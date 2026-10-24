@@ -171,6 +171,18 @@ Si un tramo no te gustó, vuelve a ese momento y graba solo ese tramo con
 recorrido. Los recorridos se guardan por demo en la carpeta `campaths` y se
 cargan solos la próxima vez que abras el mismo demo.
 
+### Muertes y chat
+
+Arriba a la derecha aparece quién mató a quién, en corto (`asesino  sniped  víctima`),
+con el color de cada equipo; `HS` es headshot y `TK` fuego amigo. Se resaltan
+las líneas del jugador que ves o sigues. Abajo a la izquierda va el chat.
+Van con el tiempo del demo (en pausa se quedan, en cámara lenta duran más).
+
+En los clips sale el kill feed y no el chat: `clip_chat 1` lo agrega y
+`clip_killfeed 0` lo quita. `visor_killfeed 2` / `clip_killfeed 2` muestran
+solo las muertes del jugador que ves. Al saltar en el demo no aparecen las
+muertes de justo antes del salto, y un clip empieza con el kill feed vacío.
+
 ---
 
 ## 5. Llevar los clips al editor de video
@@ -184,8 +196,8 @@ Shotcut, Kdenlive, DaVinci Resolve en Windows y Mac.
 - Para cámara lenta extra en el editor conviene grabar el clip ya en cámara
   lenta dentro del visor (**Z** antes de **G**): queda fluido porque se
   generan todos los cuadros.
-- Graba los clips **sin HUD** (es lo predeterminado) y agrega los textos en
-  el editor. Si quieres el HUD del juego en el video: `clip_hud 1` en la
+- Graba los clips **sin HUD** (es lo predeterminado; solo sale el kill feed)
+  y agrega los textos en el editor. Si quieres el HUD del juego en el video: `clip_hud 1` en la
   consola.
 
 **DaVinci Resolve gratuito en Linux** no abre H.264/AAC. En ese caso exporta
@@ -209,6 +221,13 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
 | `clip_name` | `0` | `1` = el nick del jugador que se ve o se sigue sale en el video |
 | `visor_name` | `1` | Muestra arriba el nick del jugador que ves o sigues (`0` = no) |
+| `visor_killfeed` | `1` | Quién mató a quién, arriba a la derecha. `2` = solo el jugador que ves, `0` = no |
+| `visor_chat` | `1` | Chat abajo a la izquierda. `2` = también avisos del servidor, `0` = no |
+| `clip_killfeed` | `1` | Lo mismo, en el video (`0`, `1` o `2`) |
+| `clip_chat` | `0` | Chat en el video (`0`, `1` o `2`) |
+| `visor_feed_size` | `1` | Tamaño de la letra del kill feed y el chat (0.5 a 3) |
+| `visor_killfeed_time` / `visor_chat_time` | `6` / `10` | Segundos que queda cada línea |
+| `visor_killfeed_lines` / `visor_chat_lines` | `5` / `6` | Cuántas líneas se muestran a la vez |
 | `clip_volume` | `0.7` | Volumen del sonido en el video |
 | `freecam_speed` | `300` | Velocidad de la cámara libre (también con la rueda del mouse) |
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |

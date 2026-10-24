@@ -14,6 +14,8 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
   la velocidad de la cámara se cambia con la rueda del mouse.
 - **Nick del jugador que estás viendo o siguiendo**, también en demos que
   grabaste como espectador (muestra a quién seguías).
+- **Kill feed y chat**: quién mató a quién (con colores por equipo y
+  headshots) y el chat del demo, en pantalla y, si quieres, en los clips.
 - **Recorridos de cámara**: graba el movimiento de la cámara mientras miras
   el demo y el clip lo repite, suavizado.
 - **Clips de video**: marca inicio y fin, presiona una tecla y obtienes un MP4

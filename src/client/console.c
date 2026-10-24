@@ -759,6 +759,11 @@ static void Con_DrawNotify(void)
         j = CON_TIMES;
     }
 
+    // watching a demo, the kill feed and chat panel show these instead
+    if (CL_FeedHidesNotify()) {
+        j = 0;
+    }
+
     v = 0;
     for (i = con.current - j + 1; i <= con.current; i++) {
         if (i < 0)
