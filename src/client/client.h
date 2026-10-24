@@ -765,6 +765,7 @@ void CL_CalcViewValues(void);
 void CL_InitCapture(void);
 void CL_CaptureShutdown(void);
 bool CL_CaptureHideHud(void);
+bool CL_CaptureRect(int *x, int *y, int *w, int *h);
 int  CL_CaptureAudioSamples(void);
 void CL_CaptureAudio(const float *samples, int count);
 void CL_CaptureFrame(void);
@@ -797,6 +798,22 @@ bool CL_DemoAtEnd(void);
 bool CL_XrayWants(const centity_state_t *s1);   // VisorDemos (local) x-ray
 uint64_t CL_XrayShell(const centity_state_t *s1);
 float CL_XrayAlpha(void);
+
+
+//
+// feed.c
+//
+void CL_InitFeed(void);
+void CL_FeedClear(void);
+void CL_FeedPrint(int level, const char *s);
+void CL_FeedIndexBegin(void);
+void CL_FeedIndexEnd(void);
+bool CL_FeedIndexed(void);
+int  CL_FeedFragMarks(float *pos, int max);
+bool CL_FeedKillsOn(void);
+bool CL_FeedChatOn(void);
+bool CL_FeedHidesNotify(void);
+void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows);
 
 
 //

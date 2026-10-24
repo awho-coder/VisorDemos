@@ -2373,6 +2373,7 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_HEAD      MakeColor(255, 255, 255, 255)
 #define VISOR_PATH      MakeColor( 60, 140, 255, 255)
 #define VISOR_REC       MakeColor(255,  40,  40, 255)
+#define VISOR_FRAG      MakeColor(255, 210,   0, 255)
 
 static void SCR_DrawVisorBar(void)
 {
@@ -2426,6 +2427,13 @@ static void SCR_DrawVisorBar(void)
             R_DrawFill32(xa, ty + bar_h, max(xb - xa, 1), max(pad / 2, 2),
                          CL_CamPathRecording() ? VISOR_REC : VISOR_PATH);
         }
+    }
+    {
+        // frags of the watched player, as ticks above the track
+        static float frags[1024];
+        int n = CL_FeedFragMarks(frags, q_countof(frags));
+        for (int i = 0; i < n; i++)
+            R_DrawFill32(tx0 + Q_rint(tw * frags[i]) - 1, ty - pad, 2, pad, VISOR_FRAG);
     }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
@@ -2482,6 +2490,7 @@ static const helpline_t visor_help[] = {
     { "Z / X",      "Mas lento / rapido" },
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
+    { "N / B",      "Frag siguiente / ant." },
     { "",           NULL },
     { NULL,         "Camara" },
     { "Arriba",     "Camara libre" },
@@ -2577,10 +2586,12 @@ static void SCR_DrawViewedName(bool in_clip)
     if (!text)
         return;
 
-    // on screen, below the chat / kill messages so they don't cover it;
-    // in a clip there are no such messages, so right at the top
+    // in a clip right at the top; on screen below "CAMARA LIBRE", or below
+    // the console lines when the kill feed / chat panel don't replace them
     int y = CONCHAR_HEIGHT;
-    if (!in_clip)
+    if (!in_clip && CL_FeedHidesNotify())
+        y = CONCHAR_HEIGHT * 3;
+    else if (!in_clip)
         y = CONCHAR_HEIGHT * (Q_clip(Cvar_VariableInteger("con_notifylines"), 0, 10) + 2);
 
     R_SetScale(scr.hud_scale);
@@ -2611,6 +2622,22 @@ static void SCR_DrawVisorOverlay(void)
     }
 
     SCR_DrawVisorHelp();
+}
+
+static void SCR_DrawFeed(void)
+{
+    bool game_hud, bar;
+
+    if (scr_draw2d->integer <= 0 || (cls.key_dest & KEY_MENU))
+        return;
+    if (!CL_FeedKillsOn() && !CL_FeedChatOn())
+        return;
+
+    // keep clear of the game's status bar and of our timeline
+    game_hud = scr_draw2d->integer > 1 && !CL_CaptureHideHud() && !CL_FreecamHideHud();
+    bar = !CL_CaptureActive() && visor_bar->integer && CL_DemoPosition(NULL, NULL, NULL);
+
+    CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, bar ? 3 : 0);
 }
 
 static void SCR_DrawActive(void)
@@ -2648,6 +2675,9 @@ static void SCR_DrawActive(void)
 
     // draw all 2D elements
     SCR_Draw2D();
+
+    // kill feed and chat, also burned into the clip if wanted
+    SCR_DrawFeed();
 
     // nick burned into the video clip, if wanted
     if (CL_CaptureActive() && clip_name->integer)
