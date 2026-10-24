@@ -48,7 +48,8 @@ if [ $# -ge 1 ] && [ "${1#+}" = "$1" ]; then
         ln -sf "$(cd "$(dirname "$demo")" && pwd)/$name" "$VISOR_HOME/$GAME/demos/$name"
         demo="$name"
     fi
-    set -- +demo "$demo" "$@"
+    # entre comillas: el visor corta en los espacios ("partida Chelo ql.dm2")
+    set -- +demo "\"$demo\"" "$@"
 fi
 
 exec "$BIN" \
