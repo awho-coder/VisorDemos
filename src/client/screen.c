@@ -2491,6 +2491,7 @@ static const helpline_t visor_help[] = {
     { NULL,         "Reproduccion" },
     { "Abajo",      "Pausa / seguir" },
     { "Izq / Der",  "-10 s / +10 s" },
+    { "",           "con Shift: frag/muerte" },
     { "Z / X",      "Mas lento / rapido" },
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
