@@ -24,7 +24,7 @@
     arguments: [
       '+set', 'basedir', '/q2', '+set', 'homedir', '/home/visor', '+set', 'game', 'dday',
       '+set', 'vid_geometry', window.innerWidth + 'x' + window.innerHeight,
-      '+set', 'developer', '1',
+      '+set', 'developer', '1', '+set', 'logfile', '1',
       '+demo', demo,
     ],
     print: (t) => console.log(t),
@@ -33,6 +33,12 @@
     monitorRunDependencies: (left) => { if (!left) estado.textContent = ''; },
   };
   window.onerror = (m) => { estado.textContent = 'Error: ' + m; };
+  // el navegador no deja sonar nada hasta que la persona hace clic o aprieta una tecla
+  const reanudarAudio = () => {
+    const ctx = Module.SDL2 && Module.SDL2.audioContext;
+    if (ctx && ctx.state !== 'running') ctx.resume();
+  };
+  ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, reanudarAudio, true));
 </script>
 <script src="q2pro.js"></script>
 </body>
