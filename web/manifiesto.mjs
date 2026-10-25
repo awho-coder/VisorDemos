@@ -47,6 +47,18 @@ const FIJOS = [
     'weapons/grenlx1a.wav', 'weapons/xpld_wat.wav', 'weapons/tesla.wav', 'weapons/lashit.wav',
     'weapons/marker.wav', 'weapons/railgf1a.wav', 'weapons/shotgf1b.wav', 'weapons/blastf1a.wav',
     'weapons/hyprbf1a.wav', 'weapons/rocklf1a.wav', 'weapons/grenlf1a.wav', 'weapons/sshotf1b.wav',
+    // fogonazos y efectos que el cliente arma al vuelo (src/client/effects.c)
+    ...[1, 2, 3, 4, 5].map((n) => `weapons/machgf${n}b.wav`),
+    'weapons/rocklr1b.wav', 'weapons/grenlr1b.wav', 'weapons/railgr1b.wav', 'weapons/shotgr1b.wav',
+    'weapons/plasshot.wav', 'weapons/rippfire.wav', 'weapons/proxlr1a.wav', 'weapons/nail1.wav',
+    'weapons/shotg2.wav', 'weapons/bfg__l1a.wav', 'weapons/bfg__f1y.wav', 'weapons/disint2.wav',
+    'misc/talk.wav', 'misc/talk1.wav',
+    'infantry/infatck1.wav', 'soldier/solatck1.wav', 'soldier/solatck2.wav', 'soldier/solatck3.wav',
+    'gunner/gunatck2.wav', 'gunner/gunatck3.wav', 'flyer/flyatck3.wav', 'medic/medatck1.wav',
+    'hover/hovatck1.wav', 'floater/fltatck1.wav', 'tank/tnkatck1.wav', 'tank/tnkatck3.wav',
+    'tank/rocket.wav', 'chick/chkatck2.wav', 'makron/bfg_fire.wav', 'makron/blaster.wav',
+    'boss3/xfire.wav', 'guncmdr/gcdratck2.wav', 'guncmdr/gcdratck3.wav',
+    ...['a', 'b', 'c', 'd', 'e'].map((c) => `tank/tnkatk2${c}.wav`),
   ].map((w) => `sound/${w}`),
 ];
 

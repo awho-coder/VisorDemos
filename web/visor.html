@@ -52,7 +52,8 @@
   //   ?api=<url>      backend (por defecto el de producción)
   const q = new URLSearchParams(location.search);
   const API = q.get('api') || 'https://dday-server-api.duckdns.org';
-  const DATOS = (q.get('datos') || 'q2web/dday/').replace(/\/?$/, '/');
+  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const DATOS = (q.get('datos') || (local ? 'q2web/dday/' : `${API}/q2web/dday/`)).replace(/\/?$/, '/');
   const partida = q.get('partida');
   const urlDemo = q.get('mvd') || (partida && `${API}/v1/ladder-test/match/${encodeURIComponent(partida)}/mvd`);
 
