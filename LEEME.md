@@ -119,7 +119,9 @@ Quake 2 normal.
 | **O** | Marcar fin del clip |
 | **G** | Grabar el clip a video |
 | **Supr** | Borrar las marcas de inicio y fin |
-| **H** | Mostrar / ocultar la ayuda |
+| **K** | Kill feed: sí / solo el jugador que ves / no |
+| **J** | Chat: sí / con avisos del servidor / no |
+| **H** | Mostrar / ocultar la ayuda (teclas a un lado, ajustes de consola con su valor al otro) |
 | **Esc** | Menú (*browse demos* para abrir otro demo, salir, etc.) |
 
 Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
