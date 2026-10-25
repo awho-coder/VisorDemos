@@ -2494,7 +2494,7 @@ static const helpline_t visor_help[] = {
     { "Z / X",      "Mas lento / rapido" },
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
-    { "N / B",      "Frag siguiente / ant." },
+    { "N / B",      "Frag/muerte sig. / ant." },
     { "",           NULL },
     { NULL,         "Camara" },
     { "Arriba",     "Camara libre" },

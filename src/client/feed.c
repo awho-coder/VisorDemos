@@ -609,13 +609,16 @@ int CL_FeedMarks(bool deaths, float *pos, int max)
     return n;
 }
 
-// frag_next / frag_prev: jump to just before the next / previous frag
+// frag_next / frag_prev: jump to just before the next / previous frag or
+// death of the watched player (the yellow and red marks on the timeline).
+// Nobody watched: any death.
 static void jump_to_frag(int dir)
 {
     const char *name = frag_player();
     int64_t now = demo_time();
     const kill_t *k = NULL;
-    int i, num = 0, which = 0;
+    int i, frags = 0, deaths = 0, which = 0;
+    bool is_death = false;
 
     if (!watching_demo()) {
         Com_Printf("Abre un demo primero.\n");
@@ -625,32 +628,44 @@ static void jump_to_frag(int dir)
     for (i = 0; i < num_kills; i++) {
         const kill_t *t = &kills[i];
         int64_t at = t->time - FRAG_LEAD;
+        bool death;
 
-        if (!is_frag(t, name))
+        if (!name)
+            death = true;
+        else if (is_frag(t, name))
+            death = false;
+        else if (!strcmp(t->victim, name))
+            death = true;
+        else
             continue;
-        num++;
-        if (dir > 0 && !k && at > now + 500) {
+
+        if (death)
+            deaths++;
+        else
+            frags++;
+
+        // a small margin, so the same mark isn't picked again right after a jump
+        if ((dir > 0 && !k && at > now + 250) || (dir < 0 && at < now - 250)) {
             k = t;
-            which = num;
-        } else if (dir < 0 && at < now - 500) {
-            k = t;
-            which = num;
+            is_death = death;
+            which = death ? deaths : frags;
         }
     }
 
     if (!k) {
-        if (!num)
-            SCR_CenterPrint(name ? va("%s no tiene frags", name) : "No hay frags", false);
+        if (!frags && !deaths)
+            SCR_CenterPrint(name ? va("%s no tiene frags ni muertes", name) : "No hay muertes", false);
         else
-            SCR_CenterPrint(dir > 0 ? "No hay mas frags" : "No hay frags antes", false);
+            SCR_CenterPrint(dir > 0 ? "No hay mas" : "No hay nada antes", false);
         return;
     }
 
     int frame = max(k->frame - FRAG_LEAD / 100, 0);
-    const char *what = name ? "Frag" : "Muerte";    // nobody watched: any death
     Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", frame / 10, frame % 10));
+
+    const char *what = is_death ? "Muerte" : "Frag";
     if (indexed)
-        SCR_CenterPrint(va("%s %d de %d", what, which, num), false);
+        SCR_CenterPrint(va("%s %d de %d", what, which, is_death ? deaths : frags), false);
     else
         SCR_CenterPrint(va("%s %d", what, which), false);
 }

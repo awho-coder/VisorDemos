@@ -16,8 +16,8 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
   grabaste como espectador (muestra a quién seguías).
 - **Kill feed y chat**: quién mató a quién (con colores por equipo y
   headshots) y el chat del demo, en pantalla y, si quieres, en los clips.
-- **Buscar frags**: los frags del jugador que ves se marcan en la barra de
-  tiempo y una tecla salta al siguiente.
+- **Buscar frags y muertes**: los del jugador que ves se marcan en la barra
+  de tiempo (amarillo / rojo) y N / B saltan de uno a otro.
 - **Recorridos de cámara**: graba el movimiento de la cámara mientras miras
   el demo y el clip lo repite, suavizado.
 - **Clips de video**: marca inicio y fin, presiona una tecla y obtienes un MP4
