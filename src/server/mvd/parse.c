@@ -290,12 +290,20 @@ static void MVD_UnicastPrint(mvd_t *mvd, bool reliable, mvd_player_t *player)
     mvd_client_t *client;
     client_t *cl;
     mvd_player_t *target;
+    char string[MAX_STRING_CHARS];
 
     data = msg_read.data + msg_read.readcount - 1;
     readcount = msg_read.readcount - 1;
 
     level = MSG_ReadByte();
-    MSG_ReadString(NULL, 0);
+    MSG_ReadString(string, sizeof(string));
+
+    // the prints a viewer that follows nobody gets; with no dummy observer
+    // in the demo, one copy of what the players got
+    if (mvd->demoindexing && player == mvd->dummy)
+        MVD_IndexPrint(mvd, -1, level, string);
+    else if (mvd->demoindexing && !mvd->dummy)
+        MVD_IndexPrint(mvd, player - mvd->players, level, string);
 
     if (mvd->demoseeking)
         return;
@@ -595,6 +603,9 @@ static void MVD_ParsePrint(mvd_t *mvd)
                                 !strcmp(string, "Timelimit hit.\n"))) {
         match_ended_hack = true;
     }
+
+    if (mvd->demoindexing)
+        MVD_IndexPrint(mvd, -1, level, string);
 
     if (mvd->demoseeking)
         return;

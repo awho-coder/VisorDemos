@@ -451,7 +451,129 @@ bool MVD_GetDemoStatus(float *progress, bool *paused, int *framenum)
         *framenum = mvd->framenum;
     return true;
 }
+
+static void demo_seek(mvd_t *mvd, int64_t dest, bool byte_seek, bool back_seek);
+
+/*
+==============
+MVD_IndexDemo
+
+Reads the rest of the local MVD demo (this map) the way a seek does, so the
+kill feed gets every death and chat line, then comes back to where it was.
+The client runs it once (demo_index) when an MVD opens; it also leaves
+snapshots all along the demo, which makes later seeks back faster.
+==============
+*/
+void MVD_IndexDemo(void)
+{
+    unsigned start = Sys_Milliseconds();
+    mvd_t *mvd;
+    gtv_t *gtv;
+    int saved;
+
+    if ((mvd = find_local_channel()) == NULL)
+        return;
+    gtv = mvd->gtv;
+    if (!gtv || !gtv->demoplayback || !gtv->demosize)
+        return;
+    if (mvd->demorecording || mvd->demoseeking || !mvd->numsnapshots)
+        return;
+
+    saved = mvd->framenum;
+
+    if (setjmp(mvd_jmpbuf)) {
+        // the channel is gone
+        CL_FeedIndexPlayers(NULL, 0);
+        CL_FeedIndexEnd();
+        return;
+    }
+
+    CL_FeedIndexBegin();
+    CL_FeedIndexPlayers(mvd->configstrings + mvd->csr->playerskins, mvd->maxclients);
+    mvd->demoindexing = true;
+    demo_seek(mvd, INT64_MAX, false, false);
+    mvd->demoindexing = false;
+    CL_FeedIndexEnd();
+    CL_FeedIndexPlayers(NULL, 0);
+
+    demo_seek(mvd, saved, false, true);
+
+    Com_DPrintf("[%s] MVD indexed in %u ms\n", mvd->name, Sys_Milliseconds() - start);
+}
 #endif
+
+#if USE_CLIENT
+// An MVD recorded without a dummy observer keeps each print once for every
+// player that got it, so the n-th copy a player gets of a line in a frame
+// only counts if no other player has had it n times yet (two kills in the
+// same frame both say " was sniped by "). Team chat, which only one team
+// gets, still counts once.
+#define INDEX_SEEN  512
+
+static struct {
+    int     framenum;
+    int     count;
+    struct {
+        uint32_t    hash;
+        int         player;
+        int         times;
+    } seen[INDEX_SEEN];
+} index_seen;
+
+static bool index_first_copy(mvd_t *mvd, int player, int level, const char *s)
+{
+    uint32_t hash = 2166136261u ^ level;
+    int i, mine = 0, others = 0;
+
+    for (; *s; s++)
+        hash = (hash ^ (byte)*s) * 16777619u;
+
+    if (index_seen.framenum != mvd->framenum) {
+        index_seen.framenum = mvd->framenum;
+        index_seen.count = 0;
+    }
+
+    for (i = 0; i < index_seen.count; i++) {
+        if (index_seen.seen[i].hash != hash)
+            continue;
+        if (index_seen.seen[i].player == player)
+            mine = ++index_seen.seen[i].times;
+        else
+            others = max(others, index_seen.seen[i].times);
+    }
+
+    if (!mine) {
+        if (index_seen.count == INDEX_SEEN)
+            return true;    // too many prints in one frame: keep them all
+        index_seen.seen[index_seen.count].hash = hash;
+        index_seen.seen[index_seen.count].player = player;
+        index_seen.seen[index_seen.count].times = mine = 1;
+        index_seen.count++;
+    }
+
+    return mine > others;
+}
+#endif
+
+// A print read while indexing goes to the kill feed, at its place in the
+// demo. player: who it was sent to, -1 for everyone.
+void MVD_IndexPrint(mvd_t *mvd, int player, int level, const char *s)
+{
+#if USE_CLIENT
+    gtv_t *gtv = mvd->gtv;
+    float pos = 0;
+
+    if (player >= 0 && !index_first_copy(mvd, player, level, s))
+        return;
+
+    if (gtv && gtv->demoplayback && gtv->demosize) {
+        int64_t at = FS_Tell(gtv->demoplayback);
+        if (at > gtv->demoofs)
+            pos = Q_clipf((float)(at - gtv->demoofs) / gtv->demosize, 0, 1);
+    }
+    CL_FeedIndexPrint(level, s, mvd->framenum, pos);
+#endif
+}
 
 /*
 ====================================================================
@@ -2229,17 +2351,16 @@ static void MVD_Skip_f(void)
     mvd->gtv->demoskip = count;
 }
 
+static void demo_seek(mvd_t *mvd, int64_t dest, bool byte_seek, bool back_seek);
+
 static void MVD_Seek_f(void)
 {
     mvd_t *mvd;
     gtv_t *gtv;
-    mvd_client_t *client;
-    mvd_snap_t *snap;
-    int i, j, ret, index, frames;
+    int i, frames;
     int64_t dest;
-    char *from, *to;
-    edict_t *ent;
-    bool gamestate, back_seek, byte_seek;
+    char *to;
+    bool back_seek, byte_seek;
 
     if (Cmd_Argc() < 2) {
         Com_Printf("Usage: %s [+-]<timespec|percent>[%%] [chanid]\n", Cmd_Argv(0));
@@ -2313,6 +2434,28 @@ static void MVD_Seek_f(void)
     if (setjmp(mvd_jmpbuf))
         return;
 
+    demo_seek(mvd, dest, byte_seek, back_seek);
+}
+
+/*
+==============
+demo_seek
+
+Seeks to frame (or byte position) dest. While the demo is being indexed for
+the kill feed it reads on until the end of the demo or of this map, and
+leaves the channel there: the caller seeks back.
+==============
+*/
+static void demo_seek(mvd_t *mvd, int64_t dest, bool byte_seek, bool back_seek)
+{
+    gtv_t *gtv = mvd->gtv;
+    mvd_client_t *client;
+    mvd_snap_t *snap;
+    int i, j, ret, index;
+    char *from, *to;
+    edict_t *ent;
+    bool gamestate;
+
     // disable effects processing
     mvd->demoseeking = true;
 
@@ -2321,8 +2464,9 @@ static void MVD_Seek_f(void)
 
     Com_DPrintf("[%d] seeking to %"PRId64"\n", mvd->framenum, dest);
 
-    // seek to the previous most recent snapshot
-    if (back_seek || mvd->last_snapshot > mvd->framenum) {
+    // seek to the previous most recent snapshot (not when indexing: the
+    // index reads every frame from here on)
+    if (back_seek || (mvd->last_snapshot > mvd->framenum && !mvd->demoindexing)) {
         snap = demo_find_snapshot(mvd, dest, byte_seek);
 
         if (snap) {
@@ -2368,6 +2512,12 @@ static void MVD_Seek_f(void)
             break;
 
         ret = demo_read_message(gtv->demoplayback);
+
+        // the index stops at the end of the demo or before the next map
+        if (mvd->demoindexing && (ret <= 0 ||
+            (msg_read_buffer[0] & SVCMD_MASK) == mvd_serverdata))
+            goto done;
+
         if (ret <= 0) {
             demo_finish(gtv, ret);
             return;
@@ -2385,6 +2535,9 @@ static void MVD_Seek_f(void)
     }
 
     Com_DPrintf("[%d] after skip\n", mvd->framenum);
+
+    if (mvd->demoindexing)
+        goto done;
 
     // update dirty configstrings
     for (i = 0; i < q_countof(mvd->dcs); i++) {

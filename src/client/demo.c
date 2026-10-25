@@ -1215,13 +1215,19 @@ CL_DemoIndex_f
 Reads the rest of the demo (this map) the way a seek does, so the kill feed
 gets every death and chat line, then comes back to where we were. Run once
 by itself when a demo opens; it also leaves snapshots all along the demo,
-which makes later seeks back faster.
+which makes later seeks back faster. MVD demos are read by the server's MVD
+player (MVD_IndexDemo).
 ====================
 */
 static void CL_DemoIndex_f(void)
 {
     unsigned start = Sys_Milliseconds();
     int saved = cls.demo.frames_read;
+
+    if (!cls.demo.playback && cls.state == ca_active && !CL_FeedIndexed()) {
+        MVD_IndexDemo();
+        return;
+    }
 
     if (!cls.demo.playback || cls.demo.compat || !cls.demo.file_size ||
         cls.state != ca_active || cls.demo.seeking)
@@ -1402,6 +1408,10 @@ CL_DemoFrame
 void CL_DemoFrame(void)
 {
     if (!cls.demo.playback) {
+        // an MVD played by the local server: read it ahead once per map too
+        if (cls.state == ca_active && MVD_GetDemoStatus(NULL, NULL, NULL) &&
+            CL_FeedWantsIndex())
+            Cbuf_InsertText(&cmd_buffer, "demo_index\n");
         return;
     }
 
