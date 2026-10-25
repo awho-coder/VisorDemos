@@ -622,10 +622,12 @@ static void MVD_UpdateTarget(mvd_client_t *client)
         if (target->inuse) {
             return;
         }
-        if (!MVD_FollowNext(client, target)) {
-            MVD_FollowStop(client);
-            return;
-        }
+        // VisorDemos: the player died or is respawning (D-Day takes them out
+        // of the game for a few seconds). Wait for them instead of jumping to
+        // someone else: whoever the viewer follows stays followed, and the
+        // spectator doesn't end up somewhere it can't hear anything.
+        MVD_FollowStop(client);     // remembers them in oldtarget
+        client->chase_wait = true;
     }
 
     // find the next target for auto chasecam
@@ -639,8 +641,9 @@ static void MVD_UpdateTarget(mvd_client_t *client)
         return;
     }
 
-    // if the map has just started, try to return to the previous target
+    // if the map has just started or the target respawned, return to them
     if (target && target->inuse && client->chase_wait) {
+        client->chase_wait = false;
         MVD_FollowStart(client, target);
     }
 }
