@@ -1,0 +1,14 @@
+# Archivo cross de meson para compilar VisorDemos web con Emscripten:
+#   source ~/emsdk/emsdk_env.sh
+#   meson setup build-web --cross-file cross-emscripten.txt ...  (ver web/compilar-web.sh)
+[binaries]
+c = 'emcc'
+cpp = 'em++'
+ar = 'emar'
+strip = 'emstrip'
+
+[host_machine]
+system = 'emscripten'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'

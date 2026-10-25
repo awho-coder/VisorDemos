@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisorDemos web (prueba)</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 14px system-ui, sans-serif; }
+  #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
+  #estado { position: fixed; left: 12px; top: 10px; background: rgba(0,0,0,.6); padding: 6px 10px; border-radius: 6px; }
+  #estado:empty { display: none; }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="estado">Cargando…</div>
+<script>
+  // Prueba de concepto: los datos de la partida vienen empaquetados en q2pro.data (--preload-file).
+  const estado = document.getElementById('estado');
+  const params = new URLSearchParams(location.search);
+  const demo = params.get('demo') || 'partida.mvd2.gz';
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    arguments: [
+      '+set', 'basedir', '/q2', '+set', 'homedir', '/home/visor', '+set', 'game', 'dday',
+      '+set', 'vid_geometry', window.innerWidth + 'x' + window.innerHeight,
+      '+set', 'developer', '1',
+      '+demo', demo,
+    ],
+    print: (t) => console.log(t),
+    printErr: (t) => console.warn(t),
+    setStatus: (t) => { estado.textContent = t; },
+    monitorRunDependencies: (left) => { if (!left) estado.textContent = ''; },
+  };
+  window.onerror = (m) => { estado.textContent = 'Error: ' + m; };
+</script>
+<script src="q2pro.js"></script>
+</body>
+</html>

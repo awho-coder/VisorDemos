@@ -168,6 +168,8 @@ game_src = [
 cc = meson.get_compiler('c')
 
 win32 = host_machine.system() == 'windows'
+# VisorDemos web: compilado con Emscripten (WebAssembly + WebGL2)
+web = host_machine.system() == 'emscripten'
 x86 = host_machine.cpu_family() == 'x86'
 
 cpuremap = {
@@ -261,21 +263,30 @@ texture_formats = []
 
 fallback_opt = ['default_library=static']
 
+if web
+  # en la web se usan los ports de Emscripten (se bajan y compilan solos)
+  zlib = declare_dependency(compile_args: '-sUSE_ZLIB=1', link_args: '-sUSE_ZLIB=1')
+else
 zlib = dependency('zlib',
   fallback:        'zlib-ng',
   required:        get_option('zlib'),
   default_options: fallback_opt + [ 'tests=disabled', 'zlib-compat=true', 'force-sse2=true' ],
 )
+endif
 
 if not zlib.found()
   warning('zlib not found, client will be unable to connect to protocol 35 servers')
 endif
 
+if web
+  png = declare_dependency(compile_args: '-sUSE_LIBPNG=1', link_args: '-sUSE_LIBPNG=1')
+else
 png = dependency('libpng',
   version:         '>= 1.6.11',
   required:        get_option('libpng'),
   default_options: fallback_opt,
 )
+endif
 if png.found()
   texture_formats += 'png'
 endif
@@ -294,7 +305,11 @@ if curl.found()
   config.set10('USE_CURL', true)
 endif
 
+if web
+  sdl2 = declare_dependency(compile_args: '-sUSE_SDL=2', link_args: '-sUSE_SDL=2')
+else
 sdl2 = dependency('sdl2', required: get_option('sdl2'))
+endif
 if sdl2.found()
   client_src += 'src/unix/video/sdl.c'
   config.set('USE_SDL', 'USE_CLIENT')
@@ -427,6 +442,18 @@ if get_option('game-abi-hack').require(x86 and cc.get_id() == 'gcc' and cc.has_a
   engine_args += '-mstackrealign'
 endif
 
+if web
+  # WebGL2 (= OpenGL ES 3), memoria que crece, sistema de archivos en memoria.
+  # Los datos del juego se empaquetan con --preload-file (ver web/compilar-web.sh).
+  exe_link_args += [
+    '-sMIN_WEBGL_VERSION=2', '-sMAX_WEBGL_VERSION=2', '-sFULL_ES3=1',
+    '-sGL_ENABLE_GET_PROC_ADDRESS=1',
+    '-sALLOW_MEMORY_GROWTH=1', '-sINITIAL_MEMORY=268435456', '-sSTACK_SIZE=4194304',
+    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain',
+    '-sENVIRONMENT=web',
+  ] + get_option('web-link-args')
+endif
+
 executable('q2pro', common_src, client_src, refresh_src,
   dependencies:          common_deps + client_deps,
   include_directories:   'inc',
@@ -437,6 +464,8 @@ executable('q2pro', common_src, client_src, refresh_src,
   install:               system_wide,
 )
 
+# en la web solo va el visor: sin servidor dedicado ni DLL del juego
+if not web
 executable('q2proded', common_src, server_src,
   dependencies:          common_deps + server_deps,
   include_directories:   'inc',
@@ -457,6 +486,7 @@ shared_library('game' + cpu, game_src,
   install_dir:           libdir / get_option('base-game'),
   override_options:      get_option('game-build-options'),
 )
+endif
 
 config.set('REVISION',            meson.project_version().substring(1).split('~')[0].to_int())
 config.set_quoted('VERSION',      meson.project_version())
@@ -486,6 +516,8 @@ config.set10('USE_' + host_machine.endian().to_upper() + '_ENDIAN', true)
 
 if host_machine.system() == 'darwin'
   config.set_quoted('DEFGLPROFILE', 'gl3.2')
+elif web
+  config.set_quoted('DEFGLPROFILE', 'es3.0')
 elif get_option('opengl-es1')
   config.set_quoted('DEFGLPROFILE', 'es1')
 else
