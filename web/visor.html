@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ver partida · VisorDemos</title>
+<style>
+  :root { --bg: #0e0f11; --panel: #1a1c20; --text: #e8e4da; --muted: #9a958a; --accent: #c9a24a; --line: #2e3036; --error: #e07a5f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  #canvas { display: block; width: 100vw; height: 100vh; background: #000; outline: none; }
+  #portada { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+  #portada[hidden] { display: none; }
+  .caja { width: min(460px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  h1 { margin: 0 0 2px; font-size: 1.35rem; letter-spacing: .5px; }
+  .sub { margin: 0 0 18px; color: var(--muted); font-size: .9rem; }
+  .barra { height: 8px; background: #000; border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+  .barra > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  #paso { margin: 10px 0 0; color: var(--muted); font-size: .9rem; min-height: 1.5em; }
+  button { margin-top: 18px; width: 100%; padding: 11px; font: inherit; font-weight: 700; color: #111;
+    background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
+  button[hidden] { display: none; }
+  .ayuda { margin: 16px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .85rem; }
+  .ayuda li { margin: 3px 0; } .ayuda b { color: var(--text); font-weight: 600; }
+  .error { color: var(--error); }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="portada">
+  <div class="caja">
+    <h1 id="titulo">Ver partida</h1>
+    <p class="sub" id="detalle">Preparando…</p>
+    <div class="barra"><div id="progreso"></div></div>
+    <p id="paso"></p>
+    <button id="reproducir" hidden>Reproducir</button>
+    <ul class="ayuda">
+      <li><b>H</b> ayuda · <b>↓</b> pausa · <b>← →</b> 10 s atrás / adelante</li>
+      <li><b>E / Q</b> seguir a otro jugador · <b>↑</b> cámara libre (clic para usar el mouse)</li>
+      <li><b>Z / X</b> más lento / más rápido · <b>Esc</b> soltar el mouse</li>
+    </ul>
+  </div>
+</div>
+<script type="module">
+  import { manifiesto } from './manifiesto.mjs';
+
+  // Parámetros:
+  //   ?partida=<id>   MVD de una partida del Ladder (lo sirve el backend)
+  //   ?mvd=<url>      cualquier MVD / demo .dm2 (.gz o sin comprimir)
+  //   ?datos=<url>    carpeta con los archivos del juego (index.json + árbol de q2web.py)
+  //   ?api=<url>      backend (por defecto el de producción)
+  const q = new URLSearchParams(location.search);
+  const API = q.get('api') || 'https://dday-server-api.duckdns.org';
+  const DATOS = (q.get('datos') || 'q2web/dday/').replace(/\/?$/, '/');
+  const partida = q.get('partida');
+  const urlDemo = q.get('mvd') || (partida && `${API}/v1/ladder-test/match/${encodeURIComponent(partida)}/mvd`);
+
+  const $ = (id) => document.getElementById(id);
+  const paso = (t, error = false) => { $('paso').textContent = t; $('paso').className = error ? 'error' : ''; };
+  const progreso = (f) => { $('progreso').style.width = `${Math.round(f * 100)}%`; };
+  const mb = (b) => `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0)} MB`;
+
+  async function bajar(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} al bajar ${url}`);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+
+  async function descomprimir(bytes) {
+    if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return bytes;
+    const s = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  }
+
+  // Caché del navegador para los archivos del juego: la segunda vez el mapa carga al tiro.
+  let cache = null;
+  try { cache = await caches.open('visor-datos-v1'); } catch { /* sin Cache API (http normal): sin caché */ }
+  async function archivo(ruta) {
+    const url = DATOS + ruta;
+    if (cache) {
+      const guardado = await cache.match(url);
+      if (guardado) return new Uint8Array(await guardado.arrayBuffer());
+    }
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${r.status} al bajar ${ruta}`);
+    const datos = new Uint8Array(await r.clone().arrayBuffer());
+    if (cache) cache.put(url, r).catch(() => {});
+    return datos;
+  }
+
+  async function preparar() {
+    if (!urlDemo) throw new Error('Falta la partida (?partida=<id>).');
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) throw new Error('Tu navegador no tiene WebGL2: prueba con Chrome, Edge o Firefox actualizados.');
+
+    paso('Bajando la partida…');
+    const [indice, demoCrudo] = await Promise.all([
+      fetch(DATOS + 'index.json').then((r) => { if (!r.ok) throw new Error('No encuentro los archivos del juego'); return r.json(); }),
+      bajar(urlDemo),
+    ]);
+    const demo = await descomprimir(demoCrudo);
+
+    paso('Viendo qué archivos usa…');
+    const { archivos, bytes, cache: yaBajados } = await manifiesto({ indice, demo, leer: archivo });
+    const mapa = archivos.find((r) => r.startsWith('maps/'));
+    $('titulo').textContent = mapa ? mapa.slice(5, -4) : 'Ver partida';
+    $('detalle').textContent = `${archivos.length} archivos · ${mb(bytes)} (la próxima vez se carga desde la caché)`;
+
+    // bajar todo, 8 a la vez
+    const datos = new Map(yaBajados);
+    let listos = [...datos.keys()].reduce((s, r) => s + (indice[r] || 0), 0);
+    const cola = archivos.filter((r) => !datos.has(r));
+    progreso(listos / bytes);
+    paso(`Bajando ${mb(bytes)}…`);
+    await Promise.all(Array.from({ length: 8 }, async () => {
+      while (cola.length) {
+        const r = cola.shift();
+        datos.set(r, await archivo(r));
+        listos += indice[r];
+        progreso(listos / bytes);
+        paso(`Bajando ${mb(listos)} de ${mb(bytes)}…`);
+      }
+    }));
+
+    const nombre = partida ? `${partida}.mvd2${demoCrudo[0] === 0x1f ? '.gz' : ''}`
+      : decodeURIComponent(urlDemo.split('/').pop().split('?')[0]) || 'partida.mvd2.gz';
+    return { datos, demo: demoCrudo, nombre };
+  }
+
+  function arrancar({ datos, demo, nombre }) {
+    $('portada').hidden = true;
+    const canvas = $('canvas');
+    window.Module = {
+      canvas,
+      arguments: [
+        '+set', 'basedir', '/q2', '+set', 'homedir', '/home/visor', '+set', 'game', 'dday',
+        '+set', 'vid_geometry', `${innerWidth}x${innerHeight}`,
+        ...(q.has('log') ? ['+set', 'logfile', '2', '+set', 'fs_debug', '1'] : []),  // ?log=1 para depurar
+        '+demo', `"${nombre}"`,
+      ],
+      preRun: [() => {
+        // los archivos bajados van al sistema de archivos en memoria del visor
+        for (const [ruta, bytes] of datos) {
+          const destino = `/q2/dday/${ruta}`;
+          FS.mkdirTree(destino.slice(0, destino.lastIndexOf('/')));
+          FS.writeFile(destino, bytes);
+        }
+        FS.mkdirTree('/q2/dday/demos');
+        FS.writeFile(`/q2/dday/demos/${nombre}`, demo);
+        datos.clear();
+      }],
+      print: (t) => console.log(t),
+      printErr: (t) => console.warn(t),
+    };
+    // el sonido solo puede arrancar después de un clic o una tecla
+    const reanudar = () => {
+      const ctx = window.Module.SDL2 && window.Module.SDL2.audioContext;
+      if (ctx && ctx.state !== 'running') ctx.resume();
+    };
+    ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, reanudar, true));
+    const s = document.createElement('script');
+    s.src = 'q2pro.js';
+    document.body.appendChild(s);
+    canvas.focus();
+  }
+
+  try {
+    const listo = await preparar();
+    paso('Listo.');
+    progreso(1);
+    const boton = $('reproducir');
+    boton.hidden = false;
+    boton.focus();
+    boton.onclick = () => arrancar(listo);
+  } catch (e) {
+    console.error(e);
+    paso(e.message || String(e), true);
+  }
+</script>
+</body>
+</html>
