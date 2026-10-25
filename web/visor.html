@@ -24,6 +24,10 @@
   .ayuda { margin: 16px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .85rem; }
   .ayuda li { margin: 3px 0; } .ayuda b { color: var(--text); font-weight: 600; }
   .error { color: var(--error); }
+  .aviso { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--error); border-radius: 8px;
+    color: var(--text); font-size: .88rem; background: rgba(224, 122, 95, .08); }
+  .aviso[hidden] { display: none; }
+  .aviso code { background: #000; padding: 1px 5px; border-radius: 4px; user-select: all; }
 </style>
 </head>
 <body>
@@ -35,6 +39,11 @@
     <div class="barra"><div id="progreso"></div></div>
     <p id="paso"></p>
     <button id="reproducir" hidden>Reproducir</button>
+    <p class="aviso" id="aviso" hidden>
+      En Chrome para Linux la imagen puede parpadear (el cielo y las paredes aparecen y desaparecen).
+      Para verla bien usa <b>Firefox</b>, o en Chrome abre <code>chrome://flags/#use-angle</code>,
+      elige <b>Vulkan</b> y reinicia Chrome.
+    </p>
     <ul class="ayuda">
       <li><b>H</b> ayuda · <b>↓</b> pausa · <b>← →</b> 10 s atrás / adelante</li>
       <li><b>E / Q</b> seguir a otro jugador · <b>↑</b> cámara libre (clic para usar el mouse)</li>
@@ -103,6 +112,14 @@
     if (!urlDemo) throw new Error('Falta la partida (?partida=<id>).');
     const gl = document.createElement('canvas').getContext('webgl2');
     if (!gl) throw new Error('Tu navegador no tiene WebGL2: prueba con Chrome, Edge o Firefox actualizados.');
+    // Chrome en Linux con ANGLE sobre OpenGL (el modo por defecto) dibuja mal el visor:
+    // el cielo y las paredes parpadean. Con Vulkan o en Firefox anda bien.
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpu = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)
+        && /ANGLE/.test(gpu) && /OpenGL/.test(gpu)) {
+      $('aviso').hidden = false;
+    }
 
     paso('Bajando la partida…');
     const [indice, demoCrudo] = await Promise.all([
