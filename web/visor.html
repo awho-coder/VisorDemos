@@ -75,8 +75,17 @@
   }
 
   // Caché del navegador para los archivos del juego: la segunda vez el mapa carga al tiro.
+  // Va por versión del árbol (index.json "_version"): si cambian los archivos, se renueva.
   let cache = null;
-  try { cache = await caches.open('visor-datos-v1'); } catch { /* sin Cache API (http normal): sin caché */ }
+  async function abrirCache(version) {
+    try {
+      const nombre = `visor-datos-${version || 'v1'}`;
+      for (const viejo of await caches.keys()) {
+        if (viejo.startsWith('visor-datos-') && viejo !== nombre) await caches.delete(viejo);
+      }
+      cache = await caches.open(nombre);
+    } catch { /* sin Cache API (http normal): sin caché */ }
+  }
   async function archivo(ruta) {
     const url = DATOS + ruta;
     if (cache) {
@@ -101,6 +110,7 @@
       bajar(urlDemo),
     ]);
     const demo = await descomprimir(demoCrudo);
+    await abrirCache(indice._version);
 
     paso('Viendo qué archivos usa…');
     const { archivos, bytes, cache: yaBajados } = await manifiesto({ indice, demo, leer: archivo });

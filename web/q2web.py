@@ -8,8 +8,14 @@ resto por orden alfabético). Solo copia carpetas de recursos (nunca .cfg) y
 deja todos los nombres en minúsculas. Escribe además index.json con
 {ruta: tamaño}, que el visor usa para saber qué existe sin preguntar al servidor.
 
-uso: q2web.py <carpeta_del_mod> <salida>
-     ej. q2web.py /home/ubuntu/dday/dday /home/ubuntu/dday/q2web/dday
+uso: q2web.py <carpeta_del_mod> <salida> [--excluir pak98.pak,otro.pak]
+     ej. q2web.py /home/ubuntu/dday/dday /home/ubuntu/dday/q2web/dday --excluir pak98.pak
+
+--excluir: paks que no se usan para la web (pak98.pak trae modelos de jugador
+alterados que pisan a los normales).
+
+index.json lleva además "_version" (fecha de armado): el visor la usa para
+renovar su caché cuando cambian los archivos.
 """
 import json
 import os
@@ -17,6 +23,7 @@ import re
 import shutil
 import struct
 import sys
+import time
 import zipfile
 
 DIRS = ('maps/', 'textures/', 'env/', 'models/', 'players/', 'sound/', 'sprites/', 'pics/')
@@ -58,7 +65,13 @@ def pak_entries(path):
 
 
 def main():
-    gamedir, outdir = sys.argv[1], sys.argv[2]
+    args = sys.argv[1:]
+    excluir = set()
+    if '--excluir' in args:
+        i = args.index('--excluir')
+        excluir = {n.strip().lower() for n in args[i + 1].split(',') if n.strip()}
+        del args[i:i + 2]
+    gamedir, outdir = args[0], args[1]
     files = {}  # ruta en minúsculas -> ('loose', origen) | ('pak', pak, pos, size) | ('zip', zip, nombre)
 
     # 1) archivos sueltos (se buscan después que los paks: los pisan)
@@ -70,7 +83,9 @@ def main():
                 files[rel] = ('loose', full)
 
     # 2) paks en orden de carga: el que se carga después gana
-    packs = [n for n in os.listdir(gamedir) if n.lower().endswith(('.pak', '.pkz'))]
+    packs = [n for n in os.listdir(gamedir)
+             if n.lower().endswith(('.pak', '.pkz')) and n.lower() not in excluir]
+    print('paks:', ' '.join(pak_order(packs)), '| excluidos:', ' '.join(sorted(excluir)) or '-')
     for name in pak_order(packs):
         full = os.path.join(gamedir, name)
         if name.lower().endswith('.pkz'):
@@ -105,10 +120,11 @@ def main():
                 f.write(z.read(src[2]))
         index[rel] = os.path.getsize(dst)
 
+    index['_version'] = time.strftime('%Y%m%d%H%M%S')
     with open(os.path.join(outdir, 'index.json'), 'w') as f:
         json.dump(index, f, separators=(',', ':'), sort_keys=True)
-    total = sum(index.values())
-    print('%d archivos, %.0f MB' % (len(index), total / 1048576))
+    total = sum(v for k, v in index.items() if k != '_version')
+    print('%d archivos, %.0f MB' % (len(index) - 1, total / 1048576))
 
 
 if __name__ == '__main__':
