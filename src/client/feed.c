@@ -968,7 +968,31 @@ static void Demo_Step_f(void)
         Cmd_ExecuteString(&cmd_buffer, va("seek %c%s", *arg, secs));
 }
 
+// feed_toggle killfeed | chat: what's on screen goes 1 -> 2 -> 0 -> 1
+// (all, the watched player only / with server messages, off)
+static void Feed_Toggle_f(void)
+{
+    static const char *const kill_says[] = { "no", "si", "solo el jugador que ves" };
+    static const char *const chat_says[] = { "no", "si", "con avisos del servidor" };
+    const char *what = Cmd_Argv(1);
+    bool kills_ = !Q_stricmp(what, "killfeed");
+    cvar_t *var;
+    int v;
+
+    if (!kills_ && Q_stricmp(what, "chat")) {
+        Com_Printf("Uso: %s killfeed | chat\n", Cmd_Argv(0));
+        return;
+    }
+
+    var = kills_ ? visor_killfeed : visor_chat;
+    v = (Cvar_ClampInteger(var, 0, 2) + 1) % 3;
+    Cvar_SetInteger(var, v, FROM_CONSOLE);
+    SCR_CenterPrint(va("%s: %s", kills_ ? "Kill feed" : "Chat",
+                       (kills_ ? kill_says : chat_says)[v]), false);
+}
+
 static const cmdreg_t c_feed[] = {
+    { "feed_toggle", Feed_Toggle_f },
     { "frag_next", Frag_Next_f },
     { "frag_prev", Frag_Prev_f },
     { "demo_step", Demo_Step_f },

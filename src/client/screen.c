@@ -2494,6 +2494,7 @@ static const helpline_t visor_help[] = {
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
     { "N / B",      "Frag/muerte sig. / ant." },
+    { "K / J",      "Kill feed / chat" },
     { "",           NULL },
     { NULL,         "Camara" },
     { "Arriba",     "Camara libre" },
@@ -2514,13 +2515,64 @@ static const helpline_t visor_help[] = {
     { "Esc",        "Menu / otro demo" },
 };
 
-// a side panel in the free band between the game's top and bottom HUD,
-// smaller text and see-through, so the demo stays visible
+// settings panel: the console settings with their current value. cvar
+// NULL = section title, "" with text = plain line, "" without = blank line
+typedef struct {
+    const char *cvar;
+    const char *text;
+} settingline_t;
+
+static const settingline_t visor_settings[] = {
+    { NULL,              "AJUSTES  (escribir en la consola)" },
+    { "",                NULL },
+    { NULL,              "En pantalla" },
+    { "visor_killfeed",  "0 no, 1 si, 2 jugador" },
+    { "visor_chat",      "0 no, 1 si, 2 +avisos" },
+    { "visor_feed_size", "letra, 0.5 a 3" },
+    { "visor_bar",       "barra de tiempo" },
+    { "visor_name",      "nick arriba" },
+    { "",                NULL },
+    { NULL,              "En el video" },
+    { "clip_killfeed",   "0 no, 1 si, 2 jugador" },
+    { "clip_chat",       "0 no, 1 si, 2 +avisos" },
+    { "clip_hud",        "HUD del juego" },
+    { "clip_name",       "nick del jugador" },
+    { "clip_size",       "resolucion" },
+    { "clip_fps",        "cuadros por segundo" },
+    { "clip_format",     "mp4 o mov" },
+    { "",                NULL },
+    { NULL,              "Marcas en la barra" },
+    { "",                "amarillo arriba = frag" },
+    { "",                "rojo abajo = muerte" },
+    { "",                NULL },
+    { "",                "Ejemplo: clip_chat 1" },
+};
+
+// see-through box for a help panel in the free band between the game's top
+// and bottom HUD, on the left or right; returns where its text starts
+static void help_box(int cols, int rows, bool left, float s, int *x, int *y)
+{
+    const int pad = 1;
+    int w = Q_rint(r_config.width * s);
+    int h = Q_rint(r_config.height * s);
+    int bw = (cols + pad * 2) * CONCHAR_WIDTH;
+    int bh = (rows + pad * 2) * CONCHAR_HEIGHT;
+    int bx = left ? CONCHAR_WIDTH : w - bw - CONCHAR_WIDTH;
+    int by = (h - bh) / 2;
+
+    R_DrawFill32(Q_rint(bx / s), Q_rint(by / s), Q_rint(bw / s), Q_rint(bh / s),
+                 MakeColor(0, 0, 0, 150));
+    *x = bx + pad * CONCHAR_WIDTH;
+    *y = by + pad * CONCHAR_HEIGHT;
+}
+
+// keys on one side (visor_help_pos), console settings on the other.
+// Smaller text and see-through, so the demo stays visible.
 static void SCR_DrawVisorHelp(void)
 {
-    const int n = q_countof(visor_help);
-    const int keycol = 11, pad = 1;
-    int i, tw = 0, cols, x, y, w, h, bx, by, bw, bh;
+    const int keycol = 11, namecol = 16, valcol = 10;
+    int i, n, tw, x, y;
+    bool keys_left;
     float s;
 
     if (!CL_VisorHelpVisible() || (cls.key_dest & KEY_MENU))
@@ -2528,31 +2580,19 @@ static void SCR_DrawVisorHelp(void)
 
     // larger scale value = smaller characters
     s = scr.hud_scale / Cvar_ClampValue(visor_help_size, 0.5f, 1.5f);
+    keys_left = !Q_stricmp(visor_help_pos->string, "left");
 
-    for (i = 0; i < n; i++) {
+    // keys
+    n = q_countof(visor_help);
+    for (i = tw = 0; i < n; i++) {
         const helpline_t *l = &visor_help[i];
         int len = l->key ? keycol + (l->text ? strlen(l->text) : 0)
                          : strlen(l->text);
         tw = max(tw, len);
     }
-    cols = tw + pad * 2;
-
-    w = Q_rint(r_config.width * s);
-    h = Q_rint(r_config.height * s);
-    bw = cols * CONCHAR_WIDTH;
-    bh = (n + pad * 2) * CONCHAR_HEIGHT;
-    by = (h - bh) / 2;
-    if (!Q_stricmp(visor_help_pos->string, "left"))
-        bx = CONCHAR_WIDTH;
-    else
-        bx = w - bw - CONCHAR_WIDTH;
-
-    R_DrawFill32(Q_rint(bx / s), Q_rint(by / s), Q_rint(bw / s), Q_rint(bh / s),
-                 MakeColor(0, 0, 0, 150));
+    help_box(tw, n, keys_left, s, &x, &y);
 
     R_SetScale(s);
-    x = bx + pad * CONCHAR_WIDTH;
-    y = by + pad * CONCHAR_HEIGHT;
     for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
         const helpline_t *l = &visor_help[i];
 
@@ -2561,6 +2601,35 @@ static void SCR_DrawVisorHelp(void)
         } else if (l->text) {
             SCR_DrawString(x, y, UI_ALTCOLOR, l->key);
             SCR_DrawString(x + keycol * CONCHAR_WIDTH, y, 0, l->text);
+        }
+    }
+    R_SetScale(1.0f);
+
+    // console settings, with the value they have now
+    n = q_countof(visor_settings);
+    for (i = tw = 0; i < n; i++) {
+        const settingline_t *l = &visor_settings[i];
+        int len = !l->text ? 0 : l->cvar && *l->cvar ? namecol + valcol + strlen(l->text)
+                                                     : strlen(l->text);
+        tw = max(tw, len);
+    }
+    help_box(tw, n, !keys_left, s, &x, &y);
+
+    R_SetScale(s);
+    for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
+        const settingline_t *l = &visor_settings[i];
+
+        if (!l->text)
+            continue;
+        if (!l->cvar) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->text);
+        } else if (!*l->cvar) {
+            SCR_DrawString(x, y, 0, l->text);
+        } else {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->cvar);
+            SCR_DrawStringEx(x + namecol * CONCHAR_WIDTH, y, 0, valcol - 1,
+                             Cvar_VariableString(l->cvar), scr.font_pic);
+            SCR_DrawString(x + (namecol + valcol) * CONCHAR_WIDTH, y, 0, l->text);
         }
     }
     R_SetScale(1.0f);
