@@ -128,6 +128,12 @@ bool SCR_ParseColor(const char *s, color_t *color);
 
 float V_CalcFov(float fov_x, float width, float height);
 
+// kill feed: an MVD read ahead by the local MVD player (server side)
+void CL_FeedIndexBegin(void);
+void CL_FeedIndexEnd(void);
+void CL_FeedIndexPlayers(const configstring_t *skins, int maxclients);
+void CL_FeedIndexPrint(int level, const char *s, int frame, float pos);
+
 #else // USE_CLIENT
 
 #define CL_Init()                       (void)0

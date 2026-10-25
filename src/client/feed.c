@@ -20,12 +20,13 @@ GNU General Public License for more details.
 // stay up while paused, last longer in slow motion and come out the same in
 // video clips rendered at a fixed frame rate.
 //
-// When a DM2 demo opens, demo.c reads it to the end once (the same way a
-// seek does) and every print lands here: the whole list of deaths and chat
-// is known, so after any jump the panels show exactly what was said and who
-// died in the seconds before, the timeline marks the frags of the watched
-// player and frag_next / frag_prev jump between them. MVD demos and demos
-// that can't be read ahead fill the list as they play.
+// When a demo opens it is read to the end once (the same way a seek does:
+// demo.c for DM2, the server's MVD player for MVD) and every print lands
+// here: the whole list of deaths and chat is known, so after any jump the
+// panels show exactly what was said and who died in the seconds before, the
+// timeline marks the frags of the watched player and frag_next / frag_prev
+// jump between them. Demos that can't be read ahead fill the list as they
+// play.
 //
 // D-Day sends an obituary in pieces: victim, " was sniped by ", killer, tail
 // ("'s rifle - ** HEADSHOT **\n"). Mods that send one whole line are parsed
@@ -39,6 +40,7 @@ GNU General Public License for more details.
 #define MAX_LINES       16
 
 #define FRAG_LEAD       2000    // a jump to a frag lands this long before it, ms
+#define MVD_FRAMETIME   100     // MVD frames are 1/10 s, like the seek times
 
 typedef enum {
     TEAM_NONE,
@@ -73,12 +75,26 @@ static int      num_kills, max_kills;
 static chat_t   *chats;
 static int      num_chats, max_chats;
 
-static bool     indexing;       // demo.c is reading the demo ahead
+static bool     indexing;       // the demo is being read ahead
 static bool     indexed;        // ...and finished: the lists are complete
+static bool     index_asked;    // reading an MVD ahead was asked for already
+
+// players of an MVD being read ahead (the server's copy, not the client's)
+static const configstring_t *index_skins;
+static int      index_maxclients;
+
+// where a print belongs in the demo
+typedef struct {
+    int64_t time;               // demo time, ms
+    int     frame;              // demo frame, for seeking (1/10 s)
+    float   pos;                // demo position 0-1, for the timeline
+} stamp_t;
+
+static stamp_t  cur;            // of the line being added
 
 // obituary pieces of the current server frame
 static struct {
-    int     frame;
+    stamp_t stamp;              // of the first piece
     int     count;
     char    text[MAX_PIECES][MAX_STRING_CHARS];
 } acc;
@@ -93,17 +109,19 @@ static cvar_t   *visor_chat_time;
 static cvar_t   *visor_chat_lines;
 static cvar_t   *visor_feed_size;
 
-// same clock as the camera paths: follows the demo through seeks. It works
-// out to the number of the server frame on screen, in ms.
+// DM2: same clock as the camera paths, follows the demo through seeks. It
+// works out to the number of the server frame on screen, in ms.
+// MVD: the frame of the server's MVD player (the client's own frames go on
+// counting through its seeks).
 static int64_t demo_time(void)
 {
-    return cl.time + (int64_t)cl.serverdelta * CL_FRAMETIME;
-}
+    int frame;
 
-// when a print arrives: the last server frame parsed (also while seeking)
-static int64_t print_time(void)
-{
-    return (int64_t)cl.frame.number * CL_FRAMETIME;
+    if (cls.demo.playback)
+        return cl.time + (int64_t)cl.serverdelta * CL_FRAMETIME;
+    if (CL_DemoPosition(&frame, NULL, NULL))
+        return (int64_t)frame * MVD_FRAMETIME;
+    return 0;
 }
 
 static bool watching_demo(void)
@@ -132,6 +150,16 @@ static void demo_position(int *frame, float *pos)
     }
 }
 
+// when a print arrives: the last server frame parsed (also while seeking)
+static void print_stamp(stamp_t *st)
+{
+    demo_position(&st->frame, &st->pos);
+    if (cls.demo.playback)
+        st->time = (int64_t)cl.frame.number * CL_FRAMETIME;
+    else
+        st->time = (int64_t)st->frame * MVD_FRAMETIME;
+}
+
 static void flush_pieces(void);
 
 void CL_FeedClear(void)
@@ -140,7 +168,8 @@ void CL_FeedClear(void)
     Z_Freep(&chats);
     num_kills = max_kills = 0;
     num_chats = max_chats = 0;
-    indexing = indexed = false;
+    indexing = indexed = index_asked = false;
+    index_skins = NULL;
     acc.count = 0;
 }
 
@@ -162,6 +191,22 @@ bool CL_FeedIndexed(void)
     return indexed;
 }
 
+// true once per map while the demo hasn't been read ahead (MVD)
+bool CL_FeedWantsIndex(void)
+{
+    if (indexed || indexing || index_asked)
+        return false;
+    index_asked = true;
+    return true;
+}
+
+// the players of the MVD being read ahead; NULL: back to the client's
+void CL_FeedIndexPlayers(const configstring_t *skins, int maxclients)
+{
+    index_skins = skins;
+    index_maxclients = maxclients;
+}
+
 /*
 ===============================================================================
 
@@ -174,10 +219,17 @@ isn't.
 ===============================================================================
 */
 
+static int num_players(void)
+{
+    return min(index_skins ? index_maxclients : cl.maxclients, MAX_CLIENTS);
+}
+
 static const char *player_string(int i)
 {
-    if (i < 0 || i >= cl.maxclients || i >= MAX_CLIENTS)
+    if (i < 0 || i >= num_players())
         return "";
+    if (index_skins)
+        return index_skins[i];
     return cl.configstrings[cl.csr.playerskins + i];
 }
 
@@ -191,7 +243,7 @@ static int find_player(const char *name)
 {
     size_t len = strlen(name);
 
-    for (int i = 0; i < MAX_CLIENTS && i < cl.maxclients; i++) {
+    for (int i = 0; i < num_players(); i++) {
         const char *s = player_string(i);
         if (len && player_name_len(s) == len && !strncmp(s, name, len))
             return i;
@@ -232,7 +284,7 @@ static size_t name_prefix(const char *s)
 {
     size_t best = 0;
 
-    for (int i = 0; i < MAX_CLIENTS && i < cl.maxclients; i++) {
+    for (int i = 0; i < num_players(); i++) {
         const char *n = player_string(i);
         size_t len = player_name_len(n);
         if (len > best && !strncmp(s, n, len))
@@ -308,6 +360,11 @@ static void make_label(char *dst, size_t size, const char *mid, const char *weap
         clean_copy(dst, size, mid + 4, len - 7);
         return;
     }
+    // "tripped on his own grenade (after being wounded by" -> "wounded"
+    if (Q_stristr(mid, "wounded by")) {
+        Q_strlcpy(dst, "wounded", size);
+        return;
+    }
     if (Q_stristr(mid, "wounds")) {
         Q_strlcpy(dst, "wounds", size);
         return;
@@ -339,20 +396,18 @@ static void make_label(char *dst, size_t size, const char *mid, const char *weap
 
 static kill_t *new_kill(void)
 {
-    int64_t t = print_time();
     kill_t *k;
 
-    PUSH(kills, num_kills, max_kills, t);
+    PUSH(kills, num_kills, max_kills, cur.time);
     k = &kills[num_kills++];
-    demo_position(&k->frame, &k->pos);
+    k->frame = cur.frame;
+    k->pos = cur.pos;
     return k;
 }
 
 static chat_t *new_chat(void)
 {
-    int64_t t = print_time();
-
-    PUSH(chats, num_chats, max_chats, t);
+    PUSH(chats, num_chats, max_chats, cur.time);
     return &chats[num_chats++];
 }
 
@@ -461,16 +516,12 @@ static void add_server_message(const char *s)
 }
 
 // obituary pieces collected, a full line is ready
-static void flush_pieces(void)
+static void parse_pieces(int n)
 {
     char line[MAX_STRING_CHARS];
     char (*f)[MAX_STRING_CHARS] = acc.text;
     bool done = false;
-    int i, n = acc.count;
-
-    acc.count = 0;
-    if (!n)
-        return;
+    int i;
 
     if (n == 4)
         done = add_kill(f[0], f[1], f[2], f[3]);
@@ -485,6 +536,20 @@ static void flush_pieces(void)
         Q_strlcat(line, f[i], sizeof(line));
     if (!parse_line(line))
         add_server_message(line);
+}
+
+// the line goes where its first piece arrived
+static void flush_pieces(void)
+{
+    stamp_t saved = cur;
+    int n = acc.count;
+
+    acc.count = 0;
+    if (!n)
+        return;
+    cur = acc.stamp;
+    parse_pieces(n);
+    cur = saved;
 }
 
 // "usa +=EC=+ZeRo: na" or "[MR]+LolPaoAsi+: hola"
@@ -518,22 +583,9 @@ static void add_chat(const char *s)
     clean_copy(c->text, sizeof(c->text), p, SIZE_MAX);
 }
 
-/*
-===============
-CL_FeedPrint
-
-Every svc_print of a demo goes through here, also the ones skipped over by
-a seek (the console only gets the ones played).
-===============
-*/
-void CL_FeedPrint(int level, const char *s)
+static void feed_print(int level, const char *s, const stamp_t *st)
 {
-    if (!watching_demo())
-        return;
-
-    // the list is complete already
-    if (indexed && !indexing)
-        return;
+    cur = *st;
 
     if (level == PRINT_CHAT) {
         flush_pieces();
@@ -545,7 +597,7 @@ void CL_FeedPrint(int level, const char *s)
         return;
 
     // pieces of one obituary come in the same frame
-    if (acc.count && acc.frame != cl.frame.number)
+    if (acc.count && acc.stamp.time != cur.time)
         flush_pieces();
 
     if (level == PRINT_HIGH) {
@@ -554,12 +606,54 @@ void CL_FeedPrint(int level, const char *s)
         return;
     }
 
-    acc.frame = cl.frame.number;
+    if (!acc.count)
+        acc.stamp = cur;
     if (acc.count < MAX_PIECES)
         Q_strlcpy(acc.text[acc.count++], s, sizeof(acc.text[0]));
 
     if (strchr(s, '\n') || acc.count == MAX_PIECES)
         flush_pieces();
+}
+
+/*
+===============
+CL_FeedPrint
+
+Every svc_print of a demo goes through here, also the ones skipped over by
+a seek (the console only gets the ones played).
+===============
+*/
+void CL_FeedPrint(int level, const char *s)
+{
+    stamp_t st;
+
+    if (!watching_demo())
+        return;
+
+    // the list is complete already
+    if (indexed && !indexing)
+        return;
+
+    print_stamp(&st);
+    feed_print(level, s, &st);
+}
+
+/*
+===============
+CL_FeedIndexPrint
+
+A print of an MVD being read ahead by the server's MVD player, with its
+frame and position in the demo.
+===============
+*/
+void CL_FeedIndexPrint(int level, const char *s, int frame, float pos)
+{
+    stamp_t st = { (int64_t)frame * MVD_FRAMETIME, frame, pos };
+
+    if (!indexing || !watching_demo())
+        return;
+
+    feed_print(level, s, &st);
 }
 
 /*
