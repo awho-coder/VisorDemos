@@ -148,6 +148,9 @@
         '+set', 'basedir', '/q2', '+set', 'homedir', '/home/visor', '+set', 'game', 'dday',
         '+set', 'vid_geometry', `${innerWidth}x${innerHeight}`,
         ...(q.has('log') ? ['+set', 'logfile', '2', '+set', 'fs_debug', '1'] : []),  // ?log=1 para depurar
+        // ?set=gl_cubemaps:0,r_maxfps:60  variables extra, para probar
+        ...(q.get('set') || '').split(',').filter((x) => /^\w+:[\w.\-]+$/.test(x))
+          .flatMap((x) => ['+set', ...x.split(':')]),
         '+demo', `"${nombre}"`,
       ],
       preRun: [() => {
