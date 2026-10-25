@@ -948,9 +948,30 @@ void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows)
     R_SetScale(1.0f);
 }
 
+// demo_step +|- [seconds]: for the arrow keys. Jumps that many seconds
+// (default 10), or with Shift held to the next / previous frag or death
+// (key binds can't hold Shift+key combos themselves).
+static void Demo_Step_f(void)
+{
+    const char *arg = Cmd_Argv(1);
+    int dir = *arg == '-' ? -1 : 1;
+    const char *secs = Cmd_Argc() > 2 ? Cmd_Argv(2) : "10";
+
+    if (*arg != '+' && *arg != '-') {
+        Com_Printf("Uso: %s + | - [segundos]\n", Cmd_Argv(0));
+        return;
+    }
+
+    if (Key_IsDown(K_SHIFT) || Key_IsDown(K_LSHIFT) || Key_IsDown(K_RSHIFT))
+        jump_to_frag(dir);
+    else
+        Cmd_ExecuteString(&cmd_buffer, va("seek %c%s", *arg, secs));
+}
+
 static const cmdreg_t c_feed[] = {
     { "frag_next", Frag_Next_f },
     { "frag_prev", Frag_Prev_f },
+    { "demo_step", Demo_Step_f },
     { NULL }
 };
 
