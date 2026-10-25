@@ -707,9 +707,11 @@ void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSf
     ps->sfx = sfx;
     ps->begin = s_api->get_begin_ofs(timeofs);
 
-    // sort into the pending sound list
+    // sort into the pending sound list, after sounds that start at the same
+    // time: they play in the order they came. A muzzle flash's click followed
+    // by the shot in the same frame (D-Day in MVDs) must not cut the shot off.
     LIST_FOR_EACH(playsound_t, sort, &s_pendingplays, entry)
-        if (sort->begin >= ps->begin)
+        if (sort->begin > ps->begin)
             break;
 
     List_Append(&sort->entry, &ps->entry);

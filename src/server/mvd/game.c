@@ -2152,6 +2152,19 @@ static void MVD_GameClientThink(edict_t *ent, usercmd_t *cmd)
         pm.s = client->ps.pmove;
         pm.cmd = *cmd;
 
+#if USE_CLIENT
+        // VisorDemos: the free camera speed (mouse wheel) drives the MVD
+        // spectator too. Pmove caps the speed, so it moves for longer instead.
+        float speed = Cvar_VariableValue("freecam_speed");
+        if (speed > 0) {
+            int msec;
+            client->move_time += cmd->msec * Q_clipf(speed / 300, 0.05f, 30);
+            msec = min(client->move_time, 250);
+            client->move_time = min(client->move_time - msec, 250);
+            pm.cmd.msec = msec;
+        }
+#endif
+
         PF_Pmove(&pm);
 
         client->ps.pmove = pm.s;
