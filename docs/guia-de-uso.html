@@ -232,6 +232,7 @@
         <tr><td><kbd>H</kbd></td><td>Ayuda en pantalla: las teclas a un lado y los ajustes de consola, con su valor actual, al otro</td></tr>
         <tr><td><kbd>K</kbd></td><td>Kill feed: sí / solo el jugador que ves / no</td></tr>
         <tr><td><kbd>J</kbd></td><td>Chat: sí / con avisos del servidor / no</td></tr>
+        <tr><td><kbd>T</kbd></td><td>X-ray: siluetas de los jugadores detrás de las paredes sí / no (solo en demos)</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Menú (abrir otro demo, salir)</td></tr>
         <tr><td><kbd>`</kbd></td><td>Consola (al lado del 1)</td></tr>
       </table>
@@ -277,6 +278,30 @@
   jugador, la rueda acerca o aleja la cámara.</p>
   <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
   se ve el zoom del rifle de francotirador.</p>
+  <h3 id="xray">X-ray: por qué no es un wallhack</h3>
+  <p>Con <kbd>T</kbd> el visor dibuja a los jugadores que están detrás de las paredes como una
+  silueta de color (azul los Aliados, rojo el Eje). Sirve para entender una jugada, ver por dónde
+  venía el enemigo o encontrar a quién seguir antes de cortar un clip.</p>
+  <p>Un wallhack es una trampa para <strong>jugar</strong>: te muestra a los enemigos mientras la
+  partida está en curso. El x-ray del visor no sirve para eso:</p>
+  <ul>
+    <li><strong>Solo funciona viendo un demo desde un archivo</strong> (<code>.dm2</code> o
+    <code>.mvd2</code>). Si te conectas a un servidor o miras una transmisión en vivo (GTV), el visor
+    lo apaga, y <kbd>T</kbd> solo responde <em>"El x-ray solo funciona al ver un demo desde un archivo"</em>.</li>
+    <li><strong>El demo es una partida que ya terminó.</strong> Nada de lo que veas cambia el
+    resultado ni le da ventaja a nadie en una partida en curso.</li>
+    <li><strong>No muestra nada que el demo no traiga.</strong> La cámara libre ya permite atravesar
+    paredes y mirar a cualquier jugador; el x-ray solo lo marca para que se vea de un vistazo. En un
+    <code>.dm2</code> aparecen solo los jugadores que el servidor le mandaba a quien grabó; en un
+    <code>.mvd2</code>, que graba el servidor, aparecen todos.</li>
+    <li><strong>Es la vista de un espectador o de un caster</strong>, como la que usan las
+    transmisiones de torneos para explicar las jugadas.</li>
+    <li><strong>No toca tu Quake 2 ni el juego</strong>: el visor es un programa aparte, y su código
+    es abierto, así que cualquiera puede revisar que funciona así.</li>
+  </ul>
+  <p>Colores y opacidad: <code>xray_color</code>, <code>xray_color_allies</code>,
+  <code>xray_color_axis</code> y <code>xray_alpha</code> (ver <a href="#ajustes">Ajustes</a>).
+  En la consola, <code>visor_players</code> lista los jugadores y su equipo.</p>
 
   <h2 id="recorrido">6. Tomas con movimiento: recorrido de cámara</h2>
   <p>Para que el video tenga paneos o vuelos, primero "actúas" la toma y el visor la recuerda:</p>
@@ -361,6 +386,9 @@
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
       <tr><td><code>visor_help_pos</code></td><td>right</td><td>Lado del panel de ayuda (<kbd>H</kbd>): <code>right</code> o <code>left</code></td></tr>
       <tr><td><code>visor_help_size</code></td><td>0.8</td><td>Tamaño de la letra de la ayuda (0.5 a 1.5)</td></tr>
+      <tr><td><code>xray_color</code></td><td>team</td><td>Color de las siluetas del x-ray: <code>team</code> = por equipo, o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code></td></tr>
+      <tr><td><code>xray_color_allies</code> / <code>xray_color_axis</code></td><td>blue / red</td><td>Colores de Aliados y Eje con <code>xray_color team</code></td></tr>
+      <tr><td><code>xray_alpha</code></td><td>0.45</td><td>Opacidad de las siluetas (0.1 a 1)</td></tr>
     </tbody>
   </table>
 
@@ -370,6 +398,8 @@
     cámara, puede haber jugadores que no aparecen o que aparecen de golpe. Si quien grabó estaba
     encerrado, no hay a quién seguir (<em>"No hay jugadores a la vista"</em>). Los <code>.mvd2</code>
     traen a todos.</li>
+    <li><strong>X-ray (<kbd>T</kbd>)</strong>: solo funciona al ver un demo desde un archivo, nunca en una
+    partida. En un <code>.dm2</code> muestra solo a los jugadores que trae el demo; en un <code>.mvd2</code>, a todos.</li>
     <li>En algunos servidores el <code>.dm2</code> no incluye el cuerpo de quien grabó: con cámara
     libre no se le ve.</li>
     <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>

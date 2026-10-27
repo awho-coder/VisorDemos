@@ -2452,6 +2452,8 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
+    if (Cvar_VariableInteger("xray"))
+        Q_strlcat(mid, "X-RAY   ", sizeof(mid));
     if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
@@ -2506,6 +2508,7 @@ static const helpline_t visor_help[] = {
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
     { "V",          "Usar recorrido" },
+    { "T",          "Siluetas (x-ray)" },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },
@@ -2540,6 +2543,10 @@ static const settingline_t visor_settings[] = {
     { "clip_size",       "resolucion" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
+    { "",                NULL },
+    { NULL,              "X-ray (T)" },
+    { "xray_color",      "team o un color" },
+    { "xray_alpha",      "opacidad, 0.1 a 1" },
     { "",                NULL },
     { NULL,              "Marcas en la barra" },
     { "",                "amarillo arriba = frag" },

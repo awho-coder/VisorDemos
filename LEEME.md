@@ -121,6 +121,7 @@ Quake 2 normal.
 | **Supr** | Borrar las marcas de inicio y fin |
 | **K** | Kill feed: sí / solo el jugador que ves / no |
 | **J** | Chat: sí / con avisos del servidor / no |
+| **T** | X-ray: siluetas de los jugadores detrás de las paredes sí / no |
 | **H** | Mostrar / ocultar la ayuda (teclas a un lado, ajustes de consola con su valor al otro) |
 | **Esc** | Menú (*browse demos* para abrir otro demo, salir, etc.) |
 
@@ -174,6 +175,37 @@ Si un tramo no te gustó, vuelve a ese momento y graba solo ese tramo con
 **C**: se reemplaza únicamente esa parte. **V** activa o desactiva el
 recorrido. Los recorridos se guardan por demo en la carpeta `campaths` y se
 cargan solos la próxima vez que abras el mismo demo.
+
+### X-ray: por qué no es un wallhack
+
+Con **T** el visor dibuja a los jugadores que están detrás de las paredes
+como una silueta de color (azul los Aliados, rojo el Eje). Sirve para
+entender una jugada, ver por dónde venía el enemigo o encontrar a quién
+seguir antes de cortar un clip.
+
+Un wallhack es una trampa para **jugar**: te muestra a los enemigos mientras
+la partida está en curso. El x-ray del visor no sirve para eso:
+
+- **Solo funciona viendo un demo desde un archivo** (`.dm2` o `.mvd2`). Si
+  te conectas a un servidor o miras una transmisión en vivo (GTV), el visor
+  lo apaga, y la tecla T solo responde *"El x-ray solo funciona al ver un
+  demo desde un archivo"*.
+- **El demo es una partida que ya terminó.** Nada de lo que veas cambia el
+  resultado ni le da ventaja a nadie en una partida en curso.
+- **No muestra nada que el demo no traiga.** La cámara libre ya permite
+  atravesar paredes y mirar a cualquier jugador; el x-ray solo lo marca para
+  que se vea de un vistazo. En un `.dm2` aparecen solo los jugadores que el
+  servidor le mandaba a quien grabó; en un `.mvd2`, que graba el servidor,
+  aparecen todos.
+- **Es la vista de un espectador o de un caster**, como la que usan las
+  transmisiones de torneos para explicar las jugadas.
+- **No toca tu Quake 2 ni el juego**: el visor es un programa aparte, y su
+  código es abierto, así que cualquiera puede revisar que funciona así
+  (`src/client/visor.c`, función `xray_allowed`).
+
+Colores y opacidad: `xray_color`, `xray_color_allies`, `xray_color_axis` y
+`xray_alpha` (ver [Ajustes](#6-ajustes-consola)). `visor_players` lista en
+la consola los jugadores y su equipo.
 
 ### Muertes y chat
 
@@ -248,6 +280,9 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
 | `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
 | `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
+| `xray_color` | `team` | Color de las siluetas del x-ray: `team` = por equipo, o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white` |
+| `xray_color_allies` / `xray_color_axis` | `blue` / `red` | Colores de Aliados y Eje con `xray_color team` |
+| `xray_alpha` | `0.45` | Opacidad de las siluetas (0.1 a 1) |
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
@@ -265,6 +300,9 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   jugadores que no aparecen o que aparecen de golpe, y si quien grabó estaba
   encerrado, no habrá a quién seguir ("No hay jugadores a la vista"). Los
   demos **`.mvd2`** (grabados por el servidor) traen a todos los jugadores.
+- **X-ray (T)**: solo funciona al ver un demo desde un archivo, nunca en una
+  partida. En un `.dm2` muestra solo a los jugadores que el demo trae (los
+  cercanos a quien grabó); en un `.mvd2` muestra a todos.
 - En algunos servidores el `.dm2` no incluye el cuerpo de quien grabó, así
   que con la cámara libre no se ve a ese jugador.
 - **MVD**: la cámara libre y el seguimiento usan los modos propios de MVD

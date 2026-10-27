@@ -619,6 +619,12 @@ void SV_BuildClientFrame(client_t *client)
     CM_FatPVS(client->cm, &clientpvs, org);
     BSP_ClusterVis(client->cm->cache, &clientphs, clientcluster, DVIS_PHS);
 
+    // VisorDemos x-ray: only for a MVD played from a file on this
+    // machine, never for a live GTV stream or a real game
+    bool xray_players = sv.state == ss_broadcast &&
+                        Cvar_VariableInteger("xray") &&
+                        MVD_GetDemoStatus(NULL, NULL, NULL);
+
     // build up the list of visible entities
     frame->num_entities = 0;
     frame->first_entity = client->next_entity;
@@ -652,7 +658,10 @@ void SV_BuildClientFrame(client_t *client)
             continue;
 
         // ignore if not touching a PV leaf
-        if (ent != clent && !sv_novis->integer && !(client->csr->extended && ent->svflags & SVF_NOCULL)) {
+        // (VisorDemos x-ray: in a MVD played from a file, players are
+        // never culled, so the viewer gets every player of the match)
+        if (ent != clent && !sv_novis->integer && !(client->csr->extended && ent->svflags & SVF_NOCULL) &&
+            !(xray_players && ent->s.modelindex == MODELINDEX_PLAYER)) {
             // check area
             if (!CM_AreasConnected(client->cm, clientarea, ent->areanum)) {
                 // doors can legally straddle two areas, so
