@@ -544,7 +544,7 @@ static void GL_ClassifyEntities(void)
             continue;
         }
 
-        // VisorDemos (local): x-ray silhouettes get their own pass
+        // VisorDemos x-ray: silhouettes get their own pass
         if (ent->flags & RF_XRAY) {
             ent->next = glr.ents.xray;
             glr.ents.xray = ent;
@@ -842,7 +842,7 @@ void R_RenderFrame(const refdef_t *fd)
 
     GL_DrawEntities(glr.ents.bmodels);
 
-    // VisorDemos (local) x-ray: paint the silhouettes only where the world or a
+    // VisorDemos x-ray: paint the silhouettes only where the world or a
     // door is nearer than the player. Drawn before the players themselves, so a
     // player's own body (not the silhouette) covers whatever part is visible.
     if (glr.ents.xray) {
