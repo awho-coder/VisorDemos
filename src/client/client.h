@@ -795,7 +795,7 @@ bool CL_VisorHelpVisible(void);
 float CL_DemoSpeed(void);
 bool CL_DemoPosition(int *frame, float *progress, bool *paused);
 bool CL_DemoAtEnd(void);
-bool CL_XrayWants(const centity_state_t *s1);   // VisorDemos (local) x-ray
+bool CL_XrayWants(const centity_state_t *s1);   // VisorDemos x-ray
 uint64_t CL_XrayShell(const centity_state_t *s1);
 float CL_XrayAlpha(void);
 

@@ -155,7 +155,7 @@ typedef struct {
         entity_t    *bmodels;
         entity_t    *alpha_back;
         entity_t    *alpha_front;
-        entity_t    *xray;          // VisorDemos (local): player silhouettes
+        entity_t    *xray;          // VisorDemos x-ray: player silhouettes
     } ents;
     glStateBits_t   fog_bits, fog_bits_sky;
     int             framebuffer_width;
