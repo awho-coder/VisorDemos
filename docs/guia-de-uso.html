@@ -278,6 +278,30 @@
   jugador, la rueda acerca o aleja la cámara.</p>
   <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
   se ve el zoom del rifle de francotirador.</p>
+  <h3 id="xray">X-ray: por qué no es un wallhack</h3>
+  <p>Con <kbd>T</kbd> el visor dibuja a los jugadores que están detrás de las paredes como una
+  silueta de color (azul los Aliados, rojo el Eje). Sirve para entender una jugada, ver por dónde
+  venía el enemigo o encontrar a quién seguir antes de cortar un clip.</p>
+  <p>Un wallhack es una trampa para <strong>jugar</strong>: te muestra a los enemigos mientras la
+  partida está en curso. El x-ray del visor no sirve para eso:</p>
+  <ul>
+    <li><strong>Solo funciona viendo un demo desde un archivo</strong> (<code>.dm2</code> o
+    <code>.mvd2</code>). Si te conectas a un servidor o miras una transmisión en vivo (GTV), el visor
+    lo apaga, y <kbd>T</kbd> solo responde <em>"El x-ray solo funciona al ver un demo desde un archivo"</em>.</li>
+    <li><strong>El demo es una partida que ya terminó.</strong> Nada de lo que veas cambia el
+    resultado ni le da ventaja a nadie en una partida en curso.</li>
+    <li><strong>No muestra nada que el demo no traiga.</strong> La cámara libre ya permite atravesar
+    paredes y mirar a cualquier jugador; el x-ray solo lo marca para que se vea de un vistazo. En un
+    <code>.dm2</code> aparecen solo los jugadores que el servidor le mandaba a quien grabó; en un
+    <code>.mvd2</code>, que graba el servidor, aparecen todos.</li>
+    <li><strong>Es la vista de un espectador o de un caster</strong>, como la que usan las
+    transmisiones de torneos para explicar las jugadas.</li>
+    <li><strong>No toca tu Quake 2 ni el juego</strong>: el visor es un programa aparte, y su código
+    es abierto, así que cualquiera puede revisar que funciona así.</li>
+  </ul>
+  <p>Colores y opacidad: <code>xray_color</code>, <code>xray_color_allies</code>,
+  <code>xray_color_axis</code> y <code>xray_alpha</code> (ver <a href="#ajustes">Ajustes</a>).
+  En la consola, <code>visor_players</code> lista los jugadores y su equipo.</p>
 
   <h2 id="recorrido">6. Tomas con movimiento: recorrido de cámara</h2>
   <p>Para que el video tenga paneos o vuelos, primero "actúas" la toma y el visor la recuerda:</p>

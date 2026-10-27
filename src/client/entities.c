@@ -855,7 +855,7 @@ static void CL_AddPacketEntities(void)
         // add to refresh list
         V_AddEntity(&ent);
 
-        // VisorDemos (local) x-ray: flat colored copy of the player, the
+        // VisorDemos x-ray: flat colored copy of the player, the
         // renderer shows it only where a wall hides the player
         if (CL_XrayWants(s1)) {
             entity_t x = ent;
