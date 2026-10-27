@@ -78,6 +78,8 @@ static cvar_t   *scr_alpha;
 static cvar_t   *scr_demobar;
 static cvar_t   *visor_bar;
 static cvar_t   *visor_name;
+static cvar_t   *visor_help_pos;
+static cvar_t   *visor_help_size;
 static cvar_t   *clip_name;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
@@ -1411,6 +1413,8 @@ void SCR_Init(void)
     scr_demobar = Cvar_Get("scr_demobar", "1", 0);
     visor_bar = Cvar_Get("visor_bar", "1", 0);
     visor_name = Cvar_Get("visor_name", "1", CVAR_ARCHIVE);
+    visor_help_pos = Cvar_Get("visor_help_pos", "right", CVAR_ARCHIVE);
+    visor_help_size = Cvar_Get("visor_help_size", "0.8", CVAR_ARCHIVE);
     clip_name = Cvar_Get("clip_name", "0", CVAR_ARCHIVE);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
@@ -2369,6 +2373,8 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_HEAD      MakeColor(255, 255, 255, 255)
 #define VISOR_PATH      MakeColor( 60, 140, 255, 255)
 #define VISOR_REC       MakeColor(255,  40,  40, 255)
+#define VISOR_FRAG      MakeColor(255, 210,   0, 255)
+#define VISOR_DEATH     MakeColor(255,  45,  45, 255)
 
 static void SCR_DrawVisorBar(void)
 {
@@ -2423,6 +2429,16 @@ static void SCR_DrawVisorBar(void)
                          CL_CamPathRecording() ? VISOR_REC : VISOR_PATH);
         }
     }
+    {
+        // the watched player's frags as ticks above the track, deaths below
+        static float marks[1024];
+        int n = CL_FeedMarks(false, marks, q_countof(marks));
+        for (int i = 0; i < n; i++)
+            R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty - pad, 2, pad, VISOR_FRAG);
+        n = CL_FeedMarks(true, marks, q_countof(marks));
+        for (int i = 0; i < n; i++)
+            R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty + bar_h, 2, pad, VISOR_DEATH);
+    }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
     // text line
@@ -2436,6 +2452,8 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
+    if (Cvar_VariableInteger("xray"))
+        Q_strlcat(mid, "X-RAY   ", sizeof(mid));
     if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
@@ -2460,73 +2478,166 @@ static void SCR_DrawVisorBar(void)
     R_SetScale(1.0f);
 }
 
-static const char *const visor_help_lines[] = {
-    "!VISOR DE DEMOS - AYUDA",
-    "",
-    "!Reproduccion",
-    "Flecha abajo      Pausa / continuar",
-    "Flecha izq / der  Retroceder / adelantar 10 s",
-    "Z  /  X           Mas lento / mas rapido",
-    "Retroceso         Velocidad normal",
-    "F1 (mantener)     Tabla de puntos (si quien grabo la abrio)",
-    "",
-    "!Camara",
-    "Flecha arriba     Camara libre si / no",
-    "W A S D + mouse   Mover y mirar (camara libre)",
-    "Espacio / Ctrl    Subir / bajar",
-    "Shift (mantener)  Mover mas rapido",
-    "Rueda del mouse   Velocidad de la camara libre",
-    "                  (siguiendo a alguien: acercar / alejar)",
-    "E / Q             Seguir al siguiente / anterior jugador",
-    "R                 Volver a la vista de quien grabo",
-    "C                 Grabar recorrido de camara / terminar",
-    "V                 Usar recorrido grabado si / no",
-    "",
-    "!Clips de video",
-    "I                 Marcar inicio del clip",
-    "O                 Marcar fin del clip",
-    "G                 Grabar el clip a video",
-    "                  (usa el recorrido de camara si hay uno)",
-    "Supr              Borrar marcas",
-    "",
-    "!Otros",
-    "H                 Mostrar / ocultar esta ayuda",
-    "Esc               Menu (Demos: abrir otro demo)",
-    "",
-    "Los videos se guardan en la carpeta  videos/",
+// help panel: key (orange) + what it does; key NULL = section title,
+// text NULL = blank line
+typedef struct {
+    const char *key;
+    const char *text;
+} helpline_t;
+
+static const helpline_t visor_help[] = {
+    { NULL,         "AYUDA  (H para cerrar)" },
+    { "",           NULL },
+    { NULL,         "Reproduccion" },
+    { "Abajo",      "Pausa / seguir" },
+    { "Izq / Der",  "-10 s / +10 s" },
+    { "",           "con Shift: frag/muerte" },
+    { "Z / X",      "Mas lento / rapido" },
+    { "Retroceso",  "Velocidad normal" },
+    { "F1",         "Tabla de puntos" },
+    { "N / B",      "Frag/muerte sig. / ant." },
+    { "K / J",      "Kill feed / chat" },
+    { "",           NULL },
+    { NULL,         "Camara" },
+    { "Arriba",     "Camara libre" },
+    { "WASD+mouse", "Mover y mirar" },
+    { "Esp / Ctrl", "Subir / bajar" },
+    { "Shift",      "Mas rapido" },
+    { "Rueda",      "Velocidad / distancia" },
+    { "E / Q",      "Seguir jugador" },
+    { "R",          "Vista de quien grabo" },
+    { "C",          "Grabar recorrido" },
+    { "V",          "Usar recorrido" },
+    { "T",          "Siluetas (x-ray)" },
+    { "",           NULL },
+    { NULL,         "Clips de video" },
+    { "I / O",      "Inicio / fin" },
+    { "G",          "Grabar el clip" },
+    { "Supr",       "Borrar marcas" },
+    { "",           NULL },
+    { "Esc",        "Menu / otro demo" },
 };
 
+// settings panel: the console settings with their current value. cvar
+// NULL = section title, "" with text = plain line, "" without = blank line
+typedef struct {
+    const char *cvar;
+    const char *text;
+} settingline_t;
+
+static const settingline_t visor_settings[] = {
+    { NULL,              "AJUSTES  (escribir en la consola)" },
+    { "",                NULL },
+    { NULL,              "En pantalla" },
+    { "visor_killfeed",  "0 no, 1 si, 2 jugador" },
+    { "visor_chat",      "0 no, 1 si, 2 +avisos" },
+    { "visor_feed_size", "letra, 0.5 a 3" },
+    { "visor_bar",       "barra de tiempo" },
+    { "visor_name",      "nick arriba" },
+    { "",                NULL },
+    { NULL,              "En el video" },
+    { "clip_killfeed",   "0 no, 1 si, 2 jugador" },
+    { "clip_chat",       "0 no, 1 si, 2 +avisos" },
+    { "clip_hud",        "HUD del juego" },
+    { "clip_name",       "nick del jugador" },
+    { "clip_size",       "resolucion" },
+    { "clip_fps",        "cuadros por segundo" },
+    { "clip_format",     "mp4 o mov" },
+    { "",                NULL },
+    { NULL,              "X-ray (T)" },
+    { "xray_color",      "team o un color" },
+    { "xray_alpha",      "opacidad, 0.1 a 1" },
+    { "",                NULL },
+    { NULL,              "Marcas en la barra" },
+    { "",                "amarillo arriba = frag" },
+    { "",                "rojo abajo = muerte" },
+    { "",                NULL },
+    { "",                "Ejemplo: clip_chat 1" },
+};
+
+// see-through box for a help panel in the free band between the game's top
+// and bottom HUD, on the left or right; returns where its text starts
+static void help_box(int cols, int rows, bool left, float s, int *x, int *y)
+{
+    const int pad = 1;
+    int w = Q_rint(r_config.width * s);
+    int h = Q_rint(r_config.height * s);
+    int bw = (cols + pad * 2) * CONCHAR_WIDTH;
+    int bh = (rows + pad * 2) * CONCHAR_HEIGHT;
+    int bx = left ? CONCHAR_WIDTH : w - bw - CONCHAR_WIDTH;
+    int by = (h - bh) / 2;
+
+    R_DrawFill32(Q_rint(bx / s), Q_rint(by / s), Q_rint(bw / s), Q_rint(bh / s),
+                 MakeColor(0, 0, 0, 150));
+    *x = bx + pad * CONCHAR_WIDTH;
+    *y = by + pad * CONCHAR_HEIGHT;
+}
+
+// keys on one side (visor_help_pos), console settings on the other.
+// Smaller text and see-through, so the demo stays visible.
 static void SCR_DrawVisorHelp(void)
 {
-    int i, n = q_countof(visor_help_lines);
-    int lw = 0, x, y, w, h;
-    float s = scr.hud_scale;
+    const int keycol = 11, namecol = 16, valcol = 10;
+    int i, n, tw, x, y;
+    bool keys_left;
+    float s;
 
     if (!CL_VisorHelpVisible() || (cls.key_dest & KEY_MENU))
         return;
 
-    for (i = 0; i < n; i++)
-        lw = max(lw, (int)strlen(visor_help_lines[i]));
+    // larger scale value = smaller characters
+    s = scr.hud_scale / Cvar_ClampValue(visor_help_size, 0.5f, 1.5f);
+    keys_left = !Q_stricmp(visor_help_pos->string, "left");
 
-    R_SetScale(s);
-    w = Q_rint(r_config.width * s);
-    h = Q_rint(r_config.height * s);
-
-    x = (w - lw * CONCHAR_WIDTH) / 2;
-    y = (h - n * CONCHAR_HEIGHT) / 2;
-    R_SetScale(1.0f);
-
-    R_DrawFill32(Q_rint((x - CONCHAR_WIDTH * 2) / s), Q_rint((y - CONCHAR_HEIGHT) / s),
-                 Q_rint((lw + 4) * CONCHAR_WIDTH / s), Q_rint((n + 2) * CONCHAR_HEIGHT / s),
-                 MakeColor(0, 0, 0, 200));
+    // keys
+    n = q_countof(visor_help);
+    for (i = tw = 0; i < n; i++) {
+        const helpline_t *l = &visor_help[i];
+        int len = l->key ? keycol + (l->text ? strlen(l->text) : 0)
+                         : strlen(l->text);
+        tw = max(tw, len);
+    }
+    help_box(tw, n, keys_left, s, &x, &y);
 
     R_SetScale(s);
     for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
-        const char *line = visor_help_lines[i];
-        if (*line == '!')
-            SCR_DrawString(x, y, UI_ALTCOLOR, line + 1);
-        else
-            SCR_DrawString(x, y, 0, line);
+        const helpline_t *l = &visor_help[i];
+
+        if (!l->key) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->text);
+        } else if (l->text) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->key);
+            SCR_DrawString(x + keycol * CONCHAR_WIDTH, y, 0, l->text);
+        }
+    }
+    R_SetScale(1.0f);
+
+    // console settings, with the value they have now
+    n = q_countof(visor_settings);
+    for (i = tw = 0; i < n; i++) {
+        const settingline_t *l = &visor_settings[i];
+        int len = !l->text ? 0 : l->cvar && *l->cvar ? namecol + valcol + strlen(l->text)
+                                                     : strlen(l->text);
+        tw = max(tw, len);
+    }
+    help_box(tw, n, !keys_left, s, &x, &y);
+
+    R_SetScale(s);
+    for (i = 0; i < n; i++, y += CONCHAR_HEIGHT) {
+        const settingline_t *l = &visor_settings[i];
+
+        if (!l->text)
+            continue;
+        if (!l->cvar) {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->text);
+        } else if (!*l->cvar) {
+            SCR_DrawString(x, y, 0, l->text);
+        } else {
+            SCR_DrawString(x, y, UI_ALTCOLOR, l->cvar);
+            SCR_DrawStringEx(x + namecol * CONCHAR_WIDTH, y, 0, valcol - 1,
+                             Cvar_VariableString(l->cvar), scr.font_pic);
+            SCR_DrawString(x + (namecol + valcol) * CONCHAR_WIDTH, y, 0, l->text);
+        }
     }
     R_SetScale(1.0f);
 }
@@ -2553,10 +2664,12 @@ static void SCR_DrawViewedName(bool in_clip)
     if (!text)
         return;
 
-    // on screen, below the chat / kill messages so they don't cover it;
-    // in a clip there are no such messages, so right at the top
+    // in a clip right at the top; on screen below "CAMARA LIBRE", or below
+    // the console lines when the kill feed / chat panel don't replace them
     int y = CONCHAR_HEIGHT;
-    if (!in_clip)
+    if (!in_clip && CL_FeedHidesNotify())
+        y = CONCHAR_HEIGHT * 3;
+    else if (!in_clip)
         y = CONCHAR_HEIGHT * (Q_clip(Cvar_VariableInteger("con_notifylines"), 0, 10) + 2);
 
     R_SetScale(scr.hud_scale);
@@ -2587,6 +2700,22 @@ static void SCR_DrawVisorOverlay(void)
     }
 
     SCR_DrawVisorHelp();
+}
+
+static void SCR_DrawFeed(void)
+{
+    bool game_hud, bar;
+
+    if (scr_draw2d->integer <= 0 || (cls.key_dest & KEY_MENU))
+        return;
+    if (!CL_FeedKillsOn() && !CL_FeedChatOn())
+        return;
+
+    // keep clear of the game's status bar and of our timeline
+    game_hud = scr_draw2d->integer > 1 && !CL_CaptureHideHud() && !CL_FreecamHideHud();
+    bar = !CL_CaptureActive() && visor_bar->integer && CL_DemoPosition(NULL, NULL, NULL);
+
+    CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, bar ? 3 : 0);
 }
 
 static void SCR_DrawActive(void)
@@ -2624,6 +2753,9 @@ static void SCR_DrawActive(void)
 
     // draw all 2D elements
     SCR_Draw2D();
+
+    // kill feed and chat, also burned into the clip if wanted
+    SCR_DrawFeed();
 
     // nick burned into the video clip, if wanted
     if (CL_CaptureActive() && clip_name->integer)

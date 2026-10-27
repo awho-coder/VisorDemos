@@ -667,6 +667,7 @@ void CL_ClearState(void)
     CL_ClearTEnts();
     LOC_FreeLocations();
     CL_FreeDemoSnapshots();
+    CL_FeedClear();
     CL_FreecamReset();
     CL_CaptureShutdown();
 
@@ -2712,6 +2713,7 @@ static void CL_InitLocal(void)
     CL_InitFreecam();
     CL_InitCapture();
     CL_InitVisor();
+    CL_InitFeed();
     CL_InitCamPath();
     LOC_Init();
     CL_InitAscii();

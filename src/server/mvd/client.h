@@ -92,6 +92,7 @@ typedef struct {
     bool            chase_auto;
     bool            chase_wait;
     byte            chase_bitmap[MAX_CLIENTS / CHAR_BIT];
+    float           move_time;      // free camera: ms of movement still owed
 
     mvd_layout_t    layout_type;
     unsigned        layout_time;
@@ -141,6 +142,7 @@ typedef struct mvd_s {
     qhandle_t   demorecording;
     char        *demoname;
     bool        demoseeking;
+    bool        demoindexing;   // seeking to the end for the kill feed
     int         last_snapshot;
     mvd_snap_t  **snapshots;
     int         numsnapshots;
@@ -204,6 +206,7 @@ extern cvar_t    *mvd_shownet;
 
 q_noreturn q_printf(2, 3)
 void MVD_Destroyf(mvd_t *mvd, const char *fmt, ...);
+void MVD_IndexPrint(mvd_t *mvd, int player, int level, const char *s);
 void MVD_Shutdown(void);
 
 mvd_t *MVD_SetChannel(int arg);

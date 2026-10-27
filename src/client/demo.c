@@ -673,6 +673,8 @@ static void update_status(void)
     }
 }
 
+static bool index_queued;   // demo_index asked for this map already
+
 static int parse_next_message(int wait)
 {
     int ret;
@@ -702,6 +704,13 @@ static int parse_next_message(int wait)
 
     // save a snapshot once the full packet is parsed
     CL_EmitDemoSnapshot();
+
+    // with the first snapshot saved we can read ahead and come back
+    if (!index_queued && cls.state == ca_active && cls.demo.numsnapshots &&
+        !cls.demo.compat && cls.demo.file_size && !com_timedemo->integer) {
+        index_queued = true;
+        Cbuf_InsertText(&cmd_buffer, "demo_index\n");
+    }
 
     return 0;
 }
@@ -928,6 +937,9 @@ void CL_FirstDemoFrame(void)
 
     // force initial snapshot
     cls.demo.last_snapshot = INT_MIN;
+
+    // read the demo ahead for the kill feed once that snapshot is there
+    index_queued = false;
 }
 
 /*
@@ -946,16 +958,157 @@ void CL_FreeDemoSnapshots(void)
 
 /*
 ====================
+seek_demo
+
+Seeks to frame (or byte position) dest. While the demo is being indexed it
+reads on to the end, or to the next map, and stops there.
+====================
+*/
+static bool     demo_indexing;
+static int64_t  index_stop;
+
+static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
+{
+    demosnap_t *snap;
+    int i, j, ret, index, prev;
+    char *from, *to;
+
+    if (!back_seek && cls.demo.eof && cl_demowait->integer)
+        return; // already at end
+
+    // disable effects processing
+    cls.demo.seeking = true;
+
+    // clear dirty configstrings
+    memset(cl.dcs, 0, sizeof(cl.dcs));
+
+    // stop sounds
+    S_StopAllSounds();
+
+    // save previous server frame number
+    prev = cl.frame.number;
+
+    Com_DPrintf("[%d] seeking to %"PRId64"\n", cls.demo.frames_read, dest);
+
+    // seek to the previous most recent snapshot
+    if (back_seek || cls.demo.last_snapshot > cls.demo.frames_read) {
+        snap = find_snapshot(dest, byte_seek);
+
+        if (snap) {
+            Com_DPrintf("found snap at %d\n", snap->framenum);
+            ret = FS_Seek(cls.demo.playback, snap->filepos, SEEK_SET);
+            if (ret < 0) {
+                Com_EPrintf("Couldn't seek demo: %s\n", Q_ErrorString(ret));
+                goto done;
+            }
+
+            // clear end-of-file flag
+            cls.demo.eof = false;
+
+            // reset configstrings
+            for (i = 0; i < cl.csr.end; i++) {
+                from = cl.baseconfigstrings[i];
+                to = cl.configstrings[i];
+
+                if (!strcmp(from, to))
+                    continue;
+
+                Q_SetBit(cl.dcs, i);
+                strcpy(to, from);
+            }
+
+            SZ_InitRead(&msg_read, snap->data, snap->msglen);
+
+            CL_SeekDemoMessage();
+            cls.demo.frames_read = snap->framenum;
+            Com_DPrintf("[%d] after snap parse %d\n", cls.demo.frames_read, cl.frame.number);
+        } else if (back_seek) {
+            Com_Printf("Couldn't seek backwards without snapshots!\n");
+            goto done;
+        }
+    }
+
+    // skip forward to destination frame/position
+    while (1) {
+        int64_t pos = byte_seek ? FS_Tell(cls.demo.playback) : cls.demo.frames_read;
+        if (pos >= dest)
+            break;
+
+        if (demo_indexing && FS_Tell(cls.demo.playback) >= index_stop)
+            break;      // the next map starts here
+
+        ret = read_next_message(cls.demo.playback);
+        if (demo_indexing && ret <= 0) {
+            cls.demo.eof = true;
+            break;      // end of the demo (or a cut-off file)
+        }
+        if (ret == 0 && cl_demowait->integer) {
+            cls.demo.eof = true;
+            break;
+        }
+        if (ret <= 0) {
+            finish_demo(ret);
+            return;
+        }
+
+        if (CL_SeekDemoMessage())
+            goto done;
+        CL_EmitDemoSnapshot();
+    }
+
+    Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
+
+    // update dirty configstrings
+    for (i = 0; i < q_countof(cl.dcs); i++) {
+        if (cl.dcs[i] == 0)
+            continue;
+
+        index = i * BC_BITS;
+        for (j = 0; j < BC_BITS; j++, index++) {
+            if (Q_IsBitSet(cl.dcs, index))
+                CL_UpdateConfigstring(index);
+        }
+    }
+
+    // don't lerp to old
+    memset(&cl.oldframe, 0, sizeof(cl.oldframe));
+#if USE_FPS
+    memset(&cl.oldkeyframe, 0, sizeof(cl.oldkeyframe));
+#endif
+
+    // clear old effects
+    CL_ClearEffects();
+    CL_ClearTEnts();
+
+    // fix time delta
+    cl.serverdelta += cl.frame.number - prev;
+
+    // fire up destination frame
+    CL_DeltaFrame();
+
+    if (cls.demo.recording && !cls.demo.paused)
+        resume_record();
+
+    update_status();
+
+    cl.frameflags = 0;
+
+done:
+    cls.demo.seeking = false;
+}
+
+
+/*
+====================
 CL_Seek_f
 ====================
 */
 static void CL_Seek_f(void)
 {
-    demosnap_t *snap;
-    int i, j, ret, index, frames, prev;
+    int i, frames;
     int64_t dest;
     bool byte_seek, back_seek;
-    char *from, *to;
+    char *to;
 
     if (Cmd_Argc() < 2) {
         Com_Printf("Usage: %s [+-]<timespec|percent>[%%]\n", Cmd_Argv(0));
@@ -1021,121 +1174,79 @@ static void CL_Seek_f(void)
         back_seek = frames < 0;
     }
 
-    if (!back_seek && cls.demo.eof && cl_demowait->integer)
-        return; // already at end
+    seek_demo(dest, byte_seek, back_seek);
+}
 
-    // disable effects processing
-    cls.demo.seeking = true;
+/*
+====================
+next_map_offset
 
-    // clear dirty configstrings
-    memset(cl.dcs, 0, sizeof(cl.dcs));
+File position of the next map change in the demo (a message that starts
+with serverdata), or INT64_MAX. Only reads message headers.
+====================
+*/
+static int64_t next_map_offset(void)
+{
+    qhandle_t f = cls.demo.playback;
+    int64_t start = FS_Tell(f), pos = start, found = INT64_MAX;
+    uint32_t len;
 
-    // stop sounds
-    S_StopAllSounds();
-
-    // save previous server frame number
-    prev = cl.frame.number;
-
-    Com_DPrintf("[%d] seeking to %"PRId64"\n", cls.demo.frames_read, dest);
-
-    // seek to the previous most recent snapshot
-    if (back_seek || cls.demo.last_snapshot > cls.demo.frames_read) {
-        snap = find_snapshot(dest, byte_seek);
-
-        if (snap) {
-            Com_DPrintf("found snap at %d\n", snap->framenum);
-            ret = FS_Seek(cls.demo.playback, snap->filepos, SEEK_SET);
-            if (ret < 0) {
-                Com_EPrintf("Couldn't seek demo: %s\n", Q_ErrorString(ret));
-                goto done;
-            }
-
-            // clear end-of-file flag
-            cls.demo.eof = false;
-
-            // reset configstrings
-            for (i = 0; i < cl.csr.end; i++) {
-                from = cl.baseconfigstrings[i];
-                to = cl.configstrings[i];
-
-                if (!strcmp(from, to))
-                    continue;
-
-                Q_SetBit(cl.dcs, i);
-                strcpy(to, from);
-            }
-
-            SZ_InitRead(&msg_read, snap->data, snap->msglen);
-
-            CL_SeekDemoMessage();
-            cls.demo.frames_read = snap->framenum;
-            Com_DPrintf("[%d] after snap parse %d\n", cls.demo.frames_read, cl.frame.number);
-        } else if (back_seek) {
-            Com_Printf("Couldn't seek backwards without snapshots!\n");
-            goto done;
-        }
-    }
-
-    // skip forward to destination frame/position
-    while (1) {
-        int64_t pos = byte_seek ? FS_Tell(cls.demo.playback) : cls.demo.frames_read;
-        if (pos >= dest)
+    while (FS_Read(&len, 4, f) == 4 && len != (uint32_t)-1) {
+        len = LittleLong(len);
+        if (!len || len > sizeof(msg_read_buffer))
             break;
-
-        ret = read_next_message(cls.demo.playback);
-        if (ret == 0 && cl_demowait->integer) {
-            cls.demo.eof = true;
+        if (FS_Read(msg_read_buffer, len, f) != len)
+            break;
+        if (msg_read_buffer[0] == svc_serverdata) {
+            found = pos;
             break;
         }
-        if (ret <= 0) {
-            finish_demo(ret);
-            return;
-        }
-
-        if (CL_SeekDemoMessage())
-            goto done;
-        CL_EmitDemoSnapshot();
+        pos += 4 + len;
     }
 
-    Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
+    FS_Seek(f, start, SEEK_SET);
+    return found;
+}
 
-    // update dirty configstrings
-    for (i = 0; i < q_countof(cl.dcs); i++) {
-        if (cl.dcs[i] == 0)
-            continue;
+/*
+====================
+CL_DemoIndex_f
 
-        index = i * BC_BITS;
-        for (j = 0; j < BC_BITS; j++, index++) {
-            if (Q_IsBitSet(cl.dcs, index))
-                CL_UpdateConfigstring(index);
-        }
+Reads the rest of the demo (this map) the way a seek does, so the kill feed
+gets every death and chat line, then comes back to where we were. Run once
+by itself when a demo opens; it also leaves snapshots all along the demo,
+which makes later seeks back faster. MVD demos are read by the server's MVD
+player (MVD_IndexDemo).
+====================
+*/
+static void CL_DemoIndex_f(void)
+{
+    unsigned start = Sys_Milliseconds();
+    int saved = cls.demo.frames_read;
+
+    if (!cls.demo.playback && cls.state == ca_active && !CL_FeedIndexed()) {
+        MVD_IndexDemo();
+        return;
     }
 
-    // don't lerp to old
-    memset(&cl.oldframe, 0, sizeof(cl.oldframe));
-#if USE_FPS
-    memset(&cl.oldkeyframe, 0, sizeof(cl.oldkeyframe));
-#endif
+    if (!cls.demo.playback || cls.demo.compat || !cls.demo.file_size ||
+        cls.state != ca_active || cls.demo.seeking)
+        return;
+    if (CL_FeedIndexed() || !cls.demo.numsnapshots)
+        return;
 
-    // clear old effects
-    CL_ClearEffects();
-    CL_ClearTEnts();
+    index_stop = next_map_offset();
 
-    // fix time delta
-    cl.serverdelta += cl.frame.number - prev;
+    CL_FeedIndexBegin();
+    demo_indexing = true;
+    seek_demo(INT64_MAX, false, false);
+    demo_indexing = false;
+    CL_FeedIndexEnd();
 
-    // fire up destination frame
-    CL_DeltaFrame();
+    if (cls.demo.playback && cls.state == ca_active)
+        seek_demo(saved, false, true);
 
-    if (cls.demo.recording && !cls.demo.paused)
-        resume_record();
-
-    update_status();
-
-    cl.frameflags = 0;
-
-done:
-    cls.demo.seeking = false;
+    Com_DPrintf("Demo indexed in %u ms\n", Sys_Milliseconds() - start);
 }
 
 static void parse_info_string(demoInfo_t *info, int clientNum, int index, const cs_remap_t *csr)
@@ -1297,6 +1408,10 @@ CL_DemoFrame
 void CL_DemoFrame(void)
 {
     if (!cls.demo.playback) {
+        // an MVD played by the local server: read it ahead once per map too
+        if (cls.state == ca_active && MVD_GetDemoStatus(NULL, NULL, NULL) &&
+            CL_FeedWantsIndex())
+            Cbuf_InsertText(&cmd_buffer, "demo_index\n");
         return;
     }
 
@@ -1336,6 +1451,7 @@ static const cmdreg_t c_demo[] = {
     { "suspend", CL_Suspend_f },
     { "resume", CL_Resume_f },
     { "seek", CL_Seek_f },
+    { "demo_index", CL_DemoIndex_f },
 
     { NULL }
 };

@@ -45,8 +45,10 @@ void SV_RestartFilesystem(void);
 
 #if USE_MVD_CLIENT && USE_CLIENT
 bool MVD_GetDemoStatus(float *progress, bool *paused, int *framenum);
+void MVD_IndexDemo(void);
 #else
 #define MVD_GetDemoStatus(progress, paused, framenum)   false
+#define MVD_IndexDemo()                                 (void)0
 #endif
 
 #if USE_SAVEGAMES

@@ -43,6 +43,7 @@ client_src = [
   'src/client/demo.c',
   'src/client/download.c',
   'src/client/effects.c',
+  'src/client/feed.c',
   'src/client/entities.c',
   'src/client/freecam.c',
   'src/client/input.c',
