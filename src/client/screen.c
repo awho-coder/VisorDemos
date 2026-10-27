@@ -2458,8 +2458,12 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
+    else if (CL_ChaseFirstPerson())
+        Q_strlcat(mid, va("SIGUIENDO: %s (1a persona)", CL_ChaseTargetName()), sizeof(mid));
     else if (CL_ChaseTargetName())
         Q_strlcat(mid, va("SIGUIENDO: %s (dist. %g)", CL_ChaseTargetName(), CL_ChaseDistance()), sizeof(mid));
+    else if (CL_MvdThirdPerson())
+        Q_strlcat(mid, va("TERCERA PERSONA (dist. %g)", CL_ChaseDistance()), sizeof(mid));
 
     format_demo_time(t_in, sizeof(t_in), in);
     format_demo_time(t_out, sizeof(t_out), out);
@@ -2505,6 +2509,7 @@ static const helpline_t visor_help[] = {
     { "Shift",      "Mas rapido" },
     { "Rueda",      "Velocidad / distancia" },
     { "E / Q",      "Seguir jugador" },
+    { "F",          "1a / 3a persona" },
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
     { "V",          "Usar recorrido" },

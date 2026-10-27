@@ -824,6 +824,9 @@ bool CL_FreecamActive(void);
 bool CL_FreecamHideHud(void);
 bool CL_FreecamFlying(void);
 const char *CL_ChaseTargetName(void);
+bool CL_ChaseFirstPerson(void);
+bool CL_MvdThirdPerson(void);
+void CL_MvdChaseView(void);
 typedef enum {
     VIEW_NONE,
     VIEW_OWN,       // through the player's own eyes
