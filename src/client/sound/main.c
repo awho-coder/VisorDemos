@@ -708,11 +708,20 @@ void S_StartSound(const vec3_t origin, int entnum, int entchannel, qhandle_t hSf
     ps->begin = s_api->get_begin_ofs(timeofs);
 
     // sort into the pending sound list, after sounds that start at the same
-    // time: they play in the order they came. A muzzle flash's click followed
-    // by the shot in the same frame (D-Day in MVDs) must not cut the shot off.
-    LIST_FOR_EACH(playsound_t, sort, &s_pendingplays, entry)
+    // time: they play in the order they came.
+    //
+    // Two sounds of the same entity and channel starting at the same moment
+    // both play: the later one goes to channel 0, which overrides nothing.
+    // D-Day sends a muzzle flash (a short click on the weapon channel) and the
+    // shot together, the flash first in MVDs and last in DM2 demos; otherwise
+    // the second one cuts the first, and the click can cut the shot off.
+    LIST_FOR_EACH(playsound_t, sort, &s_pendingplays, entry) {
         if (sort->begin > ps->begin)
             break;
+        if (sort->begin == ps->begin && sort->entnum == entnum &&
+            sort->entchannel == entchannel && entchannel > 0 && entchannel < 256)
+            ps->entchannel = 0;
+    }
 
     List_Append(&sort->entry, &ps->entry);
 }
