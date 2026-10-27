@@ -124,7 +124,7 @@ bool CL_DemoAtEnd(void)
 /*
 ===============================================================================
 
-X-RAY (local only, never published)
+X-RAY
 
 Players hidden behind walls are drawn as a flat colored silhouette. Only for
 demos played from a file (.dm2, or .mvd2 through the local MVD player):
