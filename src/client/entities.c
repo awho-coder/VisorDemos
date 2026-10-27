@@ -1345,6 +1345,9 @@ static void CL_FinishViewValues(void)
         // camera is detached: draw the recorder's player model, no gun
         cl.thirdPersonView = true;
         cl.thirdPersonAlpha = 1.0f;
+    } else if (CL_MvdThirdPerson() && get_player_entity()) {
+        // MVD: watching a player in third person (F)
+        CL_MvdChaseView();
     } else if (cl_thirdperson->integer && get_player_entity())
         CL_SetupThirdPersionView();
     else

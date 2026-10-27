@@ -212,6 +212,7 @@
         <tr><td><kbd>Shift</kbd> mantener</td><td>Mover más rápido</td></tr>
         <tr><td>Rueda del mouse<br><kbd>+</kbd> <kbd>−</kbd> numérico</td><td>Velocidad de la cámara libre (siguiendo a alguien: acercar / alejar)</td></tr>
         <tr><td><kbd>E</kbd> <kbd>Q</kbd></td><td>Seguir al siguiente / anterior jugador</td></tr>
+        <tr><td><kbd>F</kbd></td><td>Primera / tercera persona al ver a un jugador</td></tr>
         <tr><td><kbd>R</kbd></td><td>Volver a la vista de quien grabó</td></tr>
       </table>
     </div>
@@ -265,8 +266,13 @@
   <p>La vista normal del demo. Vuelves a ella con <kbd>R</kbd>.</p>
   <h3>Seguir a un jugador</h3>
   <p><kbd>E</kbd> / <kbd>Q</kbd> pasan de un jugador a otro y la barra muestra
-  <em>SIGUIENDO: nombre</em>. La cámara va detrás de él; con el mouse giras alrededor
-  y luego vuelve sola a su espalda.</p>
+  <em>SIGUIENDO: nombre</em>. <kbd>F</kbd> cambia entre <strong>primera persona</strong> (por sus
+  ojos) y <strong>tercera persona</strong> (detrás de él; con el mouse giras alrededor y luego vuelve
+  sola a su espalda, y la rueda acerca o aleja). La elección se mantiene al pasar a otro jugador, y si
+  sueltas la cámara con <kbd>↑</kbd>, al volver regresas al mismo jugador.</p>
+  <p>En un <code>.dm2</code>, la primera persona de otro jugador (no de quien grabó) se arma con lo
+  que trae el demo: su posición y hacia dónde mira, sin su arma ni su HUD. En un <code>.mvd2</code>
+  todos se ven como en el juego.</p>
   <h3>Cámara libre</h3>
   <p><kbd>↑</kbd> suelta la cámara: vuela con <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
   y el mouse, sube con <kbd>Espacio</kbd> y baja con <kbd>Ctrl</kbd>. Funciona también con el
