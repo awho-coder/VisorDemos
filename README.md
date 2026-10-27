@@ -10,7 +10,8 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
 ## Qué hace
 
 - Barra de tiempo con pausa, saltos de 10 s y velocidad de x0.1 a x4.
-- **Cámara libre** (volar por el mapa) y **seguir jugadores** desde atrás;
+- **Cámara libre** (volar por el mapa) y **seguir jugadores** en primera o
+  tercera persona (tecla F);
   la velocidad de la cámara se cambia con la rueda del mouse.
 - **Nick del jugador que estás viendo o siguiendo**, también en demos que
   grabaste como espectador (muestra a quién seguías).

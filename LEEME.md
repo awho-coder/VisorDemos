@@ -11,7 +11,7 @@ Qué puedes hacer:
 - Ver el demo con una barra de tiempo, pausar, adelantar, retroceder y
   cambiar la velocidad (cámara lenta).
 - **Soltar la cámara** y volar por el mapa, o **seguir a cualquier jugador**
-  desde atrás.
+  desde sus ojos o desde atrás (tecla F).
 - **Grabar un recorrido de cámara** mientras miras el demo, para que el video
   repita ese movimiento suave.
 - Marcar inicio y fin de una jugada y **exportarla a video** (MP4 o MOV) con
@@ -110,8 +110,9 @@ Quake 2 normal.
 | **W A S D + mouse** | Mover y mirar con la cámara libre |
 | **Espacio / Ctrl** | Subir / bajar |
 | **Shift** (mantener) | Mover la cámara más rápido |
-| **Rueda del mouse** (o **+ / −** del teclado numérico) | Velocidad de la cámara libre; siguiendo a alguien, acercar / alejar |
-| **E / Q** | Seguir al siguiente / anterior jugador |
+| **Rueda del mouse** (o **+ / −** del teclado numérico) | Velocidad de la cámara libre; siguiendo a alguien en tercera persona, acercar / alejar |
+| **E / Q** | Seguir al siguiente / anterior jugador (en la perspectiva que tengas) |
+| **F** | Primera / tercera persona al ver a un jugador |
 | **R** | Volver a la vista de quien grabó el demo |
 | **C** | Grabar recorrido de cámara / terminar |
 | **V** | Usar el recorrido grabado sí / no |
@@ -148,7 +149,8 @@ abajo) = sus muertes. Nada de esto sale en los videos.
 3. Avanza hasta el final de la jugada y presiona **O** (fin).
 4. Elige la cámara:
    - **Vista del jugador**: no hagas nada (o presiona **R**).
-   - **Seguir a un jugador**: **E / Q** hasta encontrarlo.
+   - **Seguir a un jugador**: **E / Q** hasta encontrarlo; **F** cambia entre
+     sus ojos (primera persona) y detrás de él (tercera persona).
    - **Toma con movimiento** (paneos, vuelos): ver el punto 5.
 5. Presiona **G**. El demo salta al inicio, se graba hasta el fin y se pausa.
    Arriba aparece "GRABANDO" con el porcentaje. Al terminar dice
@@ -161,6 +163,19 @@ existe, se agrega un número.
 Mientras se graba el clip el juego puede verse más lento o más rápido que lo
 normal: es esperado. El video sale perfecto igual, porque se genera cuadro
 a cuadro.
+
+### Primera y tercera persona
+
+**F** cambia entre ver por los ojos del jugador (primera persona) y verlo
+desde atrás (tercera persona). La elección se mantiene: con **E / Q** pasas
+al siguiente jugador en la misma perspectiva, y si sueltas la cámara con
+**flecha arriba**, al volver a presionarla regresas al mismo jugador. En
+tercera persona la rueda del mouse acerca o aleja la cámara.
+
+En un `.dm2`, la primera persona de otro jugador (no de quien grabó) se arma
+con lo que trae el demo: su posición y hacia dónde mira. No se ve su arma ni
+su HUD, y la mirada es algo menos precisa que la del jugador que grabó. En
+un `.mvd2` todos los jugadores se ven como en el juego, con arma y HUD.
 
 ### Tomas con movimiento: recorrido de cámara
 

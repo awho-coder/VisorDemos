@@ -17,9 +17,15 @@ GNU General Public License for more details.
 // Three camera modes while watching a DM2 demo:
 //   off    - the view of the player who recorded the demo (normal q2pro)
 //   free   - fly anywhere with the movement binds, look with the mouse
-//   chase  - follow any player from behind; the mouse orbits around them
-//            and the camera eases back behind the player on its own
+//   chase  - follow any player, in third person (from behind; the mouse
+//            orbits around them and the camera eases back behind the player
+//            on its own) or in first person (through their eyes)
 // Both detached modes keep working while the demo is paused.
+//
+// F switches first / third person. The choice sticks: E / Q keep it when
+// moving to another player, and leaving the free camera goes back to the
+// player you were following. In first person the recorder is shown with the
+// demo's own view (CAM_OFF), which has the real view angles and the gun.
 
 #include "client.h"
 
@@ -36,6 +42,9 @@ static struct {
     int         target;     // chase: entity number
     vec3_t      target_pos; // chase: last known position of the target
     bool        target_seen;
+    bool        third;      // follow players in third person (F)
+    int         back;       // free camera: player to go back to, 0 = recorder
+    float       eye_height; // first person: smoothed view height
 } fc;
 
 static cvar_t   *freecam_speed;
@@ -71,6 +80,12 @@ static bool free_active(void)
 static bool chase_active(void)
 {
     return fc.mode == CAM_CHASE && live_active();
+}
+
+// following someone through their eyes
+static bool eyes_active(void)
+{
+    return chase_active() && !fc.third;
 }
 
 // true when the recorder's HUD (stats, layouts, crosshair) should be hidden
@@ -179,6 +194,10 @@ int CL_ChasedBodyToHide(void)
     vec3_t org;
     int n;
 
+    // our first person camera sits inside the followed player
+    if (eyes_active())
+        return fc.target;
+
     if (!cls.demo.playback || cls.state != ca_active || CL_FreecamActive())
         return 0;
     if (cl.frame.ps.pmove.pm_type != PM_FREEZE)
@@ -264,6 +283,7 @@ void CL_FreecamReset(void)
 {
     fc.mode = CAM_OFF;
     fc.target = 0;
+    fc.back = 0;
     VectorClear(fc.velocity);
 }
 
@@ -329,6 +349,8 @@ FREE CAMERA
 ===============================================================================
 */
 
+static bool follow(int num);
+
 static void Freecam_f(void)
 {
     bool enable;
@@ -344,8 +366,18 @@ static void Freecam_f(void)
     if (enable && !can_detach())
         return;
 
-    // from chase mode the free camera starts where the chase camera was
-    set_mode(enable ? CAM_FREE : CAM_OFF);
+    if (enable) {
+        // remember who we were watching, to come back to them
+        if (fc.mode != CAM_FREE)
+            fc.back = chase_active() ? fc.target : 0;
+        // from chase mode the free camera starts where the chase camera was
+        set_mode(CAM_FREE);
+        return;
+    }
+
+    if (fc.mode == CAM_FREE && fc.back && follow(fc.back))
+        return;
+    set_mode(CAM_OFF);
 }
 
 /*
@@ -435,11 +467,80 @@ static bool player_position(int num, vec3_t out, float *yaw)
     return true;
 }
 
+// the recorder was playing, not spectating: the demo view is their eyes
+static bool recorder_playing(void)
+{
+    int t = cl.frame.ps.pmove.pm_type;
+
+    return t != PM_SPECTATOR && t != PM_FREEZE;
+}
+
+// player the view belongs to now (entity number), 0 = nobody
+static int current_player(void)
+{
+    int n;
+
+    if (chase_active())
+        return fc.target;
+    if (fc.mode != CAM_OFF)
+        return 0;
+    if (recorder_playing())
+        return cl.frame.clientNum + 1;
+    if (cl.frame.ps.pmove.pm_type == PM_FREEZE && (n = spectator_target()) >= 0)
+        return n + 1;   // the recorder was a spectator chasing this player
+    return 0;
+}
+
+// eye height from the top of the player's bounding box (measured in demos:
+// D-Day standing 16 -> 20, crouched or prone -16 -> -17; baseq2 standing
+// 32 -> 22, crouched 4 -> -2). No box (dead...): keep the current height.
+static float player_eye_height(int num, float current)
+{
+    const centity_t *ent = &cl_entities[num];
+    float top = ent->maxs[2];
+
+    if (top - ent->mins[2] < 1)
+        return current;
+    if (!Q_stricmp(Cvar_VariableString("game"), "dday"))
+        return top >= 0 ? top + 4 : top - 1;
+    return top >= 16 ? top - 10 : top - 6;
+}
+
+/*
+===============
+follow
+
+Watch player `num` in the current perspective (fc.third). False when the
+player isn't in the demo at this moment.
+===============
+*/
+static bool follow(int num)
+{
+    vec3_t pos;
+    float yaw;
+
+    // the recorder in first person: the demo's own view
+    if (!fc.third && num == cl.frame.clientNum + 1 && recorder_playing()) {
+        set_mode(CAM_OFF);
+        return true;
+    }
+
+    if (!player_position(num, pos, &yaw))
+        return false;
+
+    set_mode(CAM_CHASE);
+    fc.target = num;
+    fc.target_seen = true;
+    VectorCopy(pos, fc.target_pos);
+    fc.eye_height = player_eye_height(num, 20);
+    cl.viewangles[YAW] = yaw;
+    cl.viewangles[PITCH] = 15;
+    return true;
+}
+
 static void chase_cycle(int dir)
 {
     int start, num, max_ent;
-    vec3_t pos;
-    float yaw;
 
     if (!can_detach())
         return;
@@ -450,7 +551,9 @@ static void chase_cycle(int dir)
         return;
     }
 
-    start = chase_active() ? fc.target : (dir > 0 ? 0 : max_ent + 1);
+    start = current_player();
+    if (!start && dir < 0)
+        start = max_ent + 1;
     num = start;
 
     for (int i = 0; i < max_ent; i++) {
@@ -460,15 +563,8 @@ static void chase_cycle(int dir)
         else if (num < 1)
             num = max_ent;
 
-        if (player_position(num, pos, &yaw)) {
-            set_mode(CAM_CHASE);
-            fc.target = num;
-            fc.target_seen = true;
-            VectorCopy(pos, fc.target_pos);
-            cl.viewangles[YAW] = yaw;
-            cl.viewangles[PITCH] = 15;
+        if (follow(num))
             return;
-        }
     }
 
     Com_Printf("No hay jugadores a la vista en este momento.\n"
@@ -486,6 +582,52 @@ static void Chase_Prev_f(void)
 {
     if (!mvd_command("invprev", NULL))
         chase_cycle(-1);
+}
+
+/*
+===============
+Camera_View_f
+
+camera_view [1 | 3]: first or third person when watching a player (F).
+===============
+*/
+static void Camera_View_f(void)
+{
+    bool old = fc.third;
+    const char *msg;
+    int num;
+
+    if (Cmd_Argc() > 1)
+        fc.third = Q_atoi(Cmd_Argv(1)) == 3;
+    else
+        fc.third = !fc.third;
+    msg = fc.third ? "Tercera persona" : "Primera persona";
+
+    // MVD: the view of the followed player comes from the local MVD
+    // server; CL_MvdChaseView moves it behind them
+    if (mvd_playing()) {
+        SCR_CenterPrint(msg, false);
+        return;
+    }
+
+    if (!can_detach()) {
+        fc.third = old;
+        return;
+    }
+
+    num = current_player();
+    if (!num) {
+        // free camera, or nobody to look at: used when following someone
+        SCR_CenterPrint(va("%s al seguir jugadores (E / Q)", msg), false);
+        return;
+    }
+
+    if (!follow(num)) {
+        fc.third = old;
+        SCR_CenterPrint("El jugador no esta a la vista", false);
+        return;
+    }
+    SCR_CenterPrint(msg, false);
 }
 
 /*
@@ -517,7 +659,7 @@ static float step_value(const float *steps, int n, float cur, int dir)
 static void Camera_Speed_f(void)
 {
     const char *arg = Cmd_Argv(1);
-    bool chase = chase_active();
+    bool chase = (chase_active() && fc.third) || CL_MvdThirdPerson();
     cvar_t *var = chase ? chase_dist : freecam_speed;
     const float *steps = chase ? chase_dists : camera_speeds;
     int n = chase ? q_countof(chase_dists) : q_countof(camera_speeds);
@@ -527,6 +669,11 @@ static void Camera_Speed_f(void)
         Com_Printf("Velocidad de la camara libre: %g\nDistancia al seguir jugadores: %g\n"
                    "Uso: %s up | down | reset | <valor>\n",
                    freecam_speed->value, chase_dist->value, Cmd_Argv(0));
+        return;
+    }
+
+    if (eyes_active()) {
+        SCR_CenterPrint("Primera persona (F: tercera persona)", false);
         return;
     }
 
@@ -611,6 +758,114 @@ static void chase_view(void)
 
 /*
 ===============
+eyes_view
+
+First person of a player other than the recorder. The demo only has their
+entity: position, yaw, and pitch / 3 (the game stores a third of the view
+pitch so the model doesn't bend too much). No gun: their weapon frames
+aren't in the demo.
+===============
+*/
+static void eyes_view(void)
+{
+    static unsigned last_time;
+    const centity_t *ent = &cl_entities[fc.target];
+    float yaw, pitch, dt;
+
+    dt = (cls.realtime - last_time) * 0.001f;
+    last_time = cls.realtime;
+    dt = Q_clipf(dt, 0, 0.1f);
+
+    fc.target_seen = player_position(fc.target, fc.target_pos, &yaw);
+    if (fc.target_seen) {
+        pitch = LerpAngle(ent->prev.angles[PITCH], ent->current.angles[PITCH], cl.lerpfrac);
+        if (pitch > 180)
+            pitch -= 360;
+        cl.viewangles[PITCH] = Q_clipf(pitch * 3, -89, 89);
+        cl.viewangles[YAW] = yaw;
+        cl.viewangles[ROLL] = 0;
+
+        // crouching / standing up: ease the height like the game does
+        fc.eye_height += (player_eye_height(fc.target, fc.eye_height) - fc.eye_height) *
+                         (1.0f - expf(-dt / 0.1f));
+    }
+
+    VectorCopy(fc.target_pos, fc.origin);
+    fc.origin[2] += fc.eye_height;
+}
+
+// shown on the timeline
+bool CL_ChaseFirstPerson(void)
+{
+    return eyes_active();
+}
+
+/*
+===============
+CL_MvdThirdPerson / CL_MvdChaseView
+
+MVD: following a player goes through the local MVD server, which sends the
+player's own first person view. In third person the client moves that view
+behind them, turning smoothly after where they look.
+===============
+*/
+bool CL_MvdThirdPerson(void)
+{
+    return fc.third && mvd_playing() && cl.frame.ps.pmove.pm_type != PM_SPECTATOR;
+}
+
+void CL_MvdChaseView(void)
+{
+    static const vec3_t mins = { -4, -4, -4 };
+    static const vec3_t maxs = {  4,  4,  4 };
+    static vec3_t   angles;
+    static int      last_client = -1;
+    static unsigned last_time;
+    vec3_t focus, forward, wanted;
+    trace_t trace;
+    float pitch, frac, dt;
+
+    dt = (cls.realtime - last_time) * 0.001f;
+    last_time = cls.realtime;
+
+    pitch = cl.refdef.viewangles[PITCH];
+    if (pitch > 180)
+        pitch -= 360;
+    pitch = Q_clipf(pitch * 0.5f + 10, -60, 70);
+
+    if (cl.frame.clientNum != last_client || dt > 0.5f) {
+        // another player, or the first frame: no easing
+        angles[PITCH] = pitch;
+        angles[YAW] = cl.refdef.viewangles[YAW];
+        last_client = cl.frame.clientNum;
+    } else {
+        frac = 1.0f - expf(-dt / 0.15f);
+        angles[PITCH] += (pitch - angles[PITCH]) * frac;
+        angles[YAW] += angle_delta(cl.refdef.viewangles[YAW], angles[YAW]) * frac;
+    }
+    angles[ROLL] = 0;
+
+    VectorCopy(cl.playerEntityOrigin, focus);
+    focus[2] += chase_height->value;
+
+    AngleVectors(angles, forward, NULL, NULL);
+    VectorMA(focus, -Cvar_ClampValue(chase_dist, 16, 1000), forward, wanted);
+    CL_Trace(&trace, focus, wanted, mins, maxs, CONTENTS_SOLID);
+
+    VectorCopy(trace.endpos, cl.refdef.vieworg);
+    VectorCopy(angles, cl.refdef.viewangles);
+    AngleVectors(angles, cl.v_forward, cl.v_right, cl.v_up);
+
+    // own field of view: no sniper zoom from behind the player
+    cl.fov_x = Cvar_ClampValue(freecam_fov, 10, 160);
+    cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
+
+    cl.thirdPersonView = true;
+    cl.thirdPersonAlpha = 1.0f;
+}
+
+/*
+===============
 CL_FreecamView
 
 Overrides the computed view with the detached camera. Called at the end of
@@ -628,8 +883,10 @@ void CL_FreecamView(void)
 
     if (live_active()) {
         // the user is moving the camera
-        if (fc.mode == CAM_CHASE)
+        if (fc.mode == CAM_CHASE && fc.third)
             chase_view();
+        else if (fc.mode == CAM_CHASE)
+            eyes_view();
         VectorCopy(fc.origin, cl.refdef.vieworg);
         VectorCopy(cl.viewangles, cl.refdef.viewangles);
     } else if (CL_CamPathView(org, ang)) {
@@ -660,6 +917,7 @@ static const cmdreg_t c_freecam[] = {
     { "chase_prev", Chase_Prev_f },
     { "camera_reset", Camera_Reset_f },
     { "camera_speed", Camera_Speed_f },
+    { "camera_view", Camera_View_f },
     { NULL }
 };
 
