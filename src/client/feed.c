@@ -436,8 +436,12 @@ static bool add_kill(const char *victim, const char *mid, const char *killer, co
     k->vteam = player_team(v);
     k->kteam = player_team(kname);
     k->headshot = Q_stristr(tail, "HEADSHOT");
+    // D-Day writes "(Friendly fire)" after a team kill. Same team skins
+    // prove nothing there: in its free-for-all modes (FFA, Gun Game)
+    // everybody can wear the same one. Other mods: compare the teams.
     k->teamkill = Q_stristr(tail, "Friendly fire") ||
-        (k->kteam && k->kteam == k->vteam && strcmp(v, kname));
+        (Q_stricmp(Cvar_VariableString("game"), "dday") &&
+         k->kteam && k->kteam == k->vteam && strcmp(v, kname));
     return true;
 }
 
