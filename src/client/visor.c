@@ -233,7 +233,48 @@ static void Visor_Players_f(void)
     }
 }
 
+/*
+===============
+Visor_Volume_f
+
+visor_volume up | down | <0 to 1>   (keys , and .)
+===============
+*/
+static const float volumes[] = { 0, 0.02f, 0.05f, 0.1f, 0.15f, 0.2f, 0.3f, 0.4f, 0.5f, 0.7f, 1 };
+
+static void Visor_Volume_f(void)
+{
+    const char *arg = Cmd_Argv(1);
+    float cur = Cvar_VariableValue("s_volume"), v;
+    int i, n = q_countof(volumes);
+
+    if (!*arg) {
+        Com_Printf("Volumen: %d%%\nUso: %s up | down | <0 a 1>\n", Q_rint(cur * 100), Cmd_Argv(0));
+        return;
+    }
+
+    // the clip sets its own volume while it records
+    if (CL_CaptureActive())
+        return;
+
+    if (!Q_stricmp(arg, "up")) {
+        for (i = 0; i < n - 1 && volumes[i] <= cur + 0.001f; i++)
+            ;
+        v = volumes[i];
+    } else if (!Q_stricmp(arg, "down")) {
+        for (i = n - 1; i > 0 && volumes[i] >= cur - 0.001f; i--)
+            ;
+        v = volumes[i];
+    } else {
+        v = Q_clipf(Q_atof(arg), 0, 1);
+    }
+
+    Cvar_Set("s_volume", va("%g", v));
+    SCR_CenterPrint(va("Volumen: %d%%", Q_rint(v * 100)), false);
+}
+
 static const cmdreg_t c_visor[] = {
+    { "visor_volume", Visor_Volume_f },
     { "visor_help", Visor_Help_f },
     { "demo_speed", Demo_Speed_f },
     { "visor_xray", Visor_Xray_f },

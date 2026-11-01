@@ -1774,6 +1774,24 @@ static void SCR_DrawHealthBar(int x, int y, int value)
 // viewer replaces with its own VIENDO label). -1 = skip nothing.
 static int scr_hide_stat = -1;
 
+// video clip without HUD: run the status bar only for the sniper scope
+static bool scr_scope_only;
+
+// arguments of the layout commands that draw something
+static int SCR_LayoutArgs(const char *token)
+{
+    if (!strcmp(token, "client"))
+        return 6;
+    if (!strcmp(token, "ctf"))
+        return 5;
+    if (!strcmp(token, "num") || !strcmp(token, "health_bars"))
+        return 2;
+    if (!strcmp(token, "picn") || !strcmp(token, "color") ||
+        strstr(token, "string") || !strncmp(token, "stat_", 5))
+        return 1;
+    return 0;   // hnum, anum, rnum and unknown words
+}
+
 static bool block_prints_stat(const char *s, int stat)
 {
     const char *token;
@@ -1857,6 +1875,12 @@ static void SCR_ExecuteLayoutString(const char *s)
             }
         }
 
+        if (scr_scope_only && strcmp(token, "pic") && strcmp(token, "if") && strcmp(token, "endif")) {
+            for (int n = SCR_LayoutArgs(token); n > 0; n--)
+                COM_SkipToken(&s);
+            continue;
+        }
+
         if (!strcmp(token, "pic")) {
             // draw a pic from a stat number
             token = COM_Parse(&s);
@@ -1869,7 +1893,7 @@ static void SCR_ExecuteLayoutString(const char *s)
                 Com_Error(ERR_DROP, "%s: invalid pic index", __func__);
             }
             token = cl.configstrings[cl.csr.images + value];
-            if (token[0]) {
+            if (token[0] && (!scr_scope_only || strstr(token, "scope"))) {
                 qhandle_t pic = cl.image_precache[value];
                 // hack for action mod scope scaling
                 if (x == scr.hud_width  / 2 - 160 &&
@@ -2282,6 +2306,24 @@ draw:
     SCR_ExecuteLayoutString(cl.layout);
 }
 
+static void SCR_DrawScopeOnly(void)
+{
+    if (CL_FreecamActive() || scr_draw2d->integer <= 1)
+        return;
+    if (cl.frame.ps.stats[STAT_LAYOUTS] & LAYOUTS_HIDE_HUD)
+        return;
+
+    R_SetScale(scr.hud_scale);
+    scr.hud_height = Q_rint(scr.hud_height * scr.hud_scale);
+    scr.hud_width = Q_rint(scr.hud_width * scr.hud_scale);
+
+    scr_scope_only = true;
+    SCR_ExecuteLayoutString(cl.configstrings[CS_STATUSBAR]);
+    scr_scope_only = false;
+
+    R_SetScale(1.0f);
+}
+
 static void SCR_Draw2D(void)
 {
     if (scr_draw2d->integer <= 0)
@@ -2290,8 +2332,12 @@ static void SCR_Draw2D(void)
     if (cls.key_dest & KEY_MENU)
         return;
 
-    if (CL_CaptureHideHud())
-        return;     // clean video clip
+    if (CL_CaptureHideHud()) {
+        // clean video clip, but the sniper scope (a status bar pic in D-Day)
+        // is part of what the player saw
+        SCR_DrawScopeOnly();
+        return;
+    }
 
     R_SetScale(scr.hud_scale);
 
@@ -2501,6 +2547,7 @@ static const helpline_t visor_help[] = {
     { "F1",         "Tabla de puntos" },
     { "N / B",      "Frag/muerte sig. / ant." },
     { "K / J",      "Kill feed / chat" },
+    { ", / .",      "Volumen - / +" },
     { "",           NULL },
     { NULL,         "Camara" },
     { "Arriba",     "Camara libre" },
@@ -2539,6 +2586,7 @@ static const settingline_t visor_settings[] = {
     { "visor_feed_size", "letra, 0.5 a 3" },
     { "visor_bar",       "barra de tiempo" },
     { "visor_name",      "nick arriba" },
+    { "s_volume",        "volumen, teclas , ." },
     { "",                NULL },
     { NULL,              "En el video" },
     { "clip_killfeed",   "0 no, 1 si, 2 jugador" },
@@ -2548,6 +2596,7 @@ static const settingline_t visor_settings[] = {
     { "clip_size",       "resolucion" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
+    { "clip_volume",     "auto = como el visor" },
     { "",                NULL },
     { NULL,              "X-ray (T)" },
     { "xray_color",      "team o un color" },

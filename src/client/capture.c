@@ -671,9 +671,15 @@ static bool capture_start(const char *name)
     if (!capture_open(name))
         return false;
 
-    // known volume for the recording, independent of the player's setting
+    // clip_volume "auto": the clip sounds like what you hear in the viewer.
+    // "0.7" was the old default, much louder than most people listen.
     cap.saved_volume = Cvar_VariableValue("s_volume");
-    set_cvar_now("s_volume", Cvar_ClampValue(clip_volume, 0, 1));
+    if (!strcmp(clip_volume->string, "0.7"))
+        Cvar_Set("clip_volume", "auto");
+    if (!Q_stricmp(clip_volume->string, "auto") || !clip_volume->string[0])
+        set_cvar_now("s_volume", cap.saved_volume);
+    else
+        set_cvar_now("s_volume", Cvar_ClampValue(clip_volume, 0, 1));
 
     // the device gets nothing while we mix for the file
     S_StopAllSounds();
@@ -982,7 +988,7 @@ void CL_InitCapture(void)
     clip_format = Cvar_Get("clip_format", "mp4", CVAR_ARCHIVE);
     clip_quality = Cvar_Get("clip_quality", "16", CVAR_ARCHIVE);
     clip_hud = Cvar_Get("clip_hud", "0", CVAR_ARCHIVE);
-    clip_volume = Cvar_Get("clip_volume", "0.7", CVAR_ARCHIVE);
+    clip_volume = Cvar_Get("clip_volume", "auto", CVAR_ARCHIVE);
     clip_size = Cvar_Get("clip_size", "1920x1080", CVAR_ARCHIVE);
 
     Cmd_Register(c_capture);

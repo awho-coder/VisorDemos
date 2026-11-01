@@ -121,6 +121,7 @@ Quake 2 normal.
 | **G** | Grabar el clip a video |
 | **Supr** | Borrar las marcas de inicio y fin |
 | **K** | Kill feed: sí / solo el jugador que ves / no |
+| **,** / **.** | Bajar / subir el volumen |
 | **J** | Chat: sí / con avisos del servidor / no |
 | **T** | X-ray: siluetas de los jugadores detrás de las paredes sí / no |
 | **H** | Mostrar / ocultar la ayuda (teclas a un lado, ajustes de consola con su valor al otro) |
@@ -287,7 +288,8 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `visor_feed_size` | `1` | Tamaño de la letra del kill feed y el chat (0.5 a 3) |
 | `visor_killfeed_time` / `visor_chat_time` | `6` / `10` | Segundos que queda cada línea |
 | `visor_killfeed_lines` / `visor_chat_lines` | `5` / `6` | Cuántas líneas se muestran a la vez |
-| `clip_volume` | `0.7` | Volumen del sonido en el video |
+| `s_volume` | `0.3` | Volumen del visor (también con las teclas **,** y **.**) |
+| `clip_volume` | `auto` | Volumen del sonido en el video: `auto` = el mismo que escuchas en el visor, o un valor fijo de 0 a 1 |
 | `freecam_speed` | `300` | Velocidad de la cámara libre (también con la rueda del mouse) |
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |

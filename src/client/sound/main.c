@@ -145,7 +145,7 @@ void S_Init(void)
 
     Com_Printf("------- S_Init -------\n");
 
-    s_volume = Cvar_Get("s_volume", "0.7", CVAR_ARCHIVE);
+    s_volume = Cvar_Get("s_volume", "0.3", CVAR_ARCHIVE);   // VisorDemos: q2pro uses 0.7
     s_ambient = Cvar_Get("s_ambient", "1", 0);
 #if USE_DEBUG
     s_show = Cvar_Get("s_show", "0", 0);
