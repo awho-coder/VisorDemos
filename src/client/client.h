@@ -788,6 +788,18 @@ bool CL_CamPathRange(float *start, float *end);
 
 
 //
+// keycam.c
+//
+void CL_InitKeyCam(void);
+bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
+bool CL_KeyCamPlaying(void);
+bool CL_KeyCamHaveKeys(void);
+void CL_KeyCamSetPlaying(bool on);
+int  CL_KeyCamMarks(float *pos, int max, int *current);
+const char *CL_KeyCamStatus(void);
+
+
+//
 // visor.c
 //
 void CL_InitVisor(void);
@@ -841,6 +853,8 @@ float CL_FreecamSpeed(void);
 float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
+bool CL_FreecamKeysDriving(void);
+bool CL_PlayerPosition(int num, vec3_t out);
 
 
 #if USE_DEBUG

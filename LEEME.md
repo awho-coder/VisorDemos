@@ -115,7 +115,12 @@ Quake 2 normal.
 | **F** | Primera / tercera persona al ver a un jugador |
 | **R** | Volver a la vista de quien grabó el demo |
 | **C** | Grabar recorrido de cámara / terminar |
-| **V** | Usar el recorrido grabado sí / no |
+| **V** | Usar el recorrido grabado y los puntos de cámara sí / no |
+| **P** | Poner un punto de cámara aquí (o actualizarlo) |
+| **L** | El punto mira al jugador del centro de la pantalla / mirada libre |
+| **M** | Del punto al siguiente: curva suave / recta |
+| **U** | Borrar el punto de cámara |
+| **1 / 2** | Ir al punto de cámara anterior / siguiente |
 | **I** | Marcar inicio del clip |
 | **O** | Marcar fin del clip |
 | **G** | Grabar el clip a video |
@@ -137,7 +142,8 @@ texto de espectador de D-Day, que repetía lo mismo); si volabas libre, dice
 
 La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
 las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
-**azul** (línea fina) = tramo con recorrido de cámara grabado, **amarillo**
+**azul** (línea fina) = tramo con recorrido de cámara grabado, **celeste**
+(cuadraditos) = puntos de cámara, **amarillo**
 (rayitas arriba) = frags del jugador que ves o sigues, **rojo** (rayitas
 abajo) = sus muertes. Nada de esto sale en los videos.
 
@@ -191,6 +197,36 @@ Si un tramo no te gustó, vuelve a ese momento y graba solo ese tramo con
 **C**: se reemplaza únicamente esa parte. **V** activa o desactiva el
 recorrido. Los recorridos se guardan por demo en la carpeta `campaths` y se
 cargan solos la próxima vez que abras el mismo demo.
+
+### Puntos de cámara (como en Keygrip)
+
+En vez de actuar la toma, le dices al visor dónde tiene que estar la cámara
+en algunos momentos y él la mueve sola entre esos puntos, en una curva suave.
+
+1. Pausa (**flecha abajo**) donde empieza la toma, suelta la cámara
+   (**flecha arriba**) y ubícala.
+2. Presiona **P**: queda un punto (cuadradito celeste en la barra).
+3. Avanza el demo, mueve la cámara a la siguiente posición y presiona **P**
+   otra vez. Repite las veces que quieras.
+4. Vuelve al inicio y deja correr el demo: la cámara viaja sola por los
+   puntos (abajo dice *PUNTOS DE CAMARA*). Marca inicio y fin y graba con **G**.
+
+- **Seguir a un objetivo**: en un punto, apunta a un jugador (al centro de
+  la pantalla) y presiona **L**. Desde ese punto la cámara gira sola para
+  mirarlo mientras viaja. Si dos puntos miran a jugadores distintos, la
+  cámara pasa de uno a otro. **L** otra vez vuelve a la mirada libre.
+- **Corregir un punto**: **1 / 2** saltan al punto anterior / siguiente y
+  pausan. Mueve la cámara y presiona **P**: se actualiza. **U** lo borra.
+- **Agregar un punto en medio**: deja correr el demo y pausa donde quieras;
+  la cámara libre sigue desde donde iba. Muévela y presiona **P**.
+- **Curva o recta**: **M** cambia cómo va la cámara de ese punto al
+  siguiente.
+- Cada punto guarda también el zoom (`freecam_fov`), así que puedes hacer
+  acercamientos.
+
+Mientras el demo corre, los puntos mandan sobre la cámara; en pausa puedes
+mover la cámara libre para preparar el siguiente punto. **V** los apaga. Se
+guardan por demo en `campaths` (archivo `.keys`).
 
 ### X-ray: por qué no es un wallhack
 
@@ -294,6 +330,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
+| `keycam_aim_height` | `12` | Altura sobre el jugador a la que miran los puntos con **L** |
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
 | `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
 | `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
@@ -303,7 +340,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
-`demo_speed 0.5`, `campath_clear`.
+`demo_speed 0.5`, `campath_clear`, `keycam_clear` (borra todos los puntos de cámara).
 
 Para mejor calidad de imagen el visor usa la ventana tal como la tengas.
 Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
@@ -324,7 +361,7 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   que con la cámara libre no se ve a ese jugador.
 - **MVD**: la cámara libre y el seguimiento usan los modos propios de MVD
   (flecha arriba = volar / seguir, E / Q = cambiar de jugador). El recorrido
-  de cámara (C / V) por ahora solo funciona con `.dm2`.
+  y los puntos de cámara (C, P, V) por ahora solo funcionan con `.dm2`.
 - **El video no tiene sonido**: el audio se graba con el sonido por
   software. En la consola: `s_enable 1`, luego `snd_restart`.
 - **"cambió el tamaño de la ventana"**: no cambies el tamaño de la ventana

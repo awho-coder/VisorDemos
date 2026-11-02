@@ -2421,10 +2421,13 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_REC       MakeColor(255,  40,  40, 255)
 #define VISOR_FRAG      MakeColor(255, 210,   0, 255)
 #define VISOR_DEATH     MakeColor(255,  45,  45, 255)
+#define VISOR_KEY       MakeColor(  0, 220, 230, 255)
+#define VISOR_KEY_HERE  MakeColor(255, 255, 255, 255)
+#define VISOR_KEY_EDGE  MakeColor(  0,   0,   0, 255)
 
 static void SCR_DrawVisorBar(void)
 {
-    char left[64], mid[96], right[96], t_in[16], t_out[16];
+    char left[64], mid[192], right[96], t_in[16], t_out[16];
     int W = r_config.width, H = r_config.height;
     int ch, pad, bar_h, strip_h, y0, ty, tx0, tx1, tw;
     float s = scr.hud_scale, prog;
@@ -2485,6 +2488,25 @@ static void SCR_DrawVisorBar(void)
         for (int i = 0; i < n; i++)
             R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty + bar_h, 2, pad, VISOR_DEATH);
     }
+    {
+        // camera points: squares on the track, joined by a line through it
+        static float keys[256];
+        int here, n = CL_KeyCamMarks(keys, q_countof(keys), &here);
+        int sz = bar_h + 2, line_h = max(bar_h / 3, 1);
+
+        if (n >= 2) {
+            int xa = tx0 + Q_rint(tw * keys[0]);
+            int xb = tx0 + Q_rint(tw * keys[n - 1]);
+            R_DrawFill32(xa, ty + (bar_h - line_h) / 2, max(xb - xa, 1), line_h,
+                         CL_KeyCamPlaying() ? VISOR_KEY : VISOR_TRACK);
+        }
+        for (int i = 0; i < n; i++) {
+            int x = tx0 + Q_rint(tw * keys[i]) - sz / 2;
+            int y = ty - 1;
+            R_DrawFill32(x - 1, y - 1, sz + 2, sz + 2, VISOR_KEY_EDGE);
+            R_DrawFill32(x, y, sz, sz, i == here ? VISOR_KEY_HERE : VISOR_KEY);
+        }
+    }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
     // text line
@@ -2500,7 +2522,11 @@ static void SCR_DrawVisorBar(void)
         Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
     if (Cvar_VariableInteger("xray"))
         Q_strlcat(mid, "X-RAY   ", sizeof(mid));
-    if (CL_FreecamFlying())
+    if (CL_KeyCamStatus())
+        Q_strlcat(mid, va("%s   ", CL_KeyCamStatus()), sizeof(mid));
+    if (CL_FreecamKeysDriving())
+        Q_strlcat(mid, "PUNTOS DE CAMARA", sizeof(mid));
+    else if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
@@ -2559,8 +2585,15 @@ static const helpline_t visor_help[] = {
     { "F",          "1a / 3a persona" },
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
-    { "V",          "Usar recorrido" },
+    { "V",          "Usar recorrido/puntos" },
     { "T",          "Siluetas (x-ray)" },
+    { "",           NULL },
+    { NULL,         "Puntos de camara" },
+    { "P",          "Poner punto aqui" },
+    { "L",          "Mirar al jugador" },
+    { "M",          "Curva / recta" },
+    { "U",          "Borrar punto" },
+    { "1 / 2",      "Punto ant. / sig." },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },

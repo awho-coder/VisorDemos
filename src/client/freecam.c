@@ -57,6 +57,7 @@ static cvar_t   *chase_height;
 static cvar_t   *chase_auto;
 
 static bool     path_driving;   // a recorded camera path moves the view
+static bool     keys_driving;   // the camera points move the view
 
 static bool mvd_playing(void);
 
@@ -69,7 +70,8 @@ static bool live_active(void)
 // any detached camera: live, or played back from a recorded path
 bool CL_FreecamActive(void)
 {
-    return live_active() || (path_driving && cls.demo.playback && cls.state == ca_active);
+    return live_active() ||
+           ((path_driving || keys_driving) && cls.demo.playback && cls.state == ca_active);
 }
 
 static bool free_active(void)
@@ -465,6 +467,14 @@ static bool player_position(int num, vec3_t out, float *yaw)
         *yaw = LerpAngle(ent->prev.angles[YAW], ent->current.angles[YAW], cl.lerpfrac);
     }
     return true;
+}
+
+// for the camera points: where a player is now (their origin)
+bool CL_PlayerPosition(int num, vec3_t out)
+{
+    float yaw;
+
+    return player_position(num, out, &yaw);
 }
 
 // the recorder was playing, not spectating: the demo view is their eyes
@@ -875,13 +885,30 @@ CL_CalcViewValues, after the player entity position has been worked out.
 void CL_FreecamView(void)
 {
     vec3_t org, ang;
+    float fov = 0;
+    bool paused;
 
-    path_driving = false;
+    path_driving = keys_driving = false;
 
     if (!cls.demo.playback || cls.state != ca_active)
         return;
 
-    if (live_active()) {
+    paused = sv_paused->integer && cl_paused->integer;
+
+    if (CL_KeyCamView(org, ang, &fov) && (!live_active() || !paused)) {
+        // camera points cover this moment. They win over the live camera
+        // while the demo runs; paused, the live camera is free to set up a
+        // point. The free camera rides along, so pausing doesn't jump.
+        keys_driving = true;
+        VectorCopy(org, cl.refdef.vieworg);
+        VectorCopy(ang, cl.refdef.viewangles);
+        if (free_active()) {
+            VectorCopy(org, fc.origin);
+            VectorCopy(ang, cl.viewangles);
+            normalize_view_angles();
+            VectorClear(fc.velocity);
+        }
+    } else if (live_active()) {
         // the user is moving the camera
         if (fc.mode == CAM_CHASE && fc.third)
             chase_view();
@@ -899,8 +926,9 @@ void CL_FreecamView(void)
     if (CL_FreecamActive()) {
         AngleVectors(cl.refdef.viewangles, cl.v_forward, cl.v_right, cl.v_up);
 
-        // own field of view: ignore the recorder's zoom (sniper scope etc.)
-        cl.fov_x = Cvar_ClampValue(freecam_fov, 10, 160);
+        // own field of view: ignore the recorder's zoom (sniper scope etc.),
+        // or the one saved with the camera points
+        cl.fov_x = keys_driving ? fov : Cvar_ClampValue(freecam_fov, 10, 160);
         cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
 
         // the recorder's damage flashes and underwater tint don't belong here
@@ -908,7 +936,13 @@ void CL_FreecamView(void)
         Vector4Clear(cl.refdef.damage_blend);
     }
 
-    CL_CamPathRecord(live_active());
+    CL_CamPathRecord(live_active() || keys_driving);
+}
+
+// the camera points move the view right now (for the timeline)
+bool CL_FreecamKeysDriving(void)
+{
+    return keys_driving && cls.demo.playback && cls.state == ca_active;
 }
 
 static const cmdreg_t c_freecam[] = {
