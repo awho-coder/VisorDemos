@@ -684,8 +684,10 @@ static bool capture_start(const char *name)
     // the device gets nothing while we mix for the file
     S_StopAllSounds();
 
-    // make sure the demo runs
+    // make sure the demo runs: sv_paused is what holds the demo, and it only
+    // follows cl_paused when the pause state is checked again
     Cvar_Set("cl_paused", "0");
+    CL_CheckForPause();
 
     cap.state = CAP_RUNNING;
 
