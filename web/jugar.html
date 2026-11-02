@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jugar D-Day</title>
+<style>
+  :root { --bg: #0e0f11; --panel: #1a1c20; --text: #e8e4da; --muted: #9a958a; --accent: #c9a24a; --line: #2e3036; --error: #e07a5f; --ok: #7fb069; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  #canvas { display: block; width: 100vw; height: 100vh; background: #000; outline: none; }
+  #portada { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--bg); overflow: auto; }
+  #portada[hidden] { display: none; }
+  .caja { width: min(460px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  h1 { margin: 0 0 2px; font-size: 1.35rem; letter-spacing: .5px; }
+  .sub { margin: 0 0 14px; color: var(--muted); font-size: .9rem; }
+  .server { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #000; }
+  .server b { display: block; }
+  .server span { color: var(--muted); font-size: .88rem; }
+  label { display: block; margin: 10px 0 4px; font-size: .88rem; color: var(--muted); }
+  input[type=text], input[type=number] { width: 100%; padding: 9px 10px; font: inherit; color: var(--text);
+    background: #000; border: 1px solid var(--line); border-radius: 8px; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .fila { display: flex; gap: 10px; }
+  .fila > div { flex: 1; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--text); font-size: .9rem; }
+  button { margin-top: 18px; width: 100%; padding: 11px; font: inherit; font-weight: 700; color: #111;
+    background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  #paso { margin: 10px 0 0; color: var(--muted); font-size: .9rem; min-height: 1.5em; }
+  .error { color: var(--error) !important; }
+  .ayuda { margin: 16px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .85rem; }
+  .ayuda li { margin: 3px 0; } .ayuda b { color: var(--text); font-weight: 600; }
+  .aviso { margin: 14px 0 0; padding: 10px 12px; border: 1px solid var(--error); border-radius: 8px;
+    font-size: .88rem; background: rgba(224, 122, 95, .08); }
+  .aviso[hidden] { display: none; }
+  .aviso code { background: #000; padding: 1px 5px; border-radius: 4px; user-select: all; }
+  #estado { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;
+    padding: 6px 12px; border-radius: 99px; background: rgba(0, 0, 0, .75); border: 1px solid var(--line);
+    font-size: .85rem; pointer-events: none; white-space: nowrap; }
+  #estado[hidden] { display: none; }
+</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="estado" hidden></div>
+<div id="portada">
+  <div class="caja">
+    <h1>Jugar D-Day</h1>
+    <p class="sub">Quake 2 en el navegador, conectado a un servidor de verdad.</p>
+    <div class="server"><b id="hostname">Buscando el servidor…</b><span id="mapa">&nbsp;</span></div>
+    <label for="nick">Tu nick</label>
+    <input type="text" id="nick" maxlength="15" autocomplete="nickname" spellcheck="false">
+    <div class="fila">
+      <div>
+        <label for="sens">Sensibilidad del mouse</label>
+        <input type="number" id="sens" min="0.1" max="30" step="0.1" value="3">
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="completa" checked> Pantalla completa</label>
+    <button id="jugar" disabled>Jugar</button>
+    <p id="paso"></p>
+    <p class="aviso" id="aviso" hidden>
+      En Chrome para Linux la imagen puede parpadear. Para verla bien usa <b>Firefox</b>,
+      o en Chrome abre <code>chrome://flags/#use-angle</code>, elige <b>Vulkan</b> y reinicia Chrome.
+    </p>
+    <ul class="ayuda">
+      <li><b>Clic</b> captura el mouse · <b>Esc</b> menú y suelta el mouse</li>
+      <li><b>WASD</b> moverse · <b>Espacio</b> saltar · <b>Ctrl</b> agacharse · <b>C</b> postura</li>
+      <li><b>1–5</b> armas · <b>R</b> recargar · <b>Clic derecho</b> apuntar</li>
+      <li><b>M</b> clase · <b>TAB</b> marcador · <b>T / Y</b> chat · <b>`</b> consola</li>
+      <li>La primera vez baja los archivos del mapa (queda guardado en el navegador).</li>
+    </ul>
+  </div>
+</div>
+<script type="module">
+  import { manifiesto } from './manifiesto.mjs';
+
+  // Parámetros:
+  //   ?server=<ip:puerto>  servidor de D-Day (por defecto el Ladder Test de Oracle)
+  //   ?relay=<ws(s)://…>   relay WebSocket → UDP
+  //   ?datos=<url>         espejo de archivos del juego (index.json + árbol de q2web.py)
+  //   ?vivo=<url>          archivos sueltos del servidor en vivo (mapas nuevos); vacío = no usar
+  //   ?api=<url>           host del backend y de los archivos
+  //   ?log=1               consola del motor más detallada
+  //   ?auto=1&nick=<nick>  arranca solo (pruebas)
+  const q = new URLSearchParams(location.search);
+  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const API = (q.get('api') || 'https://dday-server-api.duckdns.org').replace(/\/$/, '');
+  const DATOS = (q.get('datos') || `${API}/q2web/dday/`).replace(/\/?$/, '/');
+  const VIVO = q.has('vivo') ? (q.get('vivo') ? q.get('vivo').replace(/\/?$/, '/') : '') : `${API}/q2dl/dday/`;
+  const RELAY = q.get('relay') || (local ? 'ws://127.0.0.1:27999/q2relay' : `${API.replace(/^http/, 'ws')}/q2relay`);
+  const SERVER = q.get('server') || '146.181.54.5:27910';
+  const HOME = '/home/jugar';
+  const GAMEDIR = `${HOME}/dday`;
+
+  const $ = (id) => document.getElementById(id);
+  const paso = (t, error = false) => { $('paso').textContent = t; $('paso').className = error ? 'error' : ''; };
+  const mb = (b) => `${(b / 1048576).toFixed(b < 10485760 ? 1 : 0)} MB`;
+  const guardado = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+  const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ } };
+
+  const m = SERVER.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3}):(\d{1,5})$/);
+  const destino = m && { ip: Uint8Array.from(m.slice(1, 5).map(Number)), puerto: Number(m[5]) };
+
+  // ---------------------------------------------------------------- red
+  // El motor deja cada paquete en q2net.enviar y lee los que llegan de q2net.cola
+  // (ver src/common/net/web.h). Si el relay se corta, se reconecta solo: el
+  // servidor reconoce al jugador por su qport aunque cambie el puerto.
+  const q2net = {
+    cola: [],
+    ws: null,
+    alLlegar: null,   // para el "status" de la portada
+    enviar(ip, puerto, datos) {
+      const ws = this.ws;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      const b = new Uint8Array(6 + datos.length);
+      b.set(ip, 0);
+      b[4] = puerto >> 8;
+      b[5] = puerto & 255;
+      b.set(datos, 6);
+      ws.send(b);
+      return true;
+    },
+  };
+  let jugando = false;
+  let reintentos = 0;
+
+  function conectarRelay() {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(RELAY);
+      ws.binaryType = 'arraybuffer';
+      let abierto = false;
+      ws.onopen = () => { abierto = true; reintentos = 0; q2net.ws = ws; estadoRed(''); resolve(); };
+      ws.onmessage = (e) => {
+        const b = new Uint8Array(e.data);
+        if (b.length < 6) return;
+        const p = { ip: b.slice(0, 4), puerto: (b[4] << 8) | b[5], datos: b.subarray(6) };
+        if (q2net.alLlegar) q2net.alLlegar(p);
+        if (!jugando) return;
+        q2net.cola.push(p);
+        if (q2net.cola.length > 512) q2net.cola.shift();
+      };
+      ws.onclose = () => {
+        if (q2net.ws === ws) q2net.ws = null;
+        if (!abierto) { reject(new Error('No se pudo conectar al relay.')); }
+        if (!jugando) return;
+        estadoRed('Conexión perdida, reconectando…');
+        const espera = Math.min(10, 2 ** reintentos++) * 1000;
+        setTimeout(() => conectarRelay().catch(() => {}), espera);
+      };
+    });
+  }
+
+  // pregunta "status" al servidor por el relay: nombre, mapa, jugadores y ping
+  function consultar() {
+    return new Promise((resolve, reject) => {
+      const inicio = performance.now();
+      const t = setTimeout(() => { q2net.alLlegar = null; reject(new Error('El servidor no responde.')); }, 6000);
+      q2net.alLlegar = (p) => {
+        const texto = new TextDecoder('latin1').decode(p.datos);
+        if (!texto.startsWith('\xff\xff\xff\xffprint\n')) return;
+        clearTimeout(t);
+        q2net.alLlegar = null;
+        const lineas = texto.slice(10).split('\n');
+        const kv = lineas[0].split('\\').slice(1);
+        const info = {};
+        for (let i = 0; i + 1 < kv.length; i += 2) info[kv[i].toLowerCase()] = kv[i + 1];
+        info.jugadores = lineas.slice(1).filter((l) => l.trim()).length;
+        info.ping = Math.round(performance.now() - inicio);
+        resolve(info);
+      };
+      const oob = new TextEncoder().encode('status\n');
+      const pedido = new Uint8Array(4 + oob.length);
+      pedido.fill(255, 0, 4);
+      pedido.set(oob, 4);
+      q2net.enviar(destino.ip, destino.puerto, pedido);
+    });
+  }
+
+  function estadoRed(t) { mostrarEstado('red', t); }
+
+  // ---------------------------------------------------------------- archivos
+  // El motor pide cada archivo que le falta (q2dl.bajar) y lo escribe aquí en la
+  // carpeta del juego (ver src/client/http_web.c). Los del espejo quedan en la
+  // caché del navegador por versión; los del servidor en vivo los revalida el
+  // navegador (si no cambiaron, no se bajan de nuevo).
+  const MEJORAS = ['png', 'tga'];   // texturas mejoradas (jpg no: el motor web no lo lee)
+  let indice = {};
+  let base = new Map();   // ruta -> bytes, se escriben en /q2/dday al arrancar
+  let cache = null;
+
+  async function abrirCache(version) {
+    try {
+      const nombre = `jugar-datos-${version || 'v1'}`;
+      for (const viejo of await caches.keys()) {
+        if (viejo.startsWith('jugar-datos-') && viejo !== nombre) await caches.delete(viejo);
+      }
+      cache = await caches.open(nombre);
+    } catch { /* sin Cache API (http normal): sin caché */ }
+  }
+
+  let activos = 0;
+  const esperando = [];
+  async function turno(fn) {
+    while (activos >= 6) await new Promise((r) => esperando.push(r));
+    activos++;
+    try { return await fn(); } finally { activos--; (esperando.shift() || (() => {}))(); }
+  }
+
+  const bajadas = { pendientes: 0, bytes: 0 };
+  function progresoDescargas() {
+    mostrarEstado('dl', bajadas.pendientes
+      ? `Bajando archivos del mapa… ${bajadas.pendientes} pendiente${bajadas.pendientes === 1 ? '' : 's'} · ${mb(bajadas.bytes)}`
+      : '');
+  }
+
+  async function traer(url, espejo) {
+    return turno(async () => {
+      if (espejo && cache) {
+        const g = await cache.match(url);
+        if (g) return new Uint8Array(await g.arrayBuffer());
+      }
+      const r = await fetch(url, espejo ? {} : { cache: 'no-cache' });
+      if (r.status === 404 || r.status === 403) return null;
+      if (!r.ok) throw new Error(`${r.status} al bajar ${url}`);
+      const datos = new Uint8Array(await r.clone().arrayBuffer());
+      bajadas.bytes += datos.length;
+      progresoDescargas();
+      if (espejo && cache) cache.put(url, r).catch(() => {});
+      return datos;
+    });
+  }
+
+  function variantes(ruta) {
+    const x = ruta.match(/^(.*)\.(wal|pcx)$/);
+    return x ? MEJORAS.map((e) => `${x[1]}.${e}`).filter((r) => r in indice) : [];
+  }
+
+  function escribir(ruta, datos) {
+    FS.mkdirTree(ruta.slice(0, ruta.lastIndexOf('/')));
+    FS.writeFile(ruta, datos);
+  }
+
+  window.Module = window.Module || {};
+  Module.q2net = q2net;
+  Module.q2dl = {
+    conoce(ruta) {
+      ruta = ruta.toLowerCase();
+      return Boolean(VIVO) || ruta in indice || variantes(ruta).length > 0;
+    },
+    async bajar(ruta, destinoArchivo) {
+      const r = ruta.toLowerCase();
+      const carpeta = destinoArchivo.slice(0, destinoArchivo.length - ruta.length);
+      // los mapas, primero del servidor en vivo: tienen que ser idénticos a los suyos
+      const fuentes = [];
+      if (VIVO && r.startsWith('maps/')) fuentes.push([VIVO + ruta, false]);
+      if (r in indice) fuentes.push([DATOS + r, true]);
+      if (VIVO && !r.startsWith('maps/')) fuentes.push([VIVO + ruta, false]);
+      bajadas.pendientes++;
+      progresoDescargas();
+      try {
+        let ok = false;
+        for (const [url, espejo] of fuentes) {
+          const datos = await traer(url, espejo).catch((e) => { console.warn(e); return null; });
+          if (datos) { escribir(destinoArchivo, datos); ok = true; break; }
+        }
+        for (const v of variantes(r)) {
+          const datos = await traer(DATOS + v, true).catch(() => null);
+          if (datos) { escribir(carpeta + v, datos); ok = true; }
+        }
+        return ok ? 200 : 404;
+      } finally {
+        bajadas.pendientes--;
+        if (!bajadas.pendientes) bajadas.bytes = 0;
+        progresoDescargas();
+      }
+    },
+  };
+
+  // ---------------------------------------------------------------- avisos
+  const avisos = {};
+  function mostrarEstado(clave, texto) {
+    if (texto) avisos[clave] = texto; else delete avisos[clave];
+    const t = avisos.red || avisos.dl || '';
+    $('estado').textContent = t;
+    $('estado').hidden = !t || !jugando;
+  }
+
+  // ---------------------------------------------------------------- arranque
+  function limpiarNick(s) {
+    return s.replace(/["\\;\n\r]/g, '').trim().slice(0, 15);
+  }
+
+  async function pantallaCompleta() {
+    if (!$('completa').checked || !document.documentElement.requestFullscreen) return;
+    try {
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      // Chrome/Edge: que Esc y los atajos del navegador (Ctrl+W…) lleguen al juego
+      if (navigator.keyboard && navigator.keyboard.lock) await navigator.keyboard.lock().catch(() => {});
+      await new Promise((r) => setTimeout(r, 150));   // que innerWidth ya sea el de pantalla completa
+    } catch { /* el navegador no quiso: sigue en ventana */ }
+  }
+
+  async function arrancar() {
+    const nick = limpiarNick($('nick').value) || 'Recluta';
+    const sens = Math.min(30, Math.max(0.1, Number($('sens').value) || 3));
+    guardar('jugar-nick', nick);
+    guardar('jugar-sens', String(sens));
+    const cfg = await (await fetch('jugar.cfg')).text();
+    await pantallaCompleta();
+    jugando = true;
+    q2net.cola.length = 0;
+    $('portada').hidden = true;
+    const canvas = $('canvas');
+    Object.assign(Module, {
+      canvas,
+      arguments: [
+        '+set', 'basedir', '/q2', '+set', 'homedir', HOME, '+set', 'game', 'dday',
+        '+set', 'vid_geometry', `${innerWidth}x${innerHeight}`,
+        '+set', 'net_enable_ipv6', '0',
+        '+set', 'allow_download', '1', '+set', 'cl_http_downloads', '1',
+        '+set', 'rate', '25000',
+        '+set', 'name', nick,   // va tal cual (sin comillas): +set toma el argumento entero
+        '+set', 'sensitivity', String(sens),
+        ...(q.has('log') ? ['+set', 'developer', '1', '+set', 'logfile', '2', '+set', 'logfile_flush', '2'] : []),
+        '+connect', SERVER,
+      ],
+      preRun: [() => {
+        // las teclas de juego reemplazan a las del visor: un visor.cfg en la carpeta
+        // del juego gana al de baseq2 (que viene empaquetado en q2pro.data)
+        FS.mkdirTree(GAMEDIR);
+        FS.writeFile(`${GAMEDIR}/visor.cfg`, cfg);
+        for (const [ruta, bytes] of base) if (bytes) escribir(`/q2/dday/${ruta}`, bytes);
+        base.clear();
+      }],
+      print: (t) => console.log(t),
+      printErr: (t) => console.warn(t),
+    });
+    // el sonido solo puede arrancar después de un clic o una tecla
+    const reanudar = () => {
+      const ctx = Module.SDL2 && Module.SDL2.audioContext;
+      if (ctx && ctx.state !== 'running') ctx.resume();
+    };
+    ['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, reanudar, true));
+    // Ctrl+W y similares cierran la pestaña: que pregunte antes
+    addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
+    mostrarEstado('red', avisos.red);
+    if (q.has('log')) volcarLog();
+    // pruebas: ?captura=<segundos> deja en la consola una foto de la pantalla
+    if (q.has('captura')) {
+      // (dos requestAnimationFrame: la foto sale justo después de que el motor dibuja)
+      for (const seg of q.get('captura').split(',').map(Number).filter(Boolean)) {
+        setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+          const c = document.createElement('canvas');
+          c.width = 640; c.height = Math.round(640 * canvas.height / canvas.width);
+          c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+          console.warn(`CAPTURA ${seg} ${c.toDataURL('image/jpeg', 0.8)}`);
+        })), seg * 1000);
+      }
+    }
+    const s = document.createElement('script');
+    s.src = 'q2pro.js';
+    document.body.appendChild(s);
+    canvas.focus();
+  }
+
+  // ?log=1: copia el log del motor a la consola del navegador
+  function volcarLog() {
+    let visto = 0;
+    setInterval(() => {
+      try {
+        const t = FS.readFile(`${GAMEDIR}/logs/console.log`, { encoding: 'utf8' });
+        if (t.length > visto) { console.warn(t.slice(visto)); visto = t.length; }
+      } catch { /* todavía no existe */ }
+    }, 2000);
+  }
+
+  async function preparar() {
+    if (!destino) throw new Error(`Servidor no válido: ${SERVER} (usa ?server=ip:puerto).`);
+    if (!document.createElement('canvas').getContext('webgl2'))
+      throw new Error('Tu navegador no tiene WebGL2: prueba con Chrome, Edge o Firefox actualizados.');
+    if (/Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent))
+      $('aviso').hidden = false;
+    $('nick').value = q.get('nick') || guardado('jugar-nick', '');
+    $('sens').value = guardado('jugar-sens', '3');
+
+    paso('Conectando…');
+    const [r] = await Promise.all([
+      fetch(`${DATOS}index.json`).then((x) => { if (!x.ok) throw new Error(`${x.status} al bajar index.json`); return x.json(); }),
+      conectarRelay(),
+    ]);
+    indice = r;
+    await abrirCache(indice._version);
+    delete indice._version;
+
+    // lo que el motor abre siempre (letras, HUD, menú, efectos y sonidos fijos),
+    // antes de conectarse; lo del mapa lo pide el motor cuando lo necesita
+    paso('Bajando los archivos base…');
+    const { archivos } = await manifiesto({ indice, demo: new Uint8Array(0), leer: (r) => traer(DATOS + r, true) });
+    base = new Map(await Promise.all(archivos.map(async (r) => [r, await traer(DATOS + r, true)])));
+
+    const info = await consultar();
+    $('hostname').textContent = info.hostname || SERVER;
+    $('mapa').textContent = `${info.mapname || '?'} · ${info.jugadores}/${info.maxclients || '?'} jugadores · ping ~${info.ping} ms`;
+    paso('');
+    const boton = $('jugar');
+    boton.disabled = false;
+    boton.onclick = () => { boton.disabled = true; arrancar().catch((e) => { console.error(e); paso(e.message, true); }); };
+    $('nick').addEventListener('keydown', (e) => { if (e.key === 'Enter') boton.click(); });
+    ($('nick').value ? boton : $('nick')).focus();
+    if (q.has('auto')) boton.click();   // pruebas: arranca sin clic (sin pantalla completa)
+  }
+
+  preparar().catch((e) => {
+    console.error(e);
+    $('hostname').textContent = SERVER;
+    paso(e.message || String(e), true);
+  });
+</script>
+</body>
+</html>

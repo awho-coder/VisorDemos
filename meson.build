@@ -305,6 +305,12 @@ if curl.found()
   config.set10('USE_CURL', true)
 endif
 
+# VisorDemos web: descargas HTTP con fetch() del navegador en vez de libcurl
+if web
+  client_src += 'src/client/http_web.c'
+  config.set10('USE_WEBDL', true)
+endif
+
 if web
   sdl2 = declare_dependency(compile_args: '-sUSE_SDL=2', link_args: '-sUSE_SDL=2')
 else
@@ -449,7 +455,7 @@ if web
     '-sMIN_WEBGL_VERSION=2', '-sMAX_WEBGL_VERSION=2', '-sFULL_ES3=1',
     '-sGL_ENABLE_GET_PROC_ADDRESS=1',
     '-sALLOW_MEMORY_GROWTH=1', '-sINITIAL_MEMORY=268435456', '-sSTACK_SIZE=4194304',
-    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain',
+    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain,UTF8ToString',
     '-sENVIRONMENT=web',
   ] + get_option('web-link-args')
 endif
