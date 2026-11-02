@@ -59,6 +59,7 @@
       </div>
     </div>
     <label class="check"><input type="checkbox" id="completa" checked> Pantalla completa</label>
+    <label class="check" id="filaReset" hidden><input type="checkbox" id="reset"> Volver a las teclas por defecto</label>
     <button id="jugar" disabled>Jugar</button>
     <p id="paso"></p>
     <p class="aviso" id="aviso" hidden>
@@ -308,6 +309,7 @@
     const sens = Math.min(30, Math.max(0.1, Number($('sens').value) || 3));
     guardar('jugar-nick', nick);
     guardar('jugar-sens', String(sens));
+    if ($('reset').checked) { try { localStorage.removeItem('jugar-config'); } catch { /* nada */ } }
     const cfg = await (await fetch('jugar.cfg')).text();
     await pantallaCompleta();
     jugando = true;
@@ -324,6 +326,8 @@
         '+set', 'rate', '25000',
         '+set', 'name', nick,   // va tal cual (sin comillas): +set toma el argumento entero
         '+set', 'sensitivity', String(sens),
+        // y otra vez después de la config guardada (que trae sus propios valores)
+        '+name', nick, '+sensitivity', String(sens),
         ...(q.has('log') ? ['+set', 'developer', '1', '+set', 'logfile', '2', '+set', 'logfile_flush', '2'] : []),
         '+connect', SERVER,
       ],
@@ -331,7 +335,11 @@
         // las teclas de juego reemplazan a las del visor: un visor.cfg en la carpeta
         // del juego gana al de baseq2 (que viene empaquetado en q2pro.data)
         FS.mkdirTree(GAMEDIR);
-        FS.writeFile(`${GAMEDIR}/visor.cfg`, cfg);
+        // config del jugador de la vez anterior (teclas, sensibilidad, opciones del menú);
+        // si existe, las teclas por defecto no se aplican encima
+        const previa = guardado('jugar-config', '');
+        if (previa) FS.writeFile(`${GAMEDIR}/visordemos.cfg`, previa);
+        FS.writeFile(`${GAMEDIR}/visor.cfg`, previa ? '// teclas: las de visordemos.cfg\n' : cfg);
         for (const [ruta, bytes] of base) if (bytes) escribir(`/q2/dday/${ruta}`, bytes);
         base.clear();
       }],
@@ -348,6 +356,10 @@
     addEventListener('beforeunload', (e) => { e.preventDefault(); e.returnValue = ''; });
     mostrarEstado('red', avisos.red);
     if (q.has('log')) volcarLog();
+    // guardar la config del jugador cada 20 s y al salir
+    setInterval(guardarConfig, 20000);
+    addEventListener('pagehide', guardarConfig);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) guardarConfig(); });
     // pruebas: ?captura=<segundos> deja en la consola una foto de la pantalla
     if (q.has('captura')) {
       // (dos requestAnimationFrame: la foto sale justo después de que el motor dibuja)
@@ -364,6 +376,18 @@
     s.src = 'q2pro.js';
     document.body.appendChild(s);
     canvas.focus();
+  }
+
+  // el motor escribe visordemos.cfg y queda en el navegador para la próxima vez
+  // (sin el tamaño de ventana: cada vez se usa el de la pantalla actual)
+  function guardarConfig() {
+    try {
+      if (!Module._web_write_config) return;
+      Module._web_write_config();
+      const t = FS.readFile(`${GAMEDIR}/visordemos.cfg`, { encoding: 'utf8' });
+      guardar('jugar-config', t.split('\n').filter((l) => !/\bvid_(geometry|fullscreen)\b/.test(l)).join('\n'));
+      if (q.has('log')) console.warn(`CONFIG guardada (${t.length} bytes)`);
+    } catch { /* todavía no arranca */ }
   }
 
   // ?log=1: copia el log del motor a la consola del navegador
@@ -385,6 +409,7 @@
       $('aviso').hidden = false;
     $('nick').value = q.get('nick') || guardado('jugar-nick', '');
     $('sens').value = guardado('jugar-sens', '3');
+    $('filaReset').hidden = !guardado('jugar-config', '');
 
     paso('Conectando…');
     const [r] = await Promise.all([

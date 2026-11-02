@@ -455,7 +455,7 @@ if web
     '-sMIN_WEBGL_VERSION=2', '-sMAX_WEBGL_VERSION=2', '-sFULL_ES3=1',
     '-sGL_ENABLE_GET_PROC_ADDRESS=1',
     '-sALLOW_MEMORY_GROWTH=1', '-sINITIAL_MEMORY=268435456', '-sSTACK_SIZE=4194304',
-    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain,UTF8ToString',
+    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain,UTF8ToString', '-sEXPORTED_FUNCTIONS=_main,_web_write_config',
     '-sENVIRONMENT=web',
   ] + get_option('web-link-args')
 endif

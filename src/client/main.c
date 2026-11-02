@@ -2349,6 +2349,17 @@ static void CL_WriteConfig(void)
         Com_EPrintf("Error writing %s\n", VISOR_CONFIG_CFG);
 }
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+// browser: the Play page calls this to keep the player's settings between visits
+EMSCRIPTEN_KEEPALIVE void web_write_config(void)
+{
+    if (cl_running && cl_running->integer)
+        CL_WriteConfig();
+}
+#endif
+
 /*
 ====================
 CL_RestartFilesystem
