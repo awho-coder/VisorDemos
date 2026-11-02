@@ -795,6 +795,18 @@ bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
 bool CL_KeyCamPlaying(void);
 bool CL_KeyCamHaveKeys(void);
 void CL_KeyCamSetPlaying(bool on);
+int  CL_KeyCamHere(bool *line);
+
+
+//
+// editor.c
+//
+void CL_InitEditor(void);
+bool CL_EditorActive(void);
+bool CL_EditorFlying(void);
+bool CL_EditorKeyEvent(unsigned key, bool down);
+int  CL_EditorPanelHeight(void);
+void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mid, const char *right);
 int  CL_KeyCamMarks(float *pos, int max, int *current);
 const char *CL_KeyCamStatus(void);
 

@@ -601,6 +601,17 @@ static void KeyCam_Target_f(void)
     announce(va("Punto %d: mira a %s", i + 1, player_name(num)));
 }
 
+// seek to point i and stop on it, so it can be changed
+static void go_to(int i)
+{
+    const keyframe_t *k = &keys[i];
+
+    Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", k->frame / 10, k->frame % 10));
+    if (!(sv_paused->integer && cl_paused->integer))
+        Cmd_ExecuteString(&cmd_buffer, "pause");
+    announce(va("Punto %d de %d", i + 1, num_keys));
+}
+
 static void jump_to(int dir)
 {
     int t = demo_time(), i;
@@ -632,11 +643,22 @@ static void jump_to(int dir)
         return;
     }
 
-    // stop on it, so it can be changed
-    Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", k->frame / 10, k->frame % 10));
-    if (!(sv_paused->integer && cl_paused->integer))
-        Cmd_ExecuteString(&cmd_buffer, "pause");
-    announce(va("Punto %d de %d", i + 1, num_keys));
+    go_to(i);
+}
+
+// keycam_goto <n>: jump to point n (1 = first), e.g. clicked on the timeline
+static void KeyCam_Goto_f(void)
+{
+    int i;
+
+    if (!can_edit())
+        return;
+    i = Q_atoi(Cmd_Argv(1)) - 1;
+    if (i < 0 || i >= num_keys) {
+        Com_Printf("Uso: keycam_goto <1 a %d>\n", num_keys);
+        return;
+    }
+    go_to(i);
 }
 
 static void KeyCam_Next_f(void)
@@ -656,6 +678,19 @@ static void KeyCam_Clear_f(void)
     num_keys = 0;
     keys_save();
     announce("Puntos de camara borrados");
+}
+
+// point at this moment: 0 none, 1 free view, 2 looks at a player; *line
+// = goes on in a straight line (for the editor buttons)
+int CL_KeyCamHere(bool *line)
+{
+    int i;
+
+    *line = false;
+    if (!watching_dm2() || (i = key_here()) < 0)
+        return 0;
+    *line = keys[i].mode == SEG_LINE;
+    return keys[i].target ? 2 : 1;
 }
 
 // on / off; campath_play (V) switches both the recorded path and the points
@@ -679,6 +714,7 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_target", KeyCam_Target_f },
     { "keycam_next", KeyCam_Next_f },
     { "keycam_prev", KeyCam_Prev_f },
+    { "keycam_goto", KeyCam_Goto_f },
     { "keycam_clear", KeyCam_Clear_f },
     { NULL }
 };

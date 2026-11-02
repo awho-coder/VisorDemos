@@ -33,6 +33,7 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
    ```
    Quake2\
      VisorDemos.exe
+     VisorDemos Editor.bat
      asociar-demos.bat
      1-Instalacion.html
      2-Guia-de-uso.html
@@ -50,9 +51,12 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
    protegió su PC"*: **Más información → Ejecutar de todas formas** (el
    programa no tiene firma digital). Por defecto usa el mod D-Day; para otro
    mod, crea un acceso directo con `VisorDemos.exe +set game nombre_del_mod`.
+5. Para hacer clips con el mouse, abre **`VisorDemos Editor.bat`** (o
+   arrastra un demo sobre él): abre el visor en modo editor, con botones
+   (ver [Modo editor](#modo-editor-con-mouse)).
 
 **Actualizar a una versión nueva:** baja el `.zip` nuevo y reemplaza
-`VisorDemos.exe` y `baseq2\visor.cfg`. Tus videos, recorridos y ajustes se
+`VisorDemos.exe`, `VisorDemos Editor.bat` y `baseq2\visor.cfg`. Tus videos, recorridos y ajustes se
 mantienen.
 
 ### Linux
@@ -69,7 +73,7 @@ Luego, en la carpeta de VisorDemos:
 
 ```
 ./compilar.sh            # compila
-./instalar-linux.sh      # menu de aplicaciones + doble clic en .dm2/.mvd2
+./instalar-linux.sh      # menu de aplicaciones (VisorDemos y VisorDemos Editor) + doble clic en .dm2/.mvd2
 ./visor.sh               # abre el visor
 ```
 
@@ -88,7 +92,30 @@ los videos y los recorridos quedan en `~/.local/share/visordemos/<mod>/`.
 - en la consola (tecla **`**): `demo nombre_del_demo` (también sirve
   `map nombre_del_demo.dm2`).
 
-Dentro del demo presiona **H** para ver la ayuda con todas las teclas.
+Dentro del demo presiona **H** para ver la ayuda con todas las teclas, o
+**Tab** para usar el visor con el mouse.
+
+### Modo editor (con mouse)
+
+Si prefieres hacer los clips con el mouse, presiona **Tab** (o abre
+*VisorDemos Editor*). Abajo aparece un panel con botones y una barra de
+tiempo grande:
+
+- **Barra de tiempo**: haz clic o arrastra para ir a cualquier momento. Los
+  cuadraditos celestes son los puntos de cámara: clic en uno para ir a él.
+- **Botones**: hacen lo mismo que las teclas (pausa, ±10 s, frags,
+  velocidad, cámara libre, seguir jugadores, puntos de cámara, inicio y fin
+  del clip, grabar el clip...). Al pasar el mouse por encima, arriba del
+  panel dice qué hace cada uno y cuál es su tecla.
+- **Mover la cámara**: mantén el **clic derecho** sobre la imagen y mueve el
+  mouse para mirar; con el clic derecho apretado vuela con **W A S D**,
+  **Espacio** / **Ctrl** para subir / bajar y **Shift** para ir rápido. Al
+  soltar el clic vuelve el cursor.
+- Todas las teclas siguen funcionando. **Tab** vuelve a la barra simple; el
+  visor recuerda el último modo que usaste.
+- `visor_editor_size 1.5` agranda la letra del panel (0.5 a 3).
+
+El panel no sale en los videos.
 
 Para saber si estás en el visor: la ventana se llama **VisorDemos** y abajo
 aparece la barra con *H: AYUDA*. Si no ves eso, el demo se abrió con tu
@@ -130,6 +157,7 @@ Quake 2 normal.
 | **J** | Chat: sí / con avisos del servidor / no |
 | **T** | X-ray: siluetas de los jugadores detrás de las paredes sí / no |
 | **H** | Mostrar / ocultar la ayuda (teclas a un lado, ajustes de consola con su valor al otro) |
+| **Tab** | Modo editor con mouse sí / no (botones y barra de tiempo con clic) |
 | **Esc** | Menú (*browse demos* para abrir otro demo, salir, etc.) |
 
 Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
@@ -332,6 +360,8 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
 | `keycam_aim_height` | `12` | Altura sobre el jugador a la que miran los puntos con **L** |
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
+| `visor_editor` | `0` | `1` = modo editor con mouse (también con **Tab**) |
+| `visor_editor_size` | `1` | Tamaño de la letra del panel del editor (0.5 a 3) |
 | `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
 | `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
 | `xray_color` | `team` | Color de las siluetas del x-ray: `team` = por equipo, o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white` |

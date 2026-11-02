@@ -191,6 +191,25 @@
   <p>A la izquierda está el tiempo del demo; al centro, el estado (pausa, velocidad,
   tipo de cámara); a la derecha, las marcas del clip.</p>
 
+  <h3 id="editor-mouse">Modo editor: todo con el mouse</h3>
+  <p>Presiona <kbd>Tab</kbd> (o abre <code>VisorDemos Editor.bat</code>) y la barra se
+  cambia por un panel con botones, al estilo de Keygrip:</p>
+  <ul>
+    <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en
+    un cuadradito celeste (punto de cámara) para ir a ese punto.</li>
+    <li><strong>Botones</strong> agrupados en <em>Reproducir</em>, <em>Cámara</em>,
+    <em>Puntos de cámara</em> y <em>Clip</em>. Hacen lo mismo que las teclas; al pasar el
+    mouse por encima, arriba del panel aparece qué hace cada uno y su tecla. Los que
+    están encendidos (pausa, x-ray, mirar jugador...) se ven en celeste.</li>
+    <li><strong>Mover la cámara:</strong> mantén el <strong>clic derecho</strong> sobre la imagen
+    y mueve el mouse para mirar; mientras lo mantienes, vuela con <kbd>W</kbd> <kbd>A</kbd>
+    <kbd>S</kbd> <kbd>D</kbd>, <kbd>Espacio</kbd> / <kbd>Ctrl</kbd> y <kbd>Shift</kbd>. Al
+    soltarlo vuelve el cursor.</li>
+  </ul>
+  <p>Las teclas siguen funcionando igual. <kbd>Tab</kbd> vuelve a la barra simple y el visor
+  recuerda el último modo. Si la letra se ve chica: <code>visor_editor_size 1.5</code> en la
+  consola. El panel no sale en los videos.</p>
+
   <h2 id="teclas">3. Teclas</h2>
   <div class="keys">
     <div class="card">
@@ -241,6 +260,7 @@
     <div class="card">
       <h3>Otros</h3>
       <table>
+        <tr><td><kbd>Tab</kbd></td><td>Modo editor con mouse: botones y barra de tiempo con clic</td></tr>
         <tr><td><kbd>H</kbd></td><td>Ayuda en pantalla: las teclas a un lado y los ajustes de consola, con su valor actual, al otro</td></tr>
         <tr><td><kbd>K</kbd></td><td>Kill feed: sí / solo el jugador que ves / no</td></tr>
         <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Bajar / subir el volumen</td></tr>
@@ -433,6 +453,8 @@
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
       <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues (también con la rueda del mouse)</td></tr>
       <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
+      <tr><td><code>visor_editor</code></td><td>0</td><td><code>1</code> = modo editor con mouse (también con <kbd>Tab</kbd>)</td></tr>
+      <tr><td><code>visor_editor_size</code></td><td>1</td><td>Tamaño de la letra del panel del editor (0.5 a 3)</td></tr>
       <tr><td><code>keycam_aim_height</code></td><td>12</td><td>Altura sobre el jugador a la que miran los puntos de cámara con <kbd>L</kbd></td></tr>
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
       <tr><td><code>visor_help_pos</code></td><td>right</td><td>Lado del panel de ayuda (<kbd>H</kbd>): <code>right</code> o <code>left</code></td></tr>
