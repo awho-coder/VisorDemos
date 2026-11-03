@@ -191,6 +191,38 @@ static bool is_axis_model(const char *model)
     return false;
 }
 
+// a straight glowing line in the 3D view, for this frame only
+void CL_AddBeam(const vec3_t from, const vec3_t to, uint32_t rgba, float alpha, int width)
+{
+    entity_t ent;
+
+    memset(&ent, 0, sizeof(ent));
+    ent.flags = RF_TRANSLUCENT | RF_BEAM;
+    ent.skinnum = -1;
+    ent.rgba.u32 = rgba;
+    ent.alpha = Q_clipf(alpha, 0, 1);
+    ent.frame = width;
+    VectorCopy(from, ent.origin);
+    VectorCopy(to, ent.oldorigin);
+    V_AddEntity(&ent);
+}
+
+// the viewer's own things in the 3D view: camera path, projectile trails
+void CL_AddVisorEntities(void)
+{
+    if (cls.state != ca_active)
+        return;
+    CL_KeyCamAddPath();
+}
+
+// team of a player (client number), for the editor's list and the names
+bool CL_IsAxisPlayer(int clientnum)
+{
+    if (clientnum < 0 || clientnum >= MAX_CLIENTS)
+        return false;
+    return is_axis_model(cl.clientinfo[clientnum].model_name);
+}
+
 // silhouette color: fixed (xray_color <color>) or by team (xray_color team)
 uint64_t CL_XrayShell(const centity_state_t *s1)
 {
