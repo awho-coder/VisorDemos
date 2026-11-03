@@ -220,6 +220,7 @@ void CL_AddVisorEntities(void)
     if (cls.state != ca_active)
         return;
     CL_KeyCamAddPath();
+    CL_ProjAddTrails();
 }
 
 // team of a player (client number), for the editor's list and the names
