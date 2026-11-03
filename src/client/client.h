@@ -802,7 +802,9 @@ typedef struct {
     const char  *target_name;
     float       fov;
     float       speed;          // slow motion to the next point
+    int         follow;         // 0 no, 1 follows target, 2 follows a projectile
 } keyinfo_t;
+bool CL_ChasePose(int num, vec3_t org, vec3_t ang);
 float CL_KeyCamSpeed(void);
 
 bool CL_KeyCamGet(int i, keyinfo_t *out);
@@ -893,6 +895,24 @@ void CL_AddBeam(const vec3_t from, const vec3_t to, uint32_t rgba, float alpha, 
 void CL_AddVisorEntities(void);
 void CL_KeyCamAddPath(void);
 void CL_InitNames(void);
+void CL_InitProj(void);
+void CL_ProjIndexBegin(void);
+void CL_ProjIndexFrame(void);
+void CL_ProjIndexEnd(void);
+float CL_ProjNow(void);
+bool CL_ProjPos(int id, vec3_t out);
+int  CL_ProjState(int id, float *since_end);
+const char *CL_ProjName(int id);
+bool CL_ProjFollowPose(int id, const vec2_t off, float dist, vec3_t org, vec3_t ang);
+int  CL_ProjFind(int number, int first);
+void CL_ProjIdentity(int id, int *number, int *first);
+int  CL_ProjAtRay(const vec3_t dir);
+int  CL_ProjMarks(float *pos, int max);
+void CL_ProjAddTrails(void);
+void CL_FreecamFollowProj(int id);
+int  CL_FreecamProj(void);
+bool CL_TrailsOn(bool clip);
+int  CL_TrailsMode(bool clip);
 void CL_DrawNames(qhandle_t font);
 bool CL_NamesOn(bool clip);
 bool CL_FreecamKeysDriving(void);

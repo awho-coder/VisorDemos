@@ -120,6 +120,7 @@ enum { TAB_CAMERA, TAB_POINTS, TAB_VIEW, TAB_VIDEO, TAB_SETTINGS, NUM_TABS };
 #define COLOR_EDGE      MakeColor(  0,   0,   0, 255)
 #define COLOR_SLOW      MakeColor(180, 108, 255, 200)
 #define COLOR_FAST      MakeColor(255, 150,  60, 200)
+#define COLOR_PROJ      MakeColor(255, 122,  60, 255)
 #define COLOR_ALLIES    MakeColor( 90, 160, 255, 255)
 #define COLOR_AXIS      MakeColor(255,  90,  90, 255)
 
@@ -338,7 +339,8 @@ bool CL_EditorKeyEvent(unsigned key, bool down)
         if (!down)
             return true;
         ed.flying = true;
-        if (cls.demo.playback && !CL_FreecamFlying())
+        // following a projectile the mouse turns around it; otherwise fly
+        if (cls.demo.playback && !CL_FreecamFlying() && CL_FreecamProj() < 0)
             run("freecam 1");
         IN_Activate();      // grab the mouse to look around
         return true;
@@ -520,6 +522,15 @@ static void tab_camera(bool mvd)
     button("Jugador >", "chase_next", "Seguir al siguiente jugador  [E]", IT_BUTTON);
     button("1a / 3a", "camera_view", "Primera / tercera persona al seguir a alguien  [F]", on_if(CL_ChaseFirstPerson()));
     button("Original", "camera_reset", "Volver a la vista de quien grabo el demo  [R]", IT_BUTTON);
+    group("PROYECTILES");
+    button("< Proyectil", "proj_prev", "Ir a la granada, cohete o cuchillo anterior y seguirlo", mvd ? IT_OFF : IT_BUTTON);
+    button("Seguir proyectil", "follow",
+           "Seguir el proyectil del centro de la pantalla. Tambien: clic sobre el en la imagen  [5]",
+           mvd ? IT_OFF : on_if(CL_FreecamProj() >= 0));
+    button("Proyectil >", "proj_next", "Ir a la siguiente granada, cohete o cuchillo lanzado y seguirlo", mvd ? IT_OFF : IT_BUTTON);
+    button("Angulo: atras", "follow_angle",
+           "La camara vuelve justo detras del proyectil y un poco arriba (clic derecho mantenido la gira)",
+           CL_FreecamProj() >= 0 ? IT_BUTTON : IT_OFF);
     new_row();
 
     setting("DISTANCIA", "chase_dist", 10, 16, 1000, NULL,
@@ -530,6 +541,8 @@ static void tab_camera(bool mvd)
             "Campo de vision de la camara libre: menos = mas zoom");
     setting("VUELO", "freecam_speed", 50, 50, 3000, NULL,
             "Velocidad de la camara libre (tambien la rueda del mouse)");
+    setting("PROYECTIL", "follow_dist", 10, 16, 1000, NULL,
+            "Distancia de la camara al seguir un proyectil");
 }
 
 static void point_buttons(bool mvd, int here, bool line)
@@ -804,7 +817,7 @@ static void points_list(int max_rows)
         list_row(i == here ? IT_ROW_ON : IT_ROW,
                  va("%2d %8s %s%s%s%s", i + 1, t, k.line ? "recta" : "curva",
                     k.speed != 1 && i < n - 1 ? va(" x%g", k.speed) : "",
-                    k.target ? " mira " : "", k.target ? k.target_name : ""),
+                    k.follow ? " sigue " : k.target ? " mira " : "", k.target_name ? k.target_name : ""),
                  va("keycam_goto %d", i + 1), va("Ir al punto %d", i + 1), 0);
     }
     if (n > max_rows)
@@ -873,8 +886,15 @@ static void point_settings(int i, int n)
     prop("Movimiento");
     button(k.line ? "Recta" : "Curva", "keycam_mode", "Del punto al siguiente: curva suave o linea recta  [M]", IT_BUTTON);
     prop("Objetivo");
-    button(k.target ? va("Mira a %s", k.target_name) : "Nada", "keycam_target",
-           "Mirar al jugador del centro de la pantalla / mirada libre  [L]", on_if(k.target));
+    button(k.follow == 2 ? va("Sigue: %s", k.target_name) :
+           k.follow ? va("Sigue a %s", k.target_name) :
+           k.target ? va("Mira a %s", k.target_name) : "Nada", "keycam_target",
+           "Nada / mirar al jugador del centro de la pantalla / seguirlo hasta el punto siguiente  [L]",
+           on_if(k.target || k.follow));
+    prop("");
+    button("Seguir proyectil", "keycam_follow_proj",
+           "Del punto al siguiente, seguir la granada, cohete o cuchillo que sigues o del centro de la pantalla",
+           on_if(k.follow == 2));
     prop("Velocidad");
     value(NULL, va("x%g", k.speed), "keycam_speed down", "keycam_speed up",
           i < n - 1 ? "Camara lenta de este punto al siguiente: la camara se mueve normal y el juego lento  [3 / 4]"
@@ -904,6 +924,18 @@ static void follow_settings(int num)
     button("Vista original", "camera_reset", "Volver a la vista de quien grabo el demo  [R]", IT_BUTTON);
 }
 
+static void proj_settings(int id)
+{
+    add_item(IT_TITLE, va("SIGUIENDO: %s", CL_ProjName(id)), NULL, NULL);
+    prop("Angulo");
+    button("Atras", "follow_angle", "Justo detras del proyectil y un poco arriba. Clic derecho mantenido: girarla", IT_BUTTON);
+    prop("Distancia");
+    setting(NULL, "follow_dist", 10, 16, 1000, NULL, "Distancia de la camara al proyectil");
+    prop("");
+    button("Camara libre", "freecam 1", "Dejar de seguirlo: camara libre desde aqui", IT_BUTTON);
+    button("Original", "camera_reset", "Volver a la vista de quien grabo el demo  [R]", IT_BUTTON);
+}
+
 static void no_point_settings(void)
 {
     int n = CL_KeyCamCount();
@@ -926,6 +958,8 @@ static void build_right(int bottom)
     side_begin(x, 0, chars);
     if (cls.demo.playback && here >= 0)
         point_settings(here, CL_KeyCamCount());
+    else if (CL_FreecamProj() >= 0)
+        proj_settings(CL_FreecamProj());
     else if (CL_ChaseTarget())
         follow_settings(CL_ChaseTarget());
     else if (cls.demo.playback)
@@ -992,6 +1026,11 @@ static void draw_timeline(int frame, float prog)
     n = CL_FeedMarks(true, marks, q_countof(marks));
     for (int i = 0; i < n; i++)
         R_DrawFill32(TX(marks[i]) - 1, y + h, 2, tick, COLOR_DEATH);
+
+    // throws of grenades, rockets and knives: small orange marks below
+    n = CL_ProjMarks(marks, q_countof(marks));
+    for (int i = 0; i < n; i++)
+        R_DrawFill32(TX(marks[i]) - 1, y + h + tick / 2, 3, tick, COLOR_PROJ);
 
     // camera points: squares on the track, joined by a line
     ed.num_keys = CL_KeyCamMarks(ed.key_pos, q_countof(ed.key_pos), &here);
@@ -1187,6 +1226,8 @@ void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mi
         tip = hover->tip;
     else if (CL_CaptureActive())
         tip = "Grabando el video. El panel no sale en el video";
+    else if (ed.flying && CL_FreecamProj() >= 0)
+        tip = "Girando la camara alrededor del proyectil: mueve el mouse (Angulo: atras la deja como al principio)";
     else if (ed.flying)
         tip = "Moviendo la camara: mouse para mirar, W A S D para volar, Espacio / Ctrl subir / bajar, Shift rapido";
     else if (hover && hover->tip[0])

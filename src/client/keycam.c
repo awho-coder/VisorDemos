@@ -30,6 +30,12 @@ GNU General Public License for more details.
                                 // (one demo frame: a seek lands on its start)
 
 typedef enum {
+    FOLLOW_NONE,
+    FOLLOW_PLAYER,  // behind `target`, like the chase camera
+    FOLLOW_PROJ     // behind a projectile (proj.c)
+} follow_t;
+
+typedef enum {
     SEG_CURVE,      // smooth curve through the point
     SEG_LINE        // straight line, constant speed, to the next point
 } segmode_t;
@@ -43,6 +49,9 @@ typedef struct {
     vec3_t      org, ang;
     float       fov;
     float       speed;      // demo speed from this point to the next (slow motion)
+    follow_t    follow;     // from this point to the next the camera follows
+    int         proj_ent;   // FOLLOW_PROJ: entity number and server frame
+    int         proj_first; // of the throw
 } keyframe_t;
 
 static keyframe_t   keys[MAX_KEYS];
@@ -115,10 +124,11 @@ static void keys_save(void)
     FS_FPrintf(f, "VISORKEYS 1\n");
     for (int i = 0; i < num_keys; i++) {
         const keyframe_t *k = &keys[i];
-        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f %g\n",
+        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f %g %d %d %d\n",
                    k->time, k->frame, k->pos, k->mode, k->target,
                    k->org[0], k->org[1], k->org[2],
-                   k->ang[0], k->ang[1], k->ang[2], k->fov, k->speed);
+                   k->ang[0], k->ang[1], k->ang[2], k->fov, k->speed,
+                   k->follow, k->proj_ent, k->proj_first);
     }
     FS_CloseFile(f);
 }
@@ -129,7 +139,7 @@ static void keys_load(void)
     const char *line;
     char *buf;
     keyframe_t k;
-    int mode;
+    int mode, follow;
 
     num_keys = 0;
 
@@ -154,11 +164,15 @@ static void keys_load(void)
         Q_strlcpy(one, line, min(end ? end - line + 1 : (int)sizeof(one), (int)sizeof(one)));
         memset(&k, 0, sizeof(k));
         k.speed = 1;
-        if (sscanf(one, "%d %d %f %d %d %f %f %f %f %f %f %f %f",
+        follow = 0;
+        if (sscanf(one, "%d %d %f %d %d %f %f %f %f %f %f %f %f %d %d %d",
                    &k.time, &k.frame, &k.pos, &mode, &k.target,
                    &k.org[0], &k.org[1], &k.org[2],
-                   &k.ang[0], &k.ang[1], &k.ang[2], &k.fov, &k.speed) < 12)
+                   &k.ang[0], &k.ang[1], &k.ang[2], &k.fov, &k.speed,
+                   &follow, &k.proj_ent, &k.proj_first) < 12)
             continue;
+        k.follow = follow == FOLLOW_PLAYER && k.target ? FOLLOW_PLAYER :
+                   follow == FOLLOW_PROJ ? FOLLOW_PROJ : FOLLOW_NONE;
         k.speed = Q_clipf(k.speed, MIN_SPEED, MAX_SPEED);
         if (num_keys && k.time <= keys[num_keys - 1].time)
             continue;   // keep them sorted
@@ -268,7 +282,20 @@ static void look_angles(const vec3_t from, const vec3_t to, vec3_t ang)
 }
 
 // camera between points a and a + 1 at time t
-static void sample_segment(int a, int t, vec3_t org, vec3_t ang, float *fov)
+// where the camera is when the point follows something now
+static bool follow_pose(const keyframe_t *k, vec3_t org, vec3_t ang)
+{
+    if (k->follow == FOLLOW_PLAYER)
+        return CL_ChasePose(k->target, org, ang);
+    if (k->follow == FOLLOW_PROJ) {
+        int id = CL_ProjFind(k->proj_ent, k->proj_first);
+        return id >= 0 && CL_ProjFollowPose(id, NULL, -1, org, ang);
+    }
+    return false;
+}
+
+// now: t is the moment shown (the followed things are where they are now)
+static void sample_segment(int a, int t, vec3_t org, vec3_t ang, float *fov, bool now)
 {
     const keyframe_t *ka = &keys[a], *kb = &keys[a + 1];
     float v[4][NUM_CH], m0[NUM_CH], m1[NUM_CH];
@@ -336,6 +363,21 @@ static void sample_segment(int a, int t, vec3_t org, vec3_t ang, float *fov)
             ang[j] += w * angle_delta(look[j], ang[j]);
         ang[ROLL] *= 1 - w;
     }
+
+    // following a player or a projectile from this point to the next: the
+    // camera eases from the point's view to behind it and back at the end
+    if (now && ka->follow) {
+        vec3_t fo, fa;
+        float ramp = min(400.0f, h / 3), w;
+
+        if (follow_pose(ka, fo, fa)) {
+            w = smoothstep(Q_clipf((t - ka->time) / ramp, 0, 1)) *
+                smoothstep(Q_clipf((kb->time - t) / ramp, 0, 1));
+            LerpVector(org, fo, w, org);
+            for (int j = 0; j < 3; j++)
+                ang[j] += w * angle_delta(fa[j], ang[j]);
+        }
+    }
 }
 
 /*
@@ -364,7 +406,7 @@ bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov)
 
     for (a = 0; a < num_keys - 2 && keys[a + 1].time <= t; a++)
         ;
-    sample_segment(a, t, org, ang, fov);
+    sample_segment(a, t, org, ang, fov, true);
     return true;
 }
 
@@ -430,7 +472,7 @@ void CL_KeyCamAddPath(void)
 
         VectorCopy(keys[a].org, prev);
         for (int s = 1; s <= steps; s++) {
-            sample_segment(a, t0 + (t1 - t0) * s / steps, org, ang, &fov);
+            sample_segment(a, t0 + (t1 - t0) * s / steps, org, ang, &fov, false);
             CL_AddBeam(prev, org, PATH_COLOR, 0.8f, 2);
             VectorCopy(org, prev);
         }
@@ -497,6 +539,8 @@ const char *CL_KeyCamStatus(void)
     return va("PUNTO %d (TOTAL %d)%s%s%s", i + 1, num_keys,
               keys[i].mode == SEG_LINE ? ", recta" : "",
               keys[i].speed != 1 && i < num_keys - 1 ? va(", x%g", keys[i].speed) : "",
+              keys[i].follow == FOLLOW_PROJ ? ", sigue un proyectil" :
+              keys[i].follow ? va(", sigue a %s", player_name(keys[i].target)) :
               keys[i].target ? va(", mira a %s", player_name(keys[i].target)) : "");
 }
 
@@ -552,6 +596,9 @@ static void KeyCam_Add_f(void)
         k.mode = keys[i].mode;
         k.target = keys[i].target;
         k.speed = keys[i].speed;
+        k.follow = keys[i].follow;
+        k.proj_ent = keys[i].proj_ent;
+        k.proj_first = keys[i].proj_first;
         keys[i] = k;
         keys_save();
         announce(va("Punto %d actualizado (total %d)", i + 1, num_keys));
@@ -561,6 +608,12 @@ static void KeyCam_Add_f(void)
     if (num_keys == MAX_KEYS) {
         announce(va("Maximo %d puntos de camara", MAX_KEYS));
         return;
+    }
+
+    // following a projectile with the camera: the new point follows it too
+    if (CL_FreecamProj() >= 0) {
+        k.follow = FOLLOW_PROJ;
+        CL_ProjIdentity(CL_FreecamProj(), &k.proj_ent, &k.proj_first);
     }
 
     for (i = num_keys; i > 0 && keys[i - 1].time > k.time; i--)
@@ -664,20 +717,28 @@ static void KeyCam_Target_f(void)
                 return;
         }
         keys[i].target = num;
+        keys[i].follow = FOLLOW_NONE;
         keys_save();
         announce(num ? va("Punto %d: mira a %s", i + 1, player_name(num))
                      : va("Punto %d: mirada libre", i + 1));
         return;
     }
 
+    // nothing -> looks at a player -> follows them -> nothing
     i = key_here();
     if (i < 0) {
         // no point yet: put one here, then aim it
         KeyCam_Add_f();
         if ((i = key_here()) < 0)
             return;
-    } else if (keys[i].target) {
+    } else if (keys[i].target && !keys[i].follow) {
+        keys[i].follow = FOLLOW_PLAYER;
+        keys_save();
+        announce(va("Punto %d: sigue a %s hasta el punto siguiente", i + 1, player_name(keys[i].target)));
+        return;
+    } else if (keys[i].target || keys[i].follow) {
         keys[i].target = 0;
+        keys[i].follow = FOLLOW_NONE;
         keys_save();
         announce(va("Punto %d: mirada libre", i + 1));
         return;
@@ -692,6 +753,46 @@ static void KeyCam_Target_f(void)
     keys[i].target = num;
     keys_save();
     announce(va("Punto %d: mira a %s", i + 1, player_name(num)));
+}
+
+// keycam_follow_proj: from the point here to the next the camera follows
+// the projectile being followed now, or the one in the middle of the screen
+static void KeyCam_FollowProj_f(void)
+{
+    vec3_t fwd;
+    int i, id;
+
+    if (!can_edit())
+        return;
+
+    i = key_here();
+    if (i >= 0 && keys[i].follow == FOLLOW_PROJ) {
+        keys[i].follow = FOLLOW_NONE;
+        keys_save();
+        announce(va("Punto %d: ya no sigue el proyectil", i + 1));
+        return;
+    }
+
+    id = CL_FreecamProj();
+    if (id < 0) {
+        AngleVectors(cl.refdef.viewangles, fwd, NULL, NULL);
+        id = CL_ProjAtRay(fwd);
+    }
+    if (id < 0) {
+        announce("Apunta a una granada, cohete o cuchillo en vuelo (o siguelo con 5) y vuelve a intentar");
+        return;
+    }
+
+    if (i < 0) {
+        KeyCam_Add_f();
+        if ((i = key_here()) < 0)
+            return;
+    }
+    keys[i].target = 0;
+    keys[i].follow = FOLLOW_PROJ;
+    CL_ProjIdentity(id, &keys[i].proj_ent, &keys[i].proj_first);
+    keys_save();
+    announce(va("Punto %d: sigue la %s hasta el punto siguiente", i + 1, CL_ProjName(id)));
 }
 
 // seek to point i and stop on it, so it can be changed
@@ -823,6 +924,11 @@ bool CL_KeyCamGet(int i, keyinfo_t *out)
     out->fov = k->fov;
     out->target_name = k->target ? player_name(k->target) : NULL;
     out->speed = k->speed;
+    out->follow = k->follow;
+    if (k->follow == FOLLOW_PROJ) {
+        int id = CL_ProjFind(k->proj_ent, k->proj_first);
+        out->target_name = id >= 0 ? CL_ProjName(id) : "proyectil";
+    }
     return true;
 }
 
@@ -988,6 +1094,7 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_goto", KeyCam_Goto_f },
     { "keycam_fov", KeyCam_Fov_f },
     { "keycam_speed", KeyCam_Speed_f },
+    { "keycam_follow_proj", KeyCam_FollowProj_f },
     { "keycam_clear", KeyCam_Clear_f },
     { "camera_clear", Camera_Clear_f },
     { NULL }
