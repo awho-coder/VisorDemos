@@ -1332,6 +1332,7 @@ static void CL_Seek_f(void)
     }
 
     seek_demo(dest, byte_seek, back_seek);
+    CL_FreecamSeeked();
 }
 
 /*

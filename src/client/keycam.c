@@ -46,6 +46,7 @@ static keyframe_t   keys[MAX_KEYS];
 static int          num_keys;
 static bool         playing = true;
 static char         loaded_for[MAX_QPATH];
+static int          pending_view = -1;  // jumped to this point: show its view
 
 static cvar_t       *keycam_aim_height;
 
@@ -353,6 +354,39 @@ bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov)
     return true;
 }
 
+// the view saved in point i, looking at its player if it has one
+static void point_view(int i, vec3_t org, vec3_t ang, float *fov)
+{
+    const keyframe_t *k = &keys[i];
+    vec3_t aim;
+
+    VectorCopy(k->org, org);
+    VectorCopy(k->ang, ang);
+    *fov = k->fov;
+    if (k->target && target_position(k->target, aim))
+        look_angles(org, aim, ang);
+}
+
+/*
+===============
+CL_KeyCamPendingView
+
+After jumping to a point (1 / 2, a click on the timeline): the view saved
+in it, once. The camera is put there so the point can be changed from its
+own view.
+===============
+*/
+bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov)
+{
+    int i = pending_view;
+
+    pending_view = -1;
+    if (i < 0 || i >= num_keys || !watching_dm2())
+        return false;
+    point_view(i, org, ang, fov);
+    return true;
+}
+
 /*
 ===============================================================================
 
@@ -609,6 +643,7 @@ static void go_to(int i)
     Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", k->frame / 10, k->frame % 10));
     if (!(sv_paused->integer && cl_paused->integer))
         Cmd_ExecuteString(&cmd_buffer, "pause");
+    pending_view = i;
     announce(va("Punto %d (total %d)", i + 1, num_keys));
 }
 
