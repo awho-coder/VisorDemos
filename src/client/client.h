@@ -801,7 +801,10 @@ typedef struct {
     int         target;         // player it looks at, 0 = none
     const char  *target_name;
     float       fov;
+    float       speed;          // slow motion to the next point
 } keyinfo_t;
+float CL_KeyCamSpeed(void);
+
 bool CL_KeyCamGet(int i, keyinfo_t *out);
 int  CL_KeyCamIndex(void);
 bool CL_KeyCamPlaying(void);

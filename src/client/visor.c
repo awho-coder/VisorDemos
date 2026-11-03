@@ -37,6 +37,13 @@ float CL_DemoSpeed(void)
     return ts > 0 ? ts : 1.0f;
 }
 
+// speed the demo really runs at: the user's, times the slow motion of the
+// camera points here
+float CL_PlaySpeed(void)
+{
+    return CL_DemoSpeed() * CL_KeyCamSpeed();
+}
+
 static void set_speed(float value)
 {
     if (!CL_CheatsOK()) {

@@ -161,7 +161,7 @@ unsigned CL_CaptureFrameMsec(void)
 
     // slow motion / fast forward: the video keeps its frame rate, the game
     // advances by a scaled amount
-    cap.game_frac += msec * CL_DemoSpeed();
+    cap.game_frac += msec * CL_PlaySpeed();
     scaled = floorf(cap.game_frac);
     cap.game_frac -= scaled;
 

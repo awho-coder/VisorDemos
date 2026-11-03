@@ -118,6 +118,8 @@ enum { TAB_CAMERA, TAB_POINTS, TAB_VIEW, TAB_VIDEO, TAB_SETTINGS, NUM_TABS };
 #define COLOR_KEY       MakeColor(  0, 220, 230, 255)
 #define COLOR_KEY_HERE  MakeColor(255, 255, 255, 255)
 #define COLOR_EDGE      MakeColor(  0,   0,   0, 255)
+#define COLOR_SLOW      MakeColor(180, 108, 255, 200)
+#define COLOR_FAST      MakeColor(255, 150,  60, 200)
 #define COLOR_ALLIES    MakeColor( 90, 160, 255, 255)
 #define COLOR_AXIS      MakeColor(255,  90,  90, 255)
 
@@ -800,7 +802,8 @@ static void points_list(int max_rows)
             break;
         format_frame(t, sizeof(t), k.frame);
         list_row(i == here ? IT_ROW_ON : IT_ROW,
-                 va("%2d %8s %s%s%s", i + 1, t, k.line ? "recta" : "curva",
+                 va("%2d %8s %s%s%s%s", i + 1, t, k.line ? "recta" : "curva",
+                    k.speed != 1 && i < n - 1 ? va(" x%g", k.speed) : "",
                     k.target ? " mira " : "", k.target ? k.target_name : ""),
                  va("keycam_goto %d", i + 1), va("Ir al punto %d", i + 1), 0);
     }
@@ -872,6 +875,11 @@ static void point_settings(int i, int n)
     prop("Objetivo");
     button(k.target ? va("Mira a %s", k.target_name) : "Nada", "keycam_target",
            "Mirar al jugador del centro de la pantalla / mirada libre  [L]", on_if(k.target));
+    prop("Velocidad");
+    value(NULL, va("x%g", k.speed), "keycam_speed down", "keycam_speed up",
+          i < n - 1 ? "Camara lenta de este punto al siguiente: la camara se mueve normal y el juego lento  [3 / 4]"
+                    : "La velocidad vale del punto al siguiente: este es el ultimo",
+          i < n - 1 ? IT_BUTTON : IT_OFF);
     prop("FOV");
     value(NULL, va("%g", k.fov), "keycam_fov -5", "keycam_fov 5",
           "Campo de vision del punto: menos = mas zoom", IT_BUTTON);
@@ -987,6 +995,15 @@ static void draw_timeline(int frame, float prog)
 
     // camera points: squares on the track, joined by a line
     ed.num_keys = CL_KeyCamMarks(ed.key_pos, q_countof(ed.key_pos), &here);
+
+    // stretches in slow motion (purple) or fast (orange), over the track
+    for (int i = 0; i + 1 < ed.num_keys; i++) {
+        keyinfo_t k;
+        if (!CL_KeyCamGet(i, &k) || k.speed == 1)
+            continue;
+        R_DrawFill32(TX(ed.key_pos[i]), y - tick, max(TX(ed.key_pos[i + 1]) - TX(ed.key_pos[i]), 1),
+                     h + tick * 2, k.speed < 1 ? COLOR_SLOW : COLOR_FAST);
+    }
     if (ed.num_keys >= 2) {
         int lh = max(h / 4, 2);
         R_DrawFill32(TX(ed.key_pos[0]), y + (h - lh) / 2,

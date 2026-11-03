@@ -1292,7 +1292,12 @@ void Qcommon_Frame(void)
         Cvar_ClampInteger(fixedtime, 1, 1000);
         msec = fixedtime->integer;
     } else if (timescale->value > 0) {
+#if USE_CLIENT
+        // slow motion set on the camera points multiplies the speed
+        frac += msec * CL_PlaySpeed();
+#else
         frac += msec * timescale->value;
+#endif
         msec = frac;
         frac -= msec;
     }

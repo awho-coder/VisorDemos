@@ -2439,6 +2439,8 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
         Q_strlcat(mid, "PAUSA   ", mid_size);
     if (CL_DemoSpeed() != 1.0f)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), mid_size);
+    if (CL_KeyCamSpeed() != 1.0f)
+        Q_strlcat(mid, va("TRAMO x%.2g   ", CL_KeyCamSpeed()), mid_size);
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", mid_size);
     if (Cvar_VariableInteger("xray"))
@@ -2615,6 +2617,7 @@ static const helpline_t visor_help[] = {
     { "M",          "Curva / recta" },
     { "U",          "Borrar punto" },
     { "1 / 2",      "Punto ant. / sig." },
+    { "3 / 4",      "Tramo lento / rapido" },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },

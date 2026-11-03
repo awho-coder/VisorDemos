@@ -24,6 +24,8 @@ GNU General Public License for more details.
 #include "client.h"
 
 #define MAX_KEYS        256
+#define MIN_SPEED       0.05f
+#define MAX_SPEED       4.0f
 #define SAME_KEY_MS     100     // a point closer than this is "the point here"
                                 // (one demo frame: a seek lands on its start)
 
@@ -40,6 +42,7 @@ typedef struct {
     int         target;     // player entity to look at, 0 = free view
     vec3_t      org, ang;
     float       fov;
+    float       speed;      // demo speed from this point to the next (slow motion)
 } keyframe_t;
 
 static keyframe_t   keys[MAX_KEYS];
@@ -112,10 +115,10 @@ static void keys_save(void)
     FS_FPrintf(f, "VISORKEYS 1\n");
     for (int i = 0; i < num_keys; i++) {
         const keyframe_t *k = &keys[i];
-        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f\n",
+        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f %g\n",
                    k->time, k->frame, k->pos, k->mode, k->target,
                    k->org[0], k->org[1], k->org[2],
-                   k->ang[0], k->ang[1], k->ang[2], k->fov);
+                   k->ang[0], k->ang[1], k->ang[2], k->fov, k->speed);
     }
     FS_CloseFile(f);
 }
@@ -142,13 +145,21 @@ static void keys_load(void)
     }
 
     for (line = strchr(buf, '\n'); line && num_keys < MAX_KEYS; line = strchr(line, '\n')) {
+        char one[256];
+        const char *end;
+
         line++;
+        // one line at a time: files from before 0.6 have no speed at the end
+        end = strchr(line, '\n');
+        Q_strlcpy(one, line, min(end ? end - line + 1 : (int)sizeof(one), (int)sizeof(one)));
         memset(&k, 0, sizeof(k));
-        if (sscanf(line, "%d %d %f %d %d %f %f %f %f %f %f %f",
+        k.speed = 1;
+        if (sscanf(one, "%d %d %f %d %d %f %f %f %f %f %f %f %f",
                    &k.time, &k.frame, &k.pos, &mode, &k.target,
                    &k.org[0], &k.org[1], &k.org[2],
-                   &k.ang[0], &k.ang[1], &k.ang[2], &k.fov) != 12)
+                   &k.ang[0], &k.ang[1], &k.ang[2], &k.fov, &k.speed) < 12)
             continue;
+        k.speed = Q_clipf(k.speed, MIN_SPEED, MAX_SPEED);
         if (num_keys && k.time <= keys[num_keys - 1].time)
             continue;   // keep them sorted
         k.mode = mode == SEG_LINE ? SEG_LINE : SEG_CURVE;
@@ -483,8 +494,9 @@ const char *CL_KeyCamStatus(void)
 
     if (!watching_dm2() || (i = key_here()) < 0)
         return NULL;
-    return va("PUNTO %d (TOTAL %d)%s%s", i + 1, num_keys,
+    return va("PUNTO %d (TOTAL %d)%s%s%s", i + 1, num_keys,
               keys[i].mode == SEG_LINE ? ", recta" : "",
+              keys[i].speed != 1 && i < num_keys - 1 ? va(", x%g", keys[i].speed) : "",
               keys[i].target ? va(", mira a %s", player_name(keys[i].target)) : "");
 }
 
@@ -532,12 +544,14 @@ static void KeyCam_Add_f(void)
     if (k.ang[PITCH] > 180)
         k.ang[PITCH] -= 360;
     k.fov = Q_clipf(cl.fov_x, 10, 160);
+    k.speed = 1;
 
     i = key_here();
     if (i >= 0) {
         // replace it, keeping how it moves on and who it looks at
         k.mode = keys[i].mode;
         k.target = keys[i].target;
+        k.speed = keys[i].speed;
         keys[i] = k;
         keys_save();
         announce(va("Punto %d actualizado (total %d)", i + 1, num_keys));
@@ -808,6 +822,7 @@ bool CL_KeyCamGet(int i, keyinfo_t *out)
     out->target = k->target;
     out->fov = k->fov;
     out->target_name = k->target ? player_name(k->target) : NULL;
+    out->speed = k->speed;
     return true;
 }
 
@@ -838,6 +853,117 @@ static void KeyCam_Fov_f(void)
     announce(va("Punto %d: zoom %g", i + 1, keys[i].fov));
 }
 
+/*
+===============
+CL_KeyCamSpeed
+
+Slow motion of the camera points: each point has a speed for the stretch
+to the next one. The camera crosses that stretch in video time, so at x0.2
+it moves at its usual pace while the game runs five times slower (the
+"Matrix" effect). Around each point the speed changes smoothly. 1 when
+the points are off, don't cover this moment or the demo is paused.
+===============
+*/
+#define SPEED_RAMP_MS   200
+
+static float log_lerp(float a, float b, float f)
+{
+    return expf(logf(a) + (logf(b) - logf(a)) * f);
+}
+
+float CL_KeyCamSpeed(void)
+{
+    int t, a, len, r;
+    bool first, last;
+    float s;
+
+    if (!CL_KeyCamPlaying() || (sv_paused->integer && cl_paused->integer))
+        return 1;
+
+    t = demo_time();
+    if (t < keys[0].time || t >= keys[num_keys - 1].time)
+        return 1;
+
+    for (a = 0; a < num_keys - 2 && keys[a + 1].time <= t; a++)
+        ;
+    s = keys[a].speed;
+    len = keys[a + 1].time - keys[a].time;
+    first = a == 0;
+    last = a + 2 >= num_keys;
+
+    // the change is spread over [point - r, point + r]; before the first
+    // and after the last point it is normal speed, eased in [point, point + r]
+    r = min(SPEED_RAMP_MS, len / 2);
+    if (!first)
+        r = min(r, (keys[a].time - keys[a - 1].time) / 2);
+    if (r > 0 && t < keys[a].time + r) {
+        float f = (float)(t - keys[a].time) / r;
+        float before = first ? 1 : keys[a - 1].speed;
+        s = log_lerp(before, keys[a].speed, smoothstep(first ? f : 0.5f + 0.5f * f));
+    }
+
+    r = min(SPEED_RAMP_MS, len / 2);
+    if (!last)
+        r = min(r, (keys[a + 2].time - keys[a + 1].time) / 2);
+    if (r > 0 && t > keys[a + 1].time - r) {
+        float f = (float)(t - (keys[a + 1].time - r)) / r;
+        float after = last ? 1 : keys[a + 1].speed;
+        s = log_lerp(keys[a].speed, after, smoothstep(last ? f : 0.5f * f));
+    }
+    return Q_clipf(s, MIN_SPEED, MAX_SPEED);
+}
+
+// keycam_speed up | down | reset | <value>: slow motion from the point
+// here to the next (keys 3 and 4)
+static const float key_speeds[] = { 0.05f, 0.1f, 0.2f, 0.25f, 0.33f, 0.5f, 0.75f, 1, 1.5f, 2, 3, 4 };
+
+static void KeyCam_Speed_f(void)
+{
+    const char *arg = Cmd_Argv(1);
+    int i, n = q_countof(key_speeds);
+    float cur, v;
+
+    if (!can_edit())
+        return;
+    i = key_here();
+    if (i < 0) {
+        announce("No hay punto aqui (1 / 2 para ir a uno, P para poner uno)");
+        return;
+    }
+    if (i == num_keys - 1) {
+        announce("La velocidad vale del punto al siguiente: este es el ultimo");
+        return;
+    }
+
+    cur = keys[i].speed;
+    if (!Q_stricmp(arg, "up")) {
+        for (v = key_speeds[n - 1], i = 0; i < n; i++)
+            if (key_speeds[i] > cur + 0.001f) {
+                v = key_speeds[i];
+                break;
+            }
+    } else if (!Q_stricmp(arg, "down")) {
+        for (v = key_speeds[0], i = n - 1; i >= 0; i--)
+            if (key_speeds[i] < cur - 0.001f) {
+                v = key_speeds[i];
+                break;
+            }
+    } else if (!Q_stricmp(arg, "reset")) {
+        v = 1;
+    } else if (*arg) {
+        v = Q_atof(arg);
+    } else {
+        Com_Printf("Uso: %s up | down | reset | <0.05 a 4>\n", Cmd_Argv(0));
+        return;
+    }
+
+    i = key_here();
+    keys[i].speed = Q_clipf(v, MIN_SPEED, MAX_SPEED);
+    keys_save();
+    announce(keys[i].speed == 1 ? va("Punto %d: velocidad normal hasta el siguiente", i + 1)
+                                : va("Punto %d: x%g hasta el siguiente", i + 1, keys[i].speed));
+}
+
 // on / off; campath_play (V) switches both the recorded path and the points
 void CL_KeyCamSetPlaying(bool on)
 {
@@ -861,6 +987,7 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_prev", KeyCam_Prev_f },
     { "keycam_goto", KeyCam_Goto_f },
     { "keycam_fov", KeyCam_Fov_f },
+    { "keycam_speed", KeyCam_Speed_f },
     { "keycam_clear", KeyCam_Clear_f },
     { "camera_clear", Camera_Clear_f },
     { NULL }
