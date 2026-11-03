@@ -831,7 +831,7 @@ static void points_list(int max_rows)
             break;
         format_frame(t, sizeof(t), k.frame);
         list_row(i == here ? IT_ROW_ON : IT_ROW,
-                 va("%2d %8s %s%s%s%s", i + 1, t, k.line ? "recta" : "curva",
+                 va("%2d %8s%s%s%s%s", i + 1, t, k.line ? " recta" : "",
                     k.speed != 1 && i < n - 1 ? va(" x%g", k.speed) : "",
                     k.follow ? " sigue " : k.target ? " mira " : "", k.target_name ? k.target_name : ""),
                  va("keycam_goto %d", i + 1), va("Ir al punto %d", i + 1), 0);
