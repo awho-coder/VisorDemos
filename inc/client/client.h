@@ -68,6 +68,7 @@ void CL_Shutdown(void);
 unsigned CL_Frame(unsigned msec);
 bool CL_CaptureActive(void);
 unsigned CL_CaptureFrameMsec(void);
+float CL_PlaySpeed(void);
 void CL_RestartFilesystem(bool total);
 void CL_Activate(active_t active);
 void CL_EditorMouseMove(int x, int y);
