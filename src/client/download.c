@@ -497,6 +497,12 @@ static int check_file_len(const char *path, size_t len, dltype_t type)
     if (ret != Q_ERR(ENOSYS))
         return ret;
 
+#if USE_WEBDL
+    // browser, in game: HTTP only (a UDP download would compete with the game)
+    if (cls.state == ca_active)
+        return ret;
+#endif
+
     // queue and start legacy UDP download
     ret = CL_QueueDownload(buffer, type);
     if (ret == Q_ERR_SUCCESS)
@@ -642,6 +648,28 @@ static void check_player(const char *name)
         }
     }
 }
+
+#if USE_WEBDL
+/*
+===============
+CL_CheckPlayerDownloads
+
+Browser build: players choose team and class after we connected, so their
+model, skin or sounds may be missing (a normal client has every file
+installed). Queue them now; HTTP_RunDownloads reloads the players when done.
+===============
+*/
+void CL_CheckPlayerDownloads(const char *name)
+{
+    if (cls.state != ca_active || !name[0])
+        return;
+    if (allow_download->integer <= 0 || !allow_download_players->integer)
+        return;
+    if (NET_IsLocalAddress(&cls.serverAddress))
+        return;
+    check_player(name);
+}
+#endif
 
 // for precaching dependencies
 static bool downloads_pending(dltype_t type)

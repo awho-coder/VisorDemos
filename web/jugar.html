@@ -334,6 +334,8 @@
         '+name', nick, '+sensitivity', String(sens),
         ...(q.has('log') ? ['+set', 'developer', '1', '+set', 'logfile', '2', '+set', 'logfile_flush', '2'] : []),
         '+connect', SERVER,
+        // pruebas, solo en este PC: ?extra=wait 900;team;wait 60;invuse  (comandos de consola)
+        ...(local && q.get('extra') ? q.get('extra').split(';').flatMap((c) => ['+' + c.trim().split(' ')[0], ...c.trim().split(' ').slice(1)]) : []),
       ],
       preRun: [() => {
         // las teclas de juego reemplazan a las del visor: un visor.cfg en la carpeta

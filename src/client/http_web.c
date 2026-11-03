@@ -125,11 +125,32 @@ int HTTP_QueueDownload(const char *path, dltype_t type)
     return Q_ERR_SUCCESS;
 }
 
+// in game, after files arrived: look again for the ones that were missing and
+// reload every player (a teammate's new team or class may be ready now)
+static void reload_players(void)
+{
+    const char *s;
+    int i;
+
+    R_ForgetMissingImages();
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        s = cl.configstrings[cl.csr.playerskins + i];
+        if (s[0])
+            CL_LoadClientinfo(&cl.clientinfo[i], s);
+    }
+}
+
 // the page couldn't get it: ask the game server for it over UDP instead
+// (not in game: a UDP download would compete with the game)
 static void fallback_udp(dlqueue_t *q)
 {
     char path[MAX_QPATH];
     dltype_t type = q->type;
+
+    if (cls.state == ca_active) {
+        CL_FinishDownload(q);
+        return;
+    }
 
     Q_strlcpy(path, q->path, sizeof(path));
     List_Remove(&q->entry);
@@ -162,9 +183,14 @@ void HTTP_RunDownloads(void)
         finished = true;
     }
 
+    if (!finished)
+        return;
+
+    if (cls.state == ca_active && !cls.download.pending)
+        reload_players();
+
     // see if we have more to download
-    if (finished)
-        CL_RequestNextDownload();
+    CL_RequestNextDownload();
 }
 
 void HTTP_CleanupDownloads(void)
