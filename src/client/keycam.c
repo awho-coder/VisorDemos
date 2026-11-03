@@ -680,6 +680,25 @@ static void KeyCam_Clear_f(void)
     announce("Puntos de camara borrados");
 }
 
+// camera_clear: all the points and the recorded path of this demo
+static void Camera_Clear_f(void)
+{
+    if (!can_edit())
+        return;
+    num_keys = 0;
+    keys_save();
+    CL_CamPathClear();
+    announce("Camara borrada: puntos y recorrido");
+}
+
+int CL_KeyCamCount(void)
+{
+    if (!watching_dm2())
+        return 0;
+    check_demo();
+    return num_keys;
+}
+
 // point at this moment: 0 none, 1 free view, 2 looks at a player; *line
 // = goes on in a straight line (for the editor buttons)
 int CL_KeyCamHere(bool *line)
@@ -716,6 +735,7 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_prev", KeyCam_Prev_f },
     { "keycam_goto", KeyCam_Goto_f },
     { "keycam_clear", KeyCam_Clear_f },
+    { "camera_clear", Camera_Clear_f },
     { NULL }
 };
 
