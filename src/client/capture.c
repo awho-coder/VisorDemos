@@ -41,6 +41,8 @@ static struct {
     float   in_pos, out_pos;    // position in the demo file (0..1), for the timeline
 } marks = { -1, -1 };
 
+static bool export_whole;       // clip_export_all is opening the file
+
 #if USE_AVCODEC
 
 #include <libavcodec/avcodec.h>
@@ -57,6 +59,7 @@ typedef enum {
 static struct {
     capstate_t  state;
     bool        exporting;      // stop automatically at marks.out
+    bool        whole;          // the whole demo, start to end (clip_export_all)
     bool        failed;         // an encoding error stopped the recording
     int         stop_frame;
 
@@ -537,7 +540,10 @@ static void make_filename(const char *name, const char *ext)
             if (!Q_isalnum(*p) && *p != '-' && *p != '_')
                 *p = '_';
         }
-        Q_strlcat(base, va("_%02dm%02ds", start / 600, start / 10 % 60), sizeof(base));
+        if (export_whole)
+            Q_strlcat(base, "_completo", sizeof(base));
+        else
+            Q_strlcat(base, va("_%02dm%02ds", start / 600, start / 10 % 60), sizeof(base));
     }
 
     // never overwrite an existing clip
@@ -684,8 +690,10 @@ static bool capture_start(const char *name)
     // the device gets nothing while we mix for the file
     S_StopAllSounds();
 
-    // make sure the demo runs
+    // make sure the demo runs: sv_paused is what holds the demo, and it only
+    // follows cl_paused when the pause state is checked again
     Cvar_Set("cl_paused", "0");
+    CL_CheckForPause();
 
     cap.state = CAP_RUNNING;
 
@@ -737,7 +745,8 @@ static void capture_fail(void)
 void CL_CaptureShutdown(void)
 {
     if (CL_CaptureActive()) {
-        Com_Printf("Grabacion interrumpida.\n");
+        if (!cap.whole)     // the whole demo: it ran to its end, which closes it
+            Com_Printf("Grabacion interrumpida.\n");
         capture_stop();
     }
 }
@@ -792,7 +801,10 @@ void CL_CaptureFrame(void)
         int frame;
         if (!CL_DemoPosition(&frame, NULL, NULL) || CL_DemoAtEnd() || frame >= cap.stop_frame) {
             capture_stop();
-            Cvar_Set("cl_paused", "1");
+            // a manual pause ("1" is the automatic one, which lets go by itself),
+            // applied to the demo right away
+            Cvar_Set("cl_paused", "2");
+            CL_CheckForPause();
         }
     }
 }
@@ -809,7 +821,12 @@ bool CL_CaptureStatus(char *buf, size_t size)
     if (!CL_CaptureActive())
         return false;
 
-    if (cap.exporting && marks.out > marks.in) {
+    if (cap.whole) {
+        float p = 0;
+        CL_DemoPosition(NULL, &p, NULL);
+        Q_snprintf(buf, size, "GRABANDO DEMO COMPLETO %d%%  (%.1f s)",
+                   Q_rint(p * 100), (double)cap.vframes / cap.fps);
+    } else if (cap.exporting && marks.out > marks.in) {
         int done = 0;
         CL_DemoPosition(&done, NULL, NULL);
         done -= marks.in;
@@ -930,7 +947,8 @@ static void Clip_Export_f(void)
     Q_strlcpy(name, Cmd_Argv(1), sizeof(name));
 
     if (CL_CaptureActive()) {
-        Com_Printf("Ya se esta grabando un clip.\n");
+        // G again: stop here
+        Cmd_ExecuteString(&cmd_buffer, "clip_stop");
         return;
     }
 
@@ -951,6 +969,54 @@ static void Clip_Export_f(void)
 #else
     capture_start(NULL);
 #endif
+}
+
+// clip_export_all [name]: the whole demo to video, from the start to the
+// end, without clip marks
+static void Clip_Export_All_f(void)
+{
+#if USE_AVCODEC
+    char name[MAX_QPATH];
+    bool ok;
+
+    if (!need_demo())
+        return;
+
+    Q_strlcpy(name, Cmd_Argv(1), sizeof(name));
+
+    if (CL_CaptureActive()) {
+        Cmd_ExecuteString(&cmd_buffer, "clip_stop");
+        return;
+    }
+
+    Cmd_ExecuteString(&cmd_buffer, "seek 0");
+
+    export_whole = true;
+    ok = capture_start(name);
+    export_whole = false;
+    if (!ok)
+        return;
+
+    cap.exporting = true;
+    cap.whole = true;
+    cap.stop_frame = INT_MAX;   // until the demo ends
+#else
+    capture_start(NULL);
+#endif
+}
+
+// clip_stop: end the recording here (what was recorded is kept) and pause
+static void Clip_Stop_f(void)
+{
+    if (!CL_CaptureActive()) {
+        Com_Printf("No se esta grabando ningun clip.\n");
+        return;
+    }
+    capture_stop();
+    if (cls.demo.playback) {
+        Cvar_Set("cl_paused", "2");
+        CL_CheckForPause();
+    }
 }
 
 static void Capture_Start_f(void)
@@ -976,6 +1042,8 @@ static const cmdreg_t c_capture[] = {
     { "clip_out", Clip_Out_f },
     { "clip_clear", Clip_Clear_f },
     { "clip_export", Clip_Export_f },
+    { "clip_export_all", Clip_Export_All_f },
+    { "clip_stop", Clip_Stop_f },
     { "capture_start", Capture_Start_f },
     { "capture_stop", Capture_Stop_f },
     { "capture_toggle", Capture_Toggle_f },

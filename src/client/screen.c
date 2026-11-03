@@ -2421,10 +2421,54 @@ static void format_demo_time(char *buf, size_t size, int frame)
 #define VISOR_REC       MakeColor(255,  40,  40, 255)
 #define VISOR_FRAG      MakeColor(255, 210,   0, 255)
 #define VISOR_DEATH     MakeColor(255,  45,  45, 255)
+#define VISOR_KEY       MakeColor(  0, 220, 230, 255)
+#define VISOR_KEY_HERE  MakeColor(255, 255, 255, 255)
+#define VISOR_KEY_EDGE  MakeColor(  0,   0,   0, 255)
+
+// the timeline texts: time, state, clip marks (bar and editor panel)
+static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size,
+                        char *right, size_t right_size, int frame, float prog, bool paused)
+{
+    char t_in[16], t_out[16];
+
+    format_demo_time(t_in, sizeof(t_in), frame);
+    Q_snprintf(left, left_size, "%s  (%d%%)", t_in, Q_rint(prog * 100));
+
+    mid[0] = 0;
+    if (paused)
+        Q_strlcat(mid, "PAUSA   ", mid_size);
+    if (CL_DemoSpeed() != 1.0f)
+        Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), mid_size);
+    if (CL_CamPathRecording())
+        Q_strlcat(mid, "GRABANDO CAMARA   ", mid_size);
+    if (Cvar_VariableInteger("xray"))
+        Q_strlcat(mid, "X-RAY   ", mid_size);
+    if (CL_KeyCamStatus())
+        Q_strlcat(mid, va("%s   ", CL_KeyCamStatus()), mid_size);
+    if (CL_FreecamKeysDriving())
+        Q_strlcat(mid, "PUNTOS DE CAMARA", mid_size);
+    else if (CL_FreecamFlying())
+        Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), mid_size);
+    else if (CL_FreecamActive() && !CL_ChaseTargetName())
+        Q_strlcat(mid, "RECORRIDO GRABADO", mid_size);
+    else if (CL_ChaseFirstPerson())
+        Q_strlcat(mid, va("SIGUIENDO: %s (1a persona)", CL_ChaseTargetName()), mid_size);
+    else if (CL_ChaseTargetName())
+        Q_strlcat(mid, va("SIGUIENDO: %s (dist. %g)", CL_ChaseTargetName(), CL_ChaseDistance()), mid_size);
+    else if (CL_MvdThirdPerson())
+        Q_strlcat(mid, va("TERCERA PERSONA (dist. %g)", CL_ChaseDistance()), mid_size);
+
+    format_demo_time(t_in, sizeof(t_in), CL_ClipMarkIn());
+    format_demo_time(t_out, sizeof(t_out), CL_ClipMarkOut());
+    if (CL_EditorActive())
+        Q_snprintf(right, right_size, "INICIO %s  FIN %s", t_in, t_out);
+    else
+        Q_snprintf(right, right_size, "INICIO %s  FIN %s   Tab: editor  H: ayuda", t_in, t_out);
+}
 
 static void SCR_DrawVisorBar(void)
 {
-    char left[64], mid[96], right[96], t_in[16], t_out[16];
+    char left[64], mid[192], right[96];
     int W = r_config.width, H = r_config.height;
     int ch, pad, bar_h, strip_h, y0, ty, tx0, tx1, tw;
     float s = scr.hud_scale, prog;
@@ -2432,9 +2476,18 @@ static void SCR_DrawVisorBar(void)
     int frame;
     bool paused;
 
-    if (!visor_bar->integer || (cls.key_dest & KEY_MENU))
+    if (cls.key_dest & KEY_MENU)
         return;
     if (!CL_DemoPosition(&frame, &prog, &paused))
+        return;
+
+    if (CL_EditorActive()) {
+        // mouse editor: its own panel instead of the bar
+        visor_texts(left, sizeof(left), mid, sizeof(mid), right, sizeof(right), frame, prog, paused);
+        CL_EditorDraw(scr.font_pic, s, left, mid, right);
+        return;
+    }
+    if (!visor_bar->integer)
         return;
 
     ch = Q_rint(CONCHAR_HEIGHT / s);
@@ -2485,35 +2538,28 @@ static void SCR_DrawVisorBar(void)
         for (int i = 0; i < n; i++)
             R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty + bar_h, 2, pad, VISOR_DEATH);
     }
+    {
+        // camera points: squares on the track, joined by a line through it
+        static float keys[256];
+        int here, n = CL_KeyCamMarks(keys, q_countof(keys), &here);
+        int sz = bar_h + 2, line_h = max(bar_h / 3, 1);
+
+        if (n >= 2) {
+            int xa = tx0 + Q_rint(tw * keys[0]);
+            int xb = tx0 + Q_rint(tw * keys[n - 1]);
+            R_DrawFill32(xa, ty + (bar_h - line_h) / 2, max(xb - xa, 1), line_h,
+                         CL_KeyCamPlaying() ? VISOR_KEY : VISOR_TRACK);
+        }
+        for (int i = 0; i < n; i++) {
+            int x = tx0 + Q_rint(tw * keys[i]) - sz / 2;
+            int y = ty - 1;
+            R_DrawFill32(x - 1, y - 1, sz + 2, sz + 2, VISOR_KEY_EDGE);
+            R_DrawFill32(x, y, sz, sz, i == here ? VISOR_KEY_HERE : VISOR_KEY);
+        }
+    }
     R_DrawFill32(tx0 + Q_rint(tw * prog) - 1, ty - pad / 2, 3, bar_h + pad, VISOR_HEAD);
 
-    // text line
-    format_demo_time(t_in, sizeof(t_in), frame);
-    Q_snprintf(left, sizeof(left), "%s  (%d%%)", t_in, Q_rint(prog * 100));
-
-    mid[0] = 0;
-    if (paused)
-        Q_strlcat(mid, "PAUSA   ", sizeof(mid));
-    if (CL_DemoSpeed() != 1.0f)
-        Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), sizeof(mid));
-    if (CL_CamPathRecording())
-        Q_strlcat(mid, "GRABANDO CAMARA   ", sizeof(mid));
-    if (Cvar_VariableInteger("xray"))
-        Q_strlcat(mid, "X-RAY   ", sizeof(mid));
-    if (CL_FreecamFlying())
-        Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), sizeof(mid));
-    else if (CL_FreecamActive() && !CL_ChaseTargetName())
-        Q_strlcat(mid, "RECORRIDO GRABADO", sizeof(mid));
-    else if (CL_ChaseFirstPerson())
-        Q_strlcat(mid, va("SIGUIENDO: %s (1a persona)", CL_ChaseTargetName()), sizeof(mid));
-    else if (CL_ChaseTargetName())
-        Q_strlcat(mid, va("SIGUIENDO: %s (dist. %g)", CL_ChaseTargetName(), CL_ChaseDistance()), sizeof(mid));
-    else if (CL_MvdThirdPerson())
-        Q_strlcat(mid, va("TERCERA PERSONA (dist. %g)", CL_ChaseDistance()), sizeof(mid));
-
-    format_demo_time(t_in, sizeof(t_in), in);
-    format_demo_time(t_out, sizeof(t_out), out);
-    Q_snprintf(right, sizeof(right), "INICIO %s  FIN %s   H: ayuda", t_in, t_out);
+    visor_texts(left, sizeof(left), mid, sizeof(mid), right, sizeof(right), frame, prog, paused);
 
     R_SetScale(s);
     {
@@ -2559,14 +2605,22 @@ static const helpline_t visor_help[] = {
     { "F",          "1a / 3a persona" },
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
-    { "V",          "Usar recorrido" },
+    { "V",          "Usar recorrido/puntos" },
     { "T",          "Siluetas (x-ray)" },
+    { "",           NULL },
+    { NULL,         "Puntos de camara" },
+    { "P",          "Poner punto aqui" },
+    { "L",          "Mirar al jugador" },
+    { "M",          "Curva / recta" },
+    { "U",          "Borrar punto" },
+    { "1 / 2",      "Punto ant. / sig." },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },
-    { "G",          "Grabar el clip" },
+    { "G",          "Grabar / detener" },
     { "Supr",       "Borrar marcas" },
     { "",           NULL },
+    { "Tab",        "Editor con mouse" },
     { "Esc",        "Menu / otro demo" },
 };
 
@@ -2585,6 +2639,8 @@ static const settingline_t visor_settings[] = {
     { "visor_chat",      "0 no, 1 si, 2 +avisos" },
     { "visor_feed_size", "letra, 0.5 a 3" },
     { "visor_bar",       "barra de tiempo" },
+    { "visor_editor",    "editor con mouse, Tab" },
+    { "visor_editor_size", "letra del editor" },
     { "visor_name",      "nick arriba" },
     { "s_volume",        "volumen, teclas , ." },
     { "",                NULL },
@@ -2769,6 +2825,12 @@ static void SCR_DrawFeed(void)
     game_hud = scr_draw2d->integer > 1 && !CL_CaptureHideHud() && !CL_FreecamHideHud();
     bar = !CL_CaptureActive() && visor_bar->integer && CL_DemoPosition(NULL, NULL, NULL);
 
+    if (!CL_CaptureActive() && CL_EditorPanelHeight()) {
+        // above the editor panel
+        int ch = max(Q_rint(CONCHAR_HEIGHT / scr.hud_scale), 1);
+        CL_FeedDraw(scr.font_pic, scr.hud_scale, false, (CL_EditorPanelHeight() + ch - 1) / ch);
+        return;
+    }
     CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, bar ? 3 : 0);
 }
 

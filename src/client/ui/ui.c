@@ -394,6 +394,8 @@ UI_MouseEvent
 */
 void UI_MouseEvent(int x, int y)
 {
+    CL_EditorMouseMove(x, y);   // VisorDemos editor: the mouse cursor
+
     x = Q_clip(x, 0, r_config.width - 1);
     y = Q_clip(y, 0, r_config.height - 1);
 

@@ -432,12 +432,19 @@ static void CamPath_Play_f(void)
     else
         playing = !playing;
 
-    if (playing && path.num < 2) {
-        SCR_CenterPrint("No hay recorrido de camara grabado (C para grabar)", false);
+    // V switches the camera points too
+    CL_KeyCamSetPlaying(playing);
+
+    if (playing && path.num < 2 && !CL_KeyCamHaveKeys()) {
+        SCR_CenterPrint("No hay recorrido ni puntos de camara (C para grabar, P para poner un punto)", false);
         return;
     }
-    SCR_CenterPrint(playing ? "Usando el recorrido de camara grabado"
-                            : "Recorrido de camara desactivado", false);
+    if (CL_KeyCamHaveKeys())
+        SCR_CenterPrint(playing ? "Usando los puntos y el recorrido de camara"
+                                : "Puntos y recorrido de camara desactivados", false);
+    else
+        SCR_CenterPrint(playing ? "Usando el recorrido de camara grabado"
+                                : "Recorrido de camara desactivado", false);
 }
 
 static void CamPath_Clear_f(void)

@@ -33,9 +33,11 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
    ```
    Quake2\
      VisorDemos.exe
+     VisorDemos Editor.bat
      asociar-demos.bat
      1-Instalacion.html
      2-Guia-de-uso.html
+     3-Tutorial-tomas.html
      LEEME.txt
      baseq2\visor.cfg
      baseq2\q2pro.menu
@@ -50,9 +52,12 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
    protegió su PC"*: **Más información → Ejecutar de todas formas** (el
    programa no tiene firma digital). Por defecto usa el mod D-Day; para otro
    mod, crea un acceso directo con `VisorDemos.exe +set game nombre_del_mod`.
+5. Para hacer clips con el mouse, abre **`VisorDemos Editor.bat`** (o
+   arrastra un demo sobre él): abre el visor en modo editor, con botones
+   (ver [Modo editor](#modo-editor-con-mouse)).
 
 **Actualizar a una versión nueva:** baja el `.zip` nuevo y reemplaza
-`VisorDemos.exe` y `baseq2\visor.cfg`. Tus videos, recorridos y ajustes se
+`VisorDemos.exe`, `VisorDemos Editor.bat` y `baseq2\visor.cfg`. Tus videos, recorridos y ajustes se
 mantienen.
 
 ### Linux
@@ -69,7 +74,7 @@ Luego, en la carpeta de VisorDemos:
 
 ```
 ./compilar.sh            # compila
-./instalar-linux.sh      # menu de aplicaciones + doble clic en .dm2/.mvd2
+./instalar-linux.sh      # menu de aplicaciones (VisorDemos y VisorDemos Editor) + doble clic en .dm2/.mvd2
 ./visor.sh               # abre el visor
 ```
 
@@ -88,7 +93,32 @@ los videos y los recorridos quedan en `~/.local/share/visordemos/<mod>/`.
 - en la consola (tecla **`**): `demo nombre_del_demo` (también sirve
   `map nombre_del_demo.dm2`).
 
-Dentro del demo presiona **H** para ver la ayuda con todas las teclas.
+Dentro del demo presiona **H** para ver la ayuda con todas las teclas, o
+**Tab** para usar el visor con el mouse.
+
+### Modo editor (con mouse)
+
+Si prefieres hacer los clips con el mouse, presiona **Tab** (o abre
+*VisorDemos Editor*). Abajo aparece un panel con botones y una barra de
+tiempo grande:
+
+- **Barra de tiempo**: haz clic o arrastra para ir a cualquier momento. Los
+  cuadraditos celestes son los puntos de cámara: clic en uno para ir a él.
+- **Botones**: hacen lo mismo que las teclas (pausa, ±10 s, frags,
+  velocidad, cámara libre, seguir jugadores, puntos de cámara, inicio y fin
+  del clip, grabar el clip...). Al pasar el mouse por encima, arriba del
+  panel dice qué hace cada uno y cuál es su tecla.
+- **Mover la cámara**: mantén el **clic derecho** sobre la imagen y mueve el
+  mouse para mirar; con el clic derecho apretado vuela con **W A S D**,
+  **Espacio** / **Ctrl** para subir / bajar y **Shift** para ir rápido. Al
+  soltar el clic vuelve el cursor.
+- Todas las teclas siguen funcionando. **Tab** vuelve a la barra simple; el
+  visor recuerda el último modo que usaste.
+- `visor_editor_size 1.5` agranda la letra del panel (0.5 a 3).
+
+El panel no sale en los videos. Paso a paso, con dibujos:
+[tutorial de tomas con movimiento](https://awho-coder.github.io/VisorDemos/tutorial-tomas.html)
+(también viene en el `.zip` como `3-Tutorial-tomas.html`).
 
 Para saber si estás en el visor: la ventana se llama **VisorDemos** y abajo
 aparece la barra con *H: AYUDA*. Si no ves eso, el demo se abrió con tu
@@ -115,16 +145,22 @@ Quake 2 normal.
 | **F** | Primera / tercera persona al ver a un jugador |
 | **R** | Volver a la vista de quien grabó el demo |
 | **C** | Grabar recorrido de cámara / terminar |
-| **V** | Usar el recorrido grabado sí / no |
+| **V** | Usar el recorrido grabado y los puntos de cámara sí / no |
+| **P** | Poner un punto de cámara aquí (o actualizarlo) |
+| **L** | El punto mira al jugador del centro de la pantalla / mirada libre |
+| **M** | Del punto al siguiente: curva suave / recta |
+| **U** | Borrar el punto de cámara |
+| **1 / 2** | Ir al punto de cámara anterior / siguiente |
 | **I** | Marcar inicio del clip |
 | **O** | Marcar fin del clip |
-| **G** | Grabar el clip a video |
+| **G** | Grabar el clip a video (si ya está grabando: detener) |
 | **Supr** | Borrar las marcas de inicio y fin |
 | **K** | Kill feed: sí / solo el jugador que ves / no |
 | **,** / **.** | Bajar / subir el volumen |
 | **J** | Chat: sí / con avisos del servidor / no |
 | **T** | X-ray: siluetas de los jugadores detrás de las paredes sí / no |
 | **H** | Mostrar / ocultar la ayuda (teclas a un lado, ajustes de consola con su valor al otro) |
+| **Tab** | Modo editor con mouse sí / no (botones y barra de tiempo con clic) |
 | **Esc** | Menú (*browse demos* para abrir otro demo, salir, etc.) |
 
 Las teclas están en `baseq2/visor.cfg`; puedes cambiarlas ahí.
@@ -137,7 +173,8 @@ texto de espectador de D-Day, que repetía lo mismo); si volabas libre, dice
 
 La barra de abajo muestra el tiempo, el estado (pausa, velocidad, cámara) y
 las marcas: **verde** = inicio, **rojo** = fin, **naranjo** = el clip,
-**azul** (línea fina) = tramo con recorrido de cámara grabado, **amarillo**
+**azul** (línea fina) = tramo con recorrido de cámara grabado, **celeste**
+(cuadraditos) = puntos de cámara, **amarillo**
 (rayitas arriba) = frags del jugador que ves o sigues, **rojo** (rayitas
 abajo) = sus muertes. Nada de esto sale en los videos.
 
@@ -156,6 +193,13 @@ abajo) = sus muertes. Nada de esto sale en los videos.
 5. Presiona **G**. El demo salta al inicio, se graba hasta el fin y se pausa.
    Arriba aparece "GRABANDO" con el porcentaje. Al terminar dice
    "Clip guardado".
+
+**Todo el demo de una vez:** en el modo editor, el botón **Demo completo**
+(o `clip_export_all` en la consola) graba el demo entero, del principio al
+final, sin marcar inicio ni fin. Usa la cámara que tengas (puntos de cámara,
+recorrido o seguir a un jugador). Para cortar antes: **Detener grabación** o
+**G**; lo grabado hasta ahí se guarda. El archivo se llama
+`<demo>_completo.mp4`. Al terminar, el demo se cierra como siempre.
 
 Los videos quedan en la carpeta **`videos`** del mod
 (`Quake2\dday\videos\` en Windows). Nunca se sobrescriben: si el nombre
@@ -191,6 +235,36 @@ Si un tramo no te gustó, vuelve a ese momento y graba solo ese tramo con
 **C**: se reemplaza únicamente esa parte. **V** activa o desactiva el
 recorrido. Los recorridos se guardan por demo en la carpeta `campaths` y se
 cargan solos la próxima vez que abras el mismo demo.
+
+### Puntos de cámara (como en Keygrip)
+
+En vez de actuar la toma, le dices al visor dónde tiene que estar la cámara
+en algunos momentos y él la mueve sola entre esos puntos, en una curva suave.
+
+1. Pausa (**flecha abajo**) donde empieza la toma, suelta la cámara
+   (**flecha arriba**) y ubícala.
+2. Presiona **P**: queda un punto (cuadradito celeste en la barra).
+3. Avanza el demo, mueve la cámara a la siguiente posición y presiona **P**
+   otra vez. Repite las veces que quieras.
+4. Vuelve al inicio y deja correr el demo: la cámara viaja sola por los
+   puntos (abajo dice *PUNTOS DE CAMARA*). Marca inicio y fin y graba con **G**.
+
+- **Seguir a un objetivo**: en un punto, apunta a un jugador (al centro de
+  la pantalla) y presiona **L**. Desde ese punto la cámara gira sola para
+  mirarlo mientras viaja. Si dos puntos miran a jugadores distintos, la
+  cámara pasa de uno a otro. **L** otra vez vuelve a la mirada libre.
+- **Corregir un punto**: **1 / 2** saltan al punto anterior / siguiente y
+  pausan. Mueve la cámara y presiona **P**: se actualiza. **U** lo borra.
+- **Agregar un punto en medio**: deja correr el demo y pausa donde quieras;
+  la cámara libre sigue desde donde iba. Muévela y presiona **P**.
+- **Curva o recta**: **M** cambia cómo va la cámara de ese punto al
+  siguiente.
+- Cada punto guarda también el zoom (`freecam_fov`), así que puedes hacer
+  acercamientos.
+
+Mientras el demo corre, los puntos mandan sobre la cámara; en pausa puedes
+mover la cámara libre para preparar el siguiente punto. **V** los apaga. Se
+guardan por demo en `campaths` (archivo `.keys`).
 
 ### X-ray: por qué no es un wallhack
 
@@ -294,7 +368,10 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
+| `keycam_aim_height` | `12` | Altura sobre el jugador a la que miran los puntos con **L** |
 | `visor_bar` | `1` | `0` = ocultar la barra de tiempo |
+| `visor_editor` | `0` | `1` = modo editor con mouse (también con **Tab**) |
+| `visor_editor_size` | `1` | Tamaño de la letra del panel del editor (0.5 a 3) |
 | `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
 | `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
 | `xray_color` | `team` | Color de las siluetas del x-ray: `team` = por equipo, o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white` |
@@ -302,8 +379,9 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `xray_alpha` | `0.45` | Opacidad de las siluetas (0.1 a 1) |
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
+`clip_export_all` (todo el demo), `clip_stop` (detener la grabación),
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
-`demo_speed 0.5`, `campath_clear`.
+`demo_speed 0.5`, `campath_clear`, `keycam_clear` (borra todos los puntos de cámara).
 
 Para mejor calidad de imagen el visor usa la ventana tal como la tengas.
 Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
@@ -324,7 +402,7 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   que con la cámara libre no se ve a ese jugador.
 - **MVD**: la cámara libre y el seguimiento usan los modos propios de MVD
   (flecha arriba = volar / seguir, E / Q = cambiar de jugador). El recorrido
-  de cámara (C / V) por ahora solo funciona con `.dm2`.
+  y los puntos de cámara (C, P, V) por ahora solo funcionan con `.dm2`.
 - **El video no tiene sonido**: el audio se graba con el sonido por
   software. En la consola: `s_enable 1`, luego `snd_restart`.
 - **"cambió el tamaño de la ventana"**: no cambies el tamaño de la ventana

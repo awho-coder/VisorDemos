@@ -70,6 +70,7 @@ bool CL_CaptureActive(void);
 unsigned CL_CaptureFrameMsec(void);
 void CL_RestartFilesystem(bool total);
 void CL_Activate(active_t active);
+void CL_EditorMouseMove(int x, int y);
 void CL_UpdateUserinfo(cvar_t *var, from_t from);
 void CL_SendStatusRequest(const netadr_t *address);
 bool CL_GetDemoInfo(const char *path, demoInfo_t *info);
