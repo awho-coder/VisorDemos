@@ -189,6 +189,8 @@
     <span style="--c:var(--clip)">el clip</span>
     <span style="--c:var(--path)">recorrido de cámara grabado</span>
     <span style="--c:#00dce6">puntos de cámara (cuadraditos sobre la barra)</span>
+    <span style="--c:#b46cff">tramo en cámara lenta</span>
+    <span style="--c:#ff7a3c">lanzamientos de granadas, cohetes y cuchillos (en el editor)</span>
     <span style="--c:#ffd200">frags del jugador que ves (rayitas arriba)</span>
     <span style="--c:#ff2d2d">sus muertes (rayitas abajo)</span>
   </div>
@@ -197,64 +199,100 @@
 
   <h3 id="editor-mouse">Modo editor: todo con el mouse</h3>
   <p>Presiona <kbd>Tab</kbd> (o abre <code>VisorDemos Editor.bat</code>) y la barra se
-  cambia por un panel con botones, al estilo de Keygrip:</p>
+  cambia por un panel abajo y dos paneles chicos sobre la imagen, al estilo de Keygrip:</p>
   <ul>
     <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en
-    un cuadradito celeste (punto de cámara) para ir a ese punto.</li>
-    <li><strong>Botones</strong> agrupados en filas (ver la tabla de abajo). Hacen lo mismo que
-    las teclas; al pasar el mouse por encima, arriba del panel aparece qué hace cada uno y su
-    tecla. Los que están encendidos (pausa, x-ray, mirar jugador...) se ven en celeste; los
-    grises no se pueden usar en ese momento.</li>
+    un cuadradito celeste (punto de cámara) para ir a ese punto. Los tramos en cámara lenta se
+    pintan en morado y los lanzamientos de granadas, cohetes y cuchillos son rayitas naranjas abajo.</li>
+    <li><strong>Fila fija:</strong> reproducción, velocidad, volumen y, a la derecha,
+    <em>Abrir demo</em>, <em>Ayuda</em> y <em>Ocultar editor</em>.</li>
+    <li><strong>Pestañas:</strong> <strong>CAMARA</strong>, <strong>PUNTOS</strong>, <strong>VER</strong>,
+    <strong>VIDEO</strong> y <strong>AJUSTES</strong>. <strong>VER</strong> cambia lo que sale en la pantalla y
+    <strong>VIDEO</strong> lo que sale en los videos, con los mismos botones en el mismo orden.</li>
+    <li><strong>Panel izquierdo:</strong> la lista de <strong>PUNTOS</strong> (clic para ir a uno) o de
+    <strong>JUGADORES</strong> (clic para seguirlo; en gris los que no están en el demo en ese momento).</li>
+    <li><strong>Panel derecho:</strong> los ajustes del punto donde estás (movimiento, objetivo,
+    velocidad, campo de visión, actualizar, borrar) o de lo que estás siguiendo.</li>
+    <li><strong>Botones:</strong> hacen lo mismo que las teclas; al pasar el mouse por encima, arriba del
+    panel aparece qué hace cada uno y su tecla. Los encendidos se ven en celeste; los grises no se
+    pueden usar en ese momento. Los números tienen <strong>−</strong> / <strong>+</strong> a los lados.</li>
+    <li><strong>Clic izquierdo sobre la imagen:</strong> sigue al jugador, granada, cohete o cuchillo que
+    está bajo el mouse.</li>
     <li><strong>Mover la cámara:</strong> mantén el <strong>clic derecho</strong> sobre la imagen
     y mueve el mouse para mirar; mientras lo mantienes, vuela con <kbd>W</kbd> <kbd>A</kbd>
     <kbd>S</kbd> <kbd>D</kbd>, <kbd>Espacio</kbd> / <kbd>Ctrl</kbd> y <kbd>Shift</kbd>. Al
-    soltarlo vuelve el cursor.</li>
+    soltarlo vuelve el cursor. Siguiendo un proyectil, el clic derecho gira la cámara alrededor de él.</li>
   </ul>
   <p>Las teclas siguen funcionando igual. <kbd>Tab</kbd> vuelve a la barra simple y el visor
-  recuerda el último modo. Si la letra se ve chica: <code>visor_editor_size 1.5</code> en la
-  consola. El panel no sale en los videos.</p>
+  recuerda el último modo y la última pestaña. El panel no sale en los videos.</p>
   <h3 id="botones">Botones del modo editor</h3>
   <div class="scroll">
   <table class="ref">
-    <thead><tr><th>Fila</th><th>Botón</th><th>Qué hace</th><th>Tecla</th></tr></thead>
+    <thead><tr><th>Dónde</th><th>Botón</th><th>Qué hace</th><th>Tecla</th></tr></thead>
     <tbody>
-      <tr><td>Reproducir</td><td><strong>−10 s</strong> / <strong>+10 s</strong></td><td>Retroceder / adelantar 10 segundos</td><td>Flechas izquierda / derecha</td></tr>
-      <tr><td>Reproducir</td><td><strong>&lt; Frag</strong> / <strong>Frag &gt;</strong></td><td>Frag o muerte anterior / siguiente del jugador que ves (sin jugador: de todos)</td><td>B / N</td></tr>
-      <tr><td>Reproducir</td><td><strong>|| Pausa</strong> / <strong>&gt; Seguir</strong></td><td>Pausa / continuar (en pausa se ve en celeste)</td><td>Flecha abajo</td></tr>
-      <tr><td>Velocidad</td><td><strong>−</strong> / <strong>+</strong></td><td>Más lento (cámara lenta) / más rápido, de x0.1 a x4</td><td>Z / X</td></tr>
-      <tr><td>Velocidad</td><td><strong>x1</strong> (muestra la velocidad)</td><td>Volver a la velocidad normal</td><td>Retroceso</td></tr>
-      <tr><td>Volumen</td><td><strong>−</strong> / <strong>+</strong></td><td>Bajar / subir el volumen del visor</td><td>, / .</td></tr>
-      <tr><td>Cámara</td><td><strong>Libre</strong></td><td>Cámara libre sí / no (también: clic derecho mantenido)</td><td>Flecha arriba</td></tr>
-      <tr><td>Cámara</td><td><strong>&lt; Jugador</strong> / <strong>Jugador &gt;</strong></td><td>Seguir al jugador anterior / siguiente</td><td>Q / E</td></tr>
-      <tr><td>Cámara</td><td><strong>1a / 3a</strong></td><td>Primera / tercera persona al seguir a alguien</td><td>F</td></tr>
-      <tr><td>Cámara</td><td><strong>Original</strong></td><td>Volver a la vista de quien grabó el demo</td><td>R</td></tr>
-      <tr><td>Cámara</td><td><strong>X-ray</strong></td><td>Siluetas de los jugadores detrás de las paredes</td><td>T</td></tr>
-      <tr><td>En pantalla</td><td><strong>Muertes</strong></td><td>Kill feed <strong>en pantalla</strong>: sí / solo el jugador (dice "Muertes: jugador") / no. No cambia el video</td><td>K</td></tr>
-      <tr><td>En pantalla</td><td><strong>Chat</strong></td><td>Chat <strong>en pantalla</strong>: sí / con avisos del servidor (dice "Chat + avisos") / no. No cambia el video</td><td>J</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>+ Punto</strong> / <strong>Actualizar punto</strong></td><td>Poner un punto de cámara aquí con lo que ves; si ya hay uno aquí, lo actualiza</td><td>P</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>&lt; Punto</strong> / <strong>Punto &gt;</strong></td><td>Ir al punto anterior / siguiente (y pausar)</td><td>1 / 2</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>Mirar jugador</strong></td><td>El punto de aquí mira al jugador del centro de la pantalla / vuelve a mirada libre</td><td>L</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>Curva</strong> / <strong>Recta</strong></td><td>Del punto de aquí al siguiente: curva suave o línea recta</td><td>M</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>Borrar punto</strong></td><td>Borrar el punto de cámara de aquí</td><td>U</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>Usar cámara</strong></td><td>Usar los puntos y el recorrido grabado sí / no</td><td>V</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>Grabar recorrido</strong> / <strong>Terminar</strong></td><td>Grabar la cámara mientras corre el demo / terminar</td><td>C</td></tr>
-      <tr><td>Puntos de cámara</td><td><strong>BORRAR TODO</strong></td><td>Borra todos los puntos y el recorrido grabado de este demo. Pide un segundo clic en <strong>SI, BORRAR TODO</strong> (4 segundos)</td><td>—</td></tr>
-      <tr><td>Clip</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
-      <tr><td>Clip</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
-      <tr><td>Clip</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
-      <tr><td>Clip</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
-      <tr><td>En el video</td><td><strong>Muertes</strong></td><td>Kill feed <strong>en los videos</strong>: sí / solo el jugador / no. No cambia la pantalla</td><td>—</td></tr>
-      <tr><td>En el video</td><td><strong>Chat</strong></td><td>Chat <strong>en los videos</strong>: sí / con avisos del servidor / no. No cambia la pantalla</td><td>—</td></tr>
-      <tr><td>(al final)</td><td><strong>Abrir demo</strong></td><td>Elegir otro demo</td><td>Esc</td></tr>
-      <tr><td>(al final)</td><td><strong>Ayuda</strong></td><td>Mostrar / ocultar la ayuda con teclas y ajustes</td><td>H</td></tr>
-      <tr><td>(al final)</td><td><strong>Ocultar editor</strong></td><td>Volver a la barra simple y al teclado</td><td>Tab</td></tr>
+      <tr><td>Fila fija</td><td><strong>−10 s</strong> / <strong>+10 s</strong></td><td>Retroceder / adelantar 10 segundos</td><td>Flechas izquierda / derecha</td></tr>
+      <tr><td>Fila fija</td><td><strong>&lt; Frag</strong> / <strong>Frag &gt;</strong></td><td>Frag o muerte anterior / siguiente del jugador que ves (sin jugador: de todos)</td><td>B / N</td></tr>
+      <tr><td>Fila fija</td><td><strong>|| Pausa</strong> / <strong>&gt; Seguir</strong></td><td>Pausa / continuar (en pausa se ve en celeste)</td><td>Flecha abajo</td></tr>
+      <tr><td>Fila fija</td><td>Velocidad <strong>−</strong> / <strong>+</strong></td><td>Más lento (cámara lenta) / más rápido, de x0.1 a x4</td><td>Z / X</td></tr>
+      <tr><td>Fila fija</td><td>Velocidad <strong>x1</strong> (muestra la velocidad)</td><td>Volver a la velocidad normal</td><td>Retroceso</td></tr>
+      <tr><td>Fila fija</td><td>Volumen <strong>−</strong> / <strong>+</strong></td><td>Bajar / subir el volumen del visor (en medio, el volumen en %)</td><td>, / .</td></tr>
+      <tr><td>Fila fija</td><td><strong>Abrir demo</strong></td><td>Elegir otro demo</td><td>Esc</td></tr>
+      <tr><td>Fila fija</td><td><strong>Ayuda</strong></td><td>Mostrar / ocultar la ayuda con teclas y ajustes</td><td>H</td></tr>
+      <tr><td>Fila fija</td><td><strong>Ocultar editor</strong></td><td>Volver a la barra simple y al teclado</td><td>Tab</td></tr>
+      <tr><td>CAMARA</td><td><strong>Libre</strong></td><td>Cámara libre sí / no (también: clic derecho mantenido)</td><td>Flecha arriba</td></tr>
+      <tr><td>CAMARA</td><td><strong>&lt; Jugador</strong> / <strong>Jugador &gt;</strong></td><td>Seguir al jugador anterior / siguiente</td><td>Q / E</td></tr>
+      <tr><td>CAMARA</td><td><strong>1a / 3a</strong></td><td>Primera / tercera persona al seguir a alguien</td><td>F</td></tr>
+      <tr><td>CAMARA</td><td><strong>Original</strong></td><td>Volver a la vista de quien grabó el demo</td><td>R</td></tr>
+      <tr><td>CAMARA</td><td><strong>&lt; Proyectil</strong> / <strong>Proyectil &gt;</strong></td><td>Ir a la granada, cohete o cuchillo lanzado anterior / siguiente y seguirlo</td><td>—</td></tr>
+      <tr><td>CAMARA</td><td><strong>Seguir proyectil</strong></td><td>Seguir el proyectil del centro de la pantalla (también: clic sobre él)</td><td>5</td></tr>
+      <tr><td>CAMARA</td><td><strong>Angulo: atras</strong></td><td>La cámara vuelve justo detrás del proyectil, un poco arriba</td><td>—</td></tr>
+      <tr><td>CAMARA</td><td><strong>DISTANCIA</strong> / <strong>ALTURA</strong> − +</td><td>Distancia y altura de la cámara al seguir a un jugador en tercera persona</td><td>Rueda del mouse (distancia)</td></tr>
+      <tr><td>CAMARA</td><td><strong>FOV</strong> − +</td><td>Campo de visión de la cámara libre (menos = más zoom)</td><td>—</td></tr>
+      <tr><td>CAMARA</td><td><strong>VUELO</strong> − +</td><td>Velocidad de la cámara libre</td><td>Rueda del mouse</td></tr>
+      <tr><td>CAMARA</td><td><strong>PROYECTIL</strong> − +</td><td>Distancia de la cámara al seguir un proyectil</td><td>—</td></tr>
+      <tr><td>PUNTOS</td><td><strong>+ Punto</strong> / <strong>Actualizar punto</strong></td><td>Poner un punto de cámara aquí con lo que ves; si ya hay uno aquí, lo actualiza</td><td>P</td></tr>
+      <tr><td>PUNTOS</td><td><strong>&lt; Punto</strong> / <strong>Punto &gt;</strong></td><td>Ir al punto anterior / siguiente: pausa y pone la cámara en la vista del punto</td><td>1 / 2</td></tr>
+      <tr><td>PUNTOS</td><td><strong>Usar camara</strong></td><td>Usar los puntos y el recorrido grabado sí / no</td><td>V</td></tr>
+      <tr><td>PUNTOS</td><td><strong>Grabar recorrido</strong> / <strong>Terminar</strong></td><td>Grabar la cámara mientras corre el demo / terminar</td><td>C</td></tr>
+      <tr><td>PUNTOS</td><td><strong>Ver recorrido</strong></td><td>Dibuja en el mapa la línea por donde pasa la cámara y una marca donde mira cada punto (no sale en el video)</td><td>—</td></tr>
+      <tr><td>PUNTOS</td><td><strong>BORRAR TODO</strong></td><td>Borra todos los puntos y el recorrido grabado de este demo. Pide un segundo clic en <strong>SI, BORRAR TODO</strong> (4 segundos)</td><td>—</td></tr>
+      <tr><td>VER</td><td><strong>X-ray</strong></td><td>Siluetas de los jugadores detrás de las paredes</td><td>T</td></tr>
+      <tr><td>VER</td><td><strong>Estelas: todos / el que sigo / no</strong></td><td>Estelas de los proyectiles <strong>en pantalla</strong></td><td>6</td></tr>
+      <tr><td>VER</td><td><strong>Nombres</strong></td><td>Nicks sobre los jugadores <strong>en pantalla</strong></td><td>Y</td></tr>
+      <tr><td>VER</td><td><strong>Muertes</strong></td><td>Kill feed <strong>en pantalla</strong>: sí / solo el jugador (dice "Muertes: jugador") / no</td><td>K</td></tr>
+      <tr><td>VER</td><td><strong>Chat</strong></td><td>Chat <strong>en pantalla</strong>: sí / con avisos del servidor (dice "Chat + avisos") / no</td><td>J</td></tr>
+      <tr><td>VER</td><td><strong>HUD</strong></td><td>HUD del juego en pantalla con la cámara libre o siguiendo a alguien</td><td>—</td></tr>
+      <tr><td>VER</td><td><strong>Nick arriba</strong></td><td>Nick del jugador que ves, arriba al centro</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
+      <tr><td>VIDEO</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
+      <tr><td>VIDEO</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
+      <tr><td>VIDEO</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>Estelas</strong>, <strong>Nombres</strong>, <strong>Muertes</strong>, <strong>Chat</strong>, <strong>HUD</strong>, <strong>Nick arriba</strong></td><td>Lo mismo que en VER, pero <strong>en los videos</strong> (no cambian la pantalla)</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>CALIDAD</strong> − +</td><td>Calidad del video (alta / media / baja; más alta = archivo más grande)</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>FPS</strong> − +</td><td>Cuadros por segundo del video</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>PANEL</strong> / <strong>KILL FEED</strong> − +</td><td>Tamaño de la letra del editor / del kill feed y el chat</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>MOUSE</strong> − +</td><td>Sensibilidad del mouse al mover la cámara</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>NOMBRES MIN</strong> / <strong>MAX</strong> − +</td><td>Tamaño de los nombres lejos / cerca</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>ESTELA</strong> / <strong>GROSOR</strong> − +</td><td>Cuánto dura y qué tan gruesa es la estela</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>Color: por tipo</strong></td><td>Color de las estelas: por tipo o uno solo (cambia con cada clic)</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>X-RAY</strong> − + / <strong>Color: por equipo</strong></td><td>Opacidad del x-ray / colores por equipo o uno solo</td><td>—</td></tr>
+      <tr><td>AJUSTES</td><td><strong>Paneles a los lados</strong></td><td>Mostrar / ocultar los paneles izquierdo y derecho</td><td>—</td></tr>
+      <tr><td>Panel izquierdo</td><td><strong>PUNTOS</strong> / <strong>JUGADORES</strong></td><td>Lista de puntos (clic: ir al punto) o de jugadores (clic: seguirlo)</td><td>—</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Movimiento: Curva / Recta</strong></td><td>Del punto al siguiente: curva suave o línea recta</td><td>M</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Objetivo: Nada / Mira a / Sigue a</strong></td><td>Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás hasta el punto siguiente, o nada</td><td>L</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Seguir proyectil</strong></td><td>Del punto al siguiente, seguir la granada, cohete o cuchillo que sigues o del centro de la pantalla</td><td>—</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Velocidad</strong> − +</td><td>Cámara lenta de este punto al siguiente (efecto Matrix), x0.05 a x4</td><td>3 / 4</td></tr>
+      <tr><td>Panel derecho</td><td><strong>FOV</strong> − +</td><td>Campo de visión del punto (menos = más zoom)</td><td>—</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Actualizar</strong> / <strong>Borrar</strong></td><td>Guardar en el punto lo que ves ahora / borrarlo</td><td>P / U</td></tr>
+      <tr><td>Panel derecho (siguiendo un proyectil)</td><td><strong>Atras</strong>, <strong>Distancia</strong>, <strong>Camara libre</strong>, <strong>Original</strong></td><td>Volver al ángulo de atrás, alejar / acercar, dejar de seguirlo</td><td>—</td></tr>
       <tr><td>Mientras graba</td><td><strong>DETENER GRABACION</strong></td><td>Es el único botón mientras se graba: corta y guarda lo grabado</td><td>G</td></tr>
     </tbody>
   </table>
   </div>
-  <p>Los botones de puntos de cámara y de recorrido solo funcionan con demos <code>.dm2</code>
-  (con <code>.mvd2</code> se ven grises). <strong>Curva / Recta</strong> y <strong>Borrar punto</strong>
-  se activan cuando estás justo en un punto (clic en su cuadradito, o <kbd>1</kbd> / <kbd>2</kbd>).</p>
+  <p>Si ocultas los paneles a los lados, los botones del punto (<strong>Curva / Recta</strong>,
+  <strong>Mirar jugador</strong>, <strong>Borrar punto</strong>) aparecen en la pestaña <strong>PUNTOS</strong>.
+  Los botones de puntos de cámara, recorrido y proyectiles solo funcionan con demos <code>.dm2</code>
+  (con <code>.mvd2</code> se ven grises).</p>
   <p>Paso a paso, con dibujos: <a href="https://awho-coder.github.io/VisorDemos/tutorial-tomas.html">tutorial de tomas con movimiento</a> (en el <code>.zip</code>: <code>3-Tutorial-tomas.html</code>).</p>
 
   <h2 id="teclas">3. Teclas</h2>
@@ -298,16 +336,20 @@
       <h3>Puntos de cámara</h3>
       <table>
         <tr><td><kbd>P</kbd></td><td>Poner un punto aquí (o actualizarlo)</td></tr>
-        <tr><td><kbd>L</kbd></td><td>El punto mira al jugador del centro / mirada libre</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Objetivo: mirar al jugador del centro → seguirlo → nada</td></tr>
         <tr><td><kbd>M</kbd></td><td>Hasta el siguiente punto: curva o recta</td></tr>
         <tr><td><kbd>U</kbd></td><td>Borrar el punto</td></tr>
-        <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Ir al punto anterior / siguiente</td></tr>
+        <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Ir al punto anterior / siguiente (queda en su vista)</td></tr>
+        <tr><td><kbd>3</kbd> / <kbd>4</kbd></td><td>Cámara lenta hasta el siguiente punto: más lento / más rápido</td></tr>
       </table>
     </div>
     <div class="card">
       <h3>Otros</h3>
       <table>
-        <tr><td><kbd>Tab</kbd></td><td>Modo editor con mouse: botones y barra de tiempo con clic</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>Modo editor con mouse: pestañas, listas y barra de tiempo con clic</td></tr>
+        <tr><td><kbd>5</kbd></td><td>Seguir la granada, cohete o cuchillo del centro de la pantalla</td></tr>
+        <tr><td><kbd>6</kbd></td><td>Estelas de los proyectiles: todos / el que sigues / no</td></tr>
+        <tr><td><kbd>Y</kbd></td><td>Nombres sobre los jugadores sí / no</td></tr>
         <tr><td><kbd>H</kbd></td><td>Ayuda en pantalla: las teclas a un lado y los ajustes de consola, con su valor actual, al otro</td></tr>
         <tr><td><kbd>K</kbd></td><td>Kill feed: sí / solo el jugador que ves / no</td></tr>
         <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Bajar / subir el volumen</td></tr>
@@ -371,6 +413,37 @@
   jugador, la rueda acerca o aleja la cámara.</p>
   <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
   se ve el zoom del rifle de francotirador.</p>
+  <h3 id="proyectiles">Seguir granadas, cohetes y cuchillos</h3>
+  <p>Al abrir un demo el visor guarda el vuelo de cada granada, cohete y cuchillo lanzado. Para
+  seguir uno:</p>
+  <ul>
+    <li><strong>&lt; Proyectil / Proyectil &gt;</strong> (pestaña CAMARA) saltan al lanzamiento anterior /
+    siguiente y lo siguen. En la barra son las rayitas naranjas.</li>
+    <li>O busca el momento, pausa y haz <strong>clic izquierdo</strong> sobre el proyectil (modo editor),
+    o apunta con el centro de la pantalla y presiona <kbd>5</kbd>.</li>
+  </ul>
+  <p>La cámara va detrás, un poco arriba. Con el <strong>clic derecho mantenido</strong> la giras
+  alrededor del proyectil y queda en ese ángulo durante todo el vuelo; <strong>Angulo: atras</strong>
+  la devuelve. Cuando explota, la cámara mira el lugar 1,5 segundos y pasa a cámara libre ahí mismo.
+  <code>proj_list</code> en la consola lista todos los lanzamientos.</p>
+  <p>Para un clip, usa un punto de cámara: siguiendo el proyectil presiona <kbd>P</kbd> (el punto lo
+  sigue hasta el punto siguiente), o en un punto usa <strong>Seguir proyectil</strong> del panel derecho.</p>
+  <div class="note">Las balas no se pueden seguir: el juego no las manda como objetos. En un
+  <code>.dm2</code>, si el proyectil se aleja de quien grabó, desaparece del demo.</div>
+
+  <h3 id="estelas">Estelas</h3>
+  <p>Detrás de cada proyectil queda una <strong>estela tipo láser</strong> que se va apagando:
+  naranja los cohetes, verde las granadas, blanca los cuchillos. La del que sigues es el doble de
+  gruesa. <kbd>6</kbd> (o <strong>Estelas</strong> en VER / VIDEO) cambia entre <em>todos</em>,
+  <em>solo el que sigo</em> y <em>no</em>. Duración, grosor y color están en AJUSTES. Salen en los
+  videos salvo que las apagues en la pestaña VIDEO.</p>
+
+  <h3 id="nombres">Nombres sobre los jugadores</h3>
+  <p><kbd>Y</kbd> (o <strong>Nombres</strong> en VER) muestra el nick de cada jugador sobre su cabeza,
+  con el color de su equipo, también detrás de las paredes. Los lejanos se ven más chicos, sin bajar
+  del tamaño mínimo ni pasar del máximo (<strong>NOMBRES MIN / MAX</strong> en AJUSTES). En los videos se
+  activan aparte, con <strong>Nombres</strong> en la pestaña VIDEO.</p>
+
   <h3 id="xray">X-ray: por qué no es un wallhack</h3>
   <p>Con <kbd>T</kbd> el visor dibuja a los jugadores que están detrás de las paredes como una
   silueta de color (azul los Aliados, rojo el Eje). Sirve para entender una jugada, ver por dónde
@@ -421,24 +494,44 @@
     (abajo dice <em>PUNTOS DE CAMARA</em>). Marca inicio y fin y graba con <kbd>G</kbd>.</li>
   </ol>
   <ul>
-    <li><strong>Seguir a un objetivo:</strong> con la cámara en un punto, apunta a un jugador
+    <li><strong>Mirar o seguir a un jugador:</strong> con la cámara en un punto, apunta a un jugador
     (que quede al centro de la pantalla) y presiona <kbd>L</kbd>. Desde ese punto la cámara
     gira sola para mirarlo mientras viaja. Si dos puntos miran a jugadores distintos, la
-    cámara pasa de uno a otro. <kbd>L</kbd> otra vez vuelve a la mirada libre.</li>
-    <li><strong>Corregir un punto:</strong> <kbd>1</kbd> / <kbd>2</kbd> saltan al punto
-    anterior / siguiente y pausan. Mueve la cámara y presiona <kbd>P</kbd>: se actualiza.
-    <kbd>U</kbd> lo borra.</li>
+    cámara pasa de uno a otro. <kbd>L</kbd> otra vez hace que lo <strong>siga</strong> desde atrás
+    hasta el punto siguiente; una tercera vez vuelve a la mirada libre.</li>
+    <li><strong>Corregir un punto:</strong> <kbd>1</kbd> / <kbd>2</kbd> (o un clic en la lista o en su
+    cuadradito) saltan al punto, pausan y dejan la cámara <strong>exactamente en la vista guardada</strong>.
+    Muévela desde ahí y presiona <kbd>P</kbd>: se actualiza. <kbd>U</kbd> lo borra.</li>
     <li><strong>Agregar un punto en medio:</strong> deja correr el demo y pausa donde
     quieras; la cámara libre sigue desde donde iba. Muévela y presiona <kbd>P</kbd>.</li>
     <li><strong>Curva o recta:</strong> <kbd>M</kbd> cambia cómo va la cámara de ese punto al
     siguiente: en curva suave (lo normal) o en línea recta a velocidad pareja.</li>
-    <li>Cada punto guarda también el zoom (<code>freecam_fov</code>) que tenías, así que
+    <li>Cada punto guarda también el zoom (<strong>FOV</strong> en el panel derecho), así que
     puedes hacer acercamientos.</li>
+    <li><strong>Ver recorrido</strong> (pestaña PUNTOS) dibuja en el mapa la línea por donde pasará
+    la cámara y una marca donde mira cada punto.</li>
   </ul>
-  <div class="note">Mientras el demo corre, los puntos mandan sobre la cámara. En pausa
-  puedes mover la cámara libre para preparar el siguiente punto. Para ver el
+  <div class="note">Mientras el demo corre, los puntos mandan sobre la cámara. En pausa también se
+  ve la vista de los puntos, hasta que muevas la cámara: desde ahí puedes preparar el siguiente punto. Para ver el
   demo sin los puntos, apágalos con <kbd>V</kbd>. Se guardan solos por demo en la
   carpeta <code>campaths</code> (archivo <code>.keys</code>).</div>
+
+  <h3 id="lenta">Cámara lenta por tramo (efecto Matrix)</h3>
+  <p>Cada punto de cámara tiene una <strong>velocidad</strong> que vale hasta el punto siguiente. La
+  cámara recorre el tramo en tiempo de video, así que con <strong>x0.2</strong> se mueve a su ritmo
+  normal mientras el juego va cinco veces más lento.</p>
+  <ol class="steps">
+    <li>Ve al punto donde empieza la parte lenta (<kbd>1</kbd> / <kbd>2</kbd>).</li>
+    <li>Presiona <kbd>3</kbd> (más lento) o <kbd>4</kbd> (más rápido), o usa <strong>Velocidad − +</strong>
+    en el panel derecho. Va de x0.05 a x4.</li>
+    <li>Deja correr el demo con los puntos activos (<kbd>V</kbd>): al llegar a ese punto el juego se
+    frena de a poco, y al llegar al siguiente vuelve a la velocidad normal.</li>
+  </ol>
+  <p>En la barra el tramo lento se pinta morado y arriba dice <em>TRAMO x0.2</em>. Los clips lo
+  graban tal cual: un tramo de 1 segundo a x0.2 dura 5 segundos en el video. Si además pusiste una
+  velocidad con <kbd>Z</kbd> / <kbd>X</kbd>, las dos se multiplican.</p>
+  <div class="note">El demo trae 10 cuadros por segundo: a x0.1 o menos los movimientos de los
+  jugadores se ven algo rectos.</div>
 
   <h2 id="feed">7. Muertes y chat</h2>
   <p>Mientras miras el demo, arriba a la derecha aparece quién mató a quién, en corto:
@@ -449,9 +542,9 @@
   <p>Se rigen por el tiempo del demo: en pausa se quedan en pantalla y en cámara lenta duran más.
   Reemplazan a las líneas de texto que el juego ponía arriba a la izquierda.</p>
   <p>Con <kbd>K</kbd> cambias el kill feed (sí / solo el jugador que ves / no) y con <kbd>J</kbd>
-  el chat (sí / con avisos del servidor / no); en el modo editor son los botones de <em>En pantalla</em>.
-  Lo que sale en el video se elige aparte: en el modo editor, con los botones <strong>En el video:
-  Muertes / Chat</strong> de la fila <em>Clip</em>, o en la consola:</p>
+  el chat (sí / con avisos del servidor / no); en el modo editor son los botones de la pestaña <strong>VER</strong>.
+  Lo que sale en el video se elige aparte: en el modo editor, con los botones <strong>Muertes /
+  Chat</strong> de la pestaña <strong>VIDEO</strong>, o en la consola:</p>
   <ul>
     <li><code>visor_killfeed 2</code>: solo las muertes del jugador que ves o sigues.</li>
     <li><code>visor_chat 2</code>: el chat más los avisos del servidor.</li>
@@ -524,6 +617,24 @@
       <tr><td><code>xray_color</code></td><td>team</td><td>Color de las siluetas del x-ray: <code>team</code> = por equipo, o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code></td></tr>
       <tr><td><code>xray_color_allies</code> / <code>xray_color_axis</code></td><td>blue / red</td><td>Colores de Aliados y Eje con <code>xray_color team</code></td></tr>
       <tr><td><code>xray_alpha</code></td><td>0.45</td><td>Opacidad de las siluetas (0.1 a 1)</td></tr>
+          <tr><td><code>keycam_show</code></td><td><code>0</code></td><td><code>1</code> = dibujar en el mapa el recorrido de los puntos (<strong>Ver recorrido</strong>)</td></tr>
+      <tr><td><code>chase_height</code></td><td><code>28</code></td><td>Altura de la cámara al seguir a un jugador en tercera persona</td></tr>
+      <tr><td><code>visor_names</code></td><td><code>1</code></td><td>Nombres sobre los jugadores en pantalla (también con <strong>Y</strong>)</td></tr>
+      <tr><td><code>clip_names</code></td><td><code>0</code></td><td><code>1</code> = nombres sobre los jugadores en el video</td></tr>
+      <tr><td><code>names_min</code> / <code>names_max</code></td><td><code>12</code> / <code>24</code></td><td>Tamaño de los nombres lejos / cerca (alto de la letra en píxeles, en una imagen de 1080 líneas)</td></tr>
+      <tr><td><code>names_dist</code></td><td><code>400</code></td><td>Hasta esta distancia los nombres se ven del tamaño máximo</td></tr>
+      <tr><td><code>visor_trails</code></td><td><code>1</code></td><td>Estelas de los proyectiles en pantalla: <code>1</code> todos, <code>2</code> solo el que sigues, <code>0</code> no (también con <strong>6</strong>)</td></tr>
+      <tr><td><code>clip_trails</code></td><td><code>1</code></td><td>Lo mismo, en el video</td></tr>
+      <tr><td><code>trail_time</code></td><td><code>2</code></td><td>Segundos que dura la estela</td></tr>
+      <tr><td><code>trail_width</code></td><td><code>3</code></td><td>Grosor de la estela (la del proyectil que sigues es el doble)</td></tr>
+      <tr><td><code>trail_color</code></td><td><code>tipo</code></td><td><code>tipo</code> = cohete naranjo, granada verde, cuchillo blanco; o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code>, <code>orange</code></td></tr>
+      <tr><td><code>follow_dist</code></td><td><code>90</code></td><td>Distancia de la cámara al proyectil que sigues</td></tr>
+      <tr><td><code>follow_pitch</code></td><td><code>15</code></td><td>Ángulo desde arriba al empezar a seguir un proyectil (grados)</td></tr>
+      <tr><td><code>follow_hold</code></td><td><code>1.5</code></td><td>Segundos que la cámara mira donde explotó el proyectil antes de pasar a cámara libre</td></tr>
+      <tr><td><code>proj_models</code></td><td><code>rocket masher grenade knife</code></td><td>Partes del nombre del modelo que cuentan como proyectil</td></tr>
+      <tr><td><code>visor_editor_tab</code></td><td><code>1</code></td><td>Pestaña abierta del editor: <code>0</code> CAMARA, <code>1</code> PUNTOS, <code>2</code> VER, <code>3</code> VIDEO, <code>4</code> AJUSTES</td></tr>
+      <tr><td><code>visor_editor_list</code></td><td><code>0</code></td><td>Lista del panel izquierdo: <code>0</code> puntos, <code>1</code> jugadores</td></tr>
+      <tr><td><code>visor_editor_sides</code></td><td><code>1</code></td><td><code>0</code> = ocultar los paneles izquierdo y derecho del editor</td></tr>
     </tbody>
   </table>
 
@@ -549,7 +660,7 @@
       <tr><td><code>campath_play</code></td><td>V</td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
       <tr><td><code>campath_clear</code></td><td>—</td><td>Borrar el recorrido grabado de este demo</td></tr>
       <tr><td><code>keycam_add</code></td><td>P</td><td>Poner un punto de cámara aquí (o actualizar el de aquí)</td></tr>
-      <tr><td><code>keycam_target</code></td><td>L</td><td>El punto mira al jugador del centro / mirada libre</td></tr>
+      <tr><td><code>keycam_target</code></td><td>L</td><td>Objetivo del punto: mirar al jugador del centro → seguirlo → nada</td></tr>
       <tr><td><code>keycam_mode</code></td><td>M</td><td>Del punto al siguiente: curva / recta</td></tr>
       <tr><td><code>keycam_delete</code></td><td>U</td><td>Borrar el punto de aquí</td></tr>
       <tr><td><code>keycam_prev</code> / <code>keycam_next</code></td><td>1 / 2</td><td>Ir al punto anterior / siguiente</td></tr>
@@ -569,6 +680,17 @@
       <tr><td><code>visor_help</code></td><td>H</td><td>Mostrar / ocultar la ayuda</td></tr>
       <tr><td><code>toggle visor_editor</code></td><td>Tab</td><td>Modo editor con mouse sí / no</td></tr>
       <tr><td><code>demo nombre</code></td><td>—</td><td>Abrir un demo</td></tr>
+      <tr><td><code>chase_player 5</code></td><td>—</td><td>Seguir al jugador 5 (<code>visor_players</code> muestra los números)</td></tr>
+      <tr><td><code>follow</code> / <code>follow 3</code></td><td>5</td><td>Seguir el proyectil del centro de la pantalla / el número 3 de <code>proj_list</code></td></tr>
+      <tr><td><code>follow_angle</code></td><td>—</td><td>Cámara de nuevo justo detrás del proyectil</td></tr>
+      <tr><td><code>proj_next</code> / <code>proj_prev</code></td><td>—</td><td>Ir al siguiente / anterior lanzamiento y seguirlo</td></tr>
+      <tr><td><code>proj_list</code></td><td>—</td><td>Lista en la consola las granadas, cohetes y cuchillos del demo</td></tr>
+      <tr><td><code>keycam_follow_proj</code></td><td>—</td><td>Del punto al siguiente, seguir el proyectil que sigues o del centro (otra vez: dejar de seguirlo)</td></tr>
+      <tr><td><code>keycam_speed down</code> / <code>up</code> / <code>reset</code> / <code>0.2</code></td><td>3 / 4</td><td>Cámara lenta del punto al siguiente (x0.05 a x4)</td></tr>
+      <tr><td><code>keycam_fov -5</code> / <code>keycam_fov 5</code></td><td>—</td><td>Cambiar el campo de visión del punto de aquí</td></tr>
+      <tr><td><code>names_toggle</code> / <code>names_toggle clip</code></td><td>Y / —</td><td>Nombres sobre los jugadores en pantalla / en el video</td></tr>
+      <tr><td><code>trails_toggle</code> / <code>trails_toggle clip</code></td><td>6 / —</td><td>Estelas en pantalla / en el video: todos / el que sigues / no</td></tr>
+      <tr><td><code>visor_step ajuste cambio mín máx</code></td><td>—</td><td>Lo que hacen los botones − / +, por ejemplo <code>visor_step chase_dist 10 16 1000</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -584,7 +706,9 @@
     <li>En algunos servidores el <code>.dm2</code> no incluye el cuerpo de quien grabó: con cámara
     libre no se le ve.</li>
     <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>
-    cambian de jugador. El recorrido y los puntos de cámara (<kbd>C</kbd>, <kbd>P</kbd>, <kbd>V</kbd>) por ahora son solo para <code>.dm2</code>.</li>
+    cambian de jugador. El recorrido, los puntos de cámara (<kbd>C</kbd>, <kbd>P</kbd>, <kbd>V</kbd>), la cámara lenta por tramo y seguir proyectiles por ahora son solo para <code>.dm2</code>.</li>
+    <li><strong>Proyectiles:</strong> en un <code>.dm2</code> solo están los que pasaron cerca de quien grabó;
+    si uno se aleja, desaparece del demo (y su estela se corta). Las balas no se pueden seguir.</li>
     <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
     <li><strong>Partes negras en el clip:</strong> la cámara pasó por dentro de una pared o quedó fuera
     del mapa (por ejemplo, un punto de cámara mal ubicado). Mueve ese punto a un lugar dentro del mapa.</li>
