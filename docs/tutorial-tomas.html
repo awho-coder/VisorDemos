@@ -105,6 +105,20 @@ ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .row .lbl { width: 140px; color: var(--panel-label); text-transform: uppercase; }
 .row .lbl.in { width: auto; margin-left: 12px; }
 .row .sp { width: 14px; }
+.row .grow { flex: 1; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid #3a3c48; }
+.tabs span { padding: 6px 12px; color: var(--panel-label); text-transform: uppercase; }
+.tabs span.on { color: var(--panel-fg); background: #1e2029; box-shadow: inset 0 -2px 0 #00dce6; }
+.track .slow { position: absolute; top: -4px; height: 20px; left: 38%; width: 14%; background: rgba(180,108,255,.6); }
+.sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; align-items: start; }
+.side { background: var(--panel); color: var(--panel-fg); padding: 10px 12px; display: grid; gap: 6px;
+  font: 500 12px/1.2 var(--display); letter-spacing: .05em; text-transform: uppercase; border-radius: 4px; min-width: 0; }
+.side .t { color: #ffc85a; }
+.side .li { padding: 3px 6px; color: var(--panel-label); }
+.side .li.on { background: var(--panel-on); color: var(--panel-fg); }
+.side .pr { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.side .pr > span:first-child { width: 90px; color: var(--panel-label); }
+@media (max-width: 560px) { .sides { grid-template-columns: 1fr; } }
 figcaption { color: var(--muted); font-size: 15px; margin-top: 8px; }
 figure { margin: 0; }
 
@@ -153,27 +167,46 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     botones como en cualquier programa. Al pasar el mouse por un botón, la línea de arriba
     dice qué hace y su tecla.</p>
     <figure>
-      <div class="panel-wrap" role="img" aria-label="Panel del modo editor: línea de ayuda, tiempo, barra de tiempo con puntos de cámara y cuatro filas de botones">
+      <div class="panel-wrap" role="img" aria-label="Panel del modo editor: línea de ayuda, tiempo, barra de tiempo con puntos de cámara, fila fija de reproducción, pestañas y los botones de la pestaña PUNTOS">
         <div class="panel">
           <div class="tip">Poner un punto de cámara aquí con lo que ves &nbsp;[P]</div>
-          <div class="status"><span>1:04.0 (3%)</span><span>Pausa &nbsp; Punto 2 (total 3) &nbsp; Puntos de cámara</span><span>Inicio 0:58.0 &nbsp;Fin 1:20.0</span></div>
+          <div class="status"><span>1:04.0 (3%)</span><span>Pausa &nbsp; Punto 2 (total 3), x0.25 &nbsp; Puntos de cámara</span><span>Inicio 0:58.0 &nbsp;Fin 1:20.0</span></div>
           <div class="track">
-            <div class="played"></div><div class="clip"></div><div class="keys-line"></div>
+            <div class="played"></div><div class="clip"></div><div class="keys-line"></div><div class="slow"></div>
             <div class="frag" style="left:12%"></div><div class="frag" style="left:47%"></div><div class="frag" style="left:71%"></div>
             <div class="key" style="left:32%"></div><div class="key here" style="left:38%"></div><div class="key" style="left:52%"></div>
             <div class="head"></div>
           </div>
-          <div class="row"><span class="lbl">Reproducir</span><span class="btn">-10 s</span><span class="btn">&lt; Frag</span><span class="btn on">&gt; Seguir</span><span class="btn">Frag &gt;</span><span class="btn">+10 s</span><span class="sp"></span><span class="btn">-</span><span class="btn">x1</span><span class="btn">+</span></div>
-          <div class="row"><span class="lbl">Cámara</span><span class="btn on">Libre</span><span class="btn">&lt; Jugador</span><span class="btn">Jugador &gt;</span><span class="btn">1a / 3a</span><span class="btn">Original</span><span class="btn">X-ray</span><span class="lbl in">En pantalla</span><span class="btn on">Muertes</span><span class="btn on">Chat</span></div>
-          <div class="row"><span class="lbl">Puntos de cámara</span><span class="btn">Actualizar punto</span><span class="btn">&lt; Punto</span><span class="btn">Punto &gt;</span><span class="btn on">Mirar jugador</span><span class="btn">Curva</span><span class="btn">Borrar punto</span><span class="btn on">Usar cámara</span><span class="btn">Grabar recorrido</span><span class="btn rec">Borrar todo</span></div>
-          <div class="row"><span class="lbl">Clip</span><span class="btn">Inicio</span><span class="btn">Fin</span><span class="btn">Borrar marcas</span><span class="btn rec">Grabar clip</span><span class="btn rec">Demo completo</span><span class="lbl in">En el video</span><span class="btn on">Muertes</span><span class="btn">Chat</span><span class="sp"></span><span class="btn">Abrir demo</span><span class="btn">Ayuda</span></div>
+          <div class="row"><span class="btn">-10 s</span><span class="btn">&lt; Frag</span><span class="btn on">&gt; Seguir</span><span class="btn">Frag &gt;</span><span class="btn">+10 s</span><span class="sp"></span><span class="btn">-</span><span class="btn">x1</span><span class="btn">+</span><span class="grow"></span><span class="btn">Abrir demo</span><span class="btn">Ayuda</span></div>
+          <div class="tabs"><span>Cámara</span><span class="on">Puntos</span><span>Ver</span><span>Video</span><span>Ajustes</span></div>
+          <div class="row"><span class="btn">Actualizar punto</span><span class="btn">&lt; Punto</span><span class="btn">Punto &gt;</span><span class="btn on">Usar cámara</span><span class="btn">Grabar recorrido</span><span class="btn">Ver recorrido</span><span class="btn rec">Borrar todo</span></div>
         </div>
       </div>
-      <figcaption>Los botones en celeste están encendidos. Los cuadraditos celestes sobre la barra son los puntos de cámara (el blanco es el punto donde estás). En el celular puedes deslizar la imagen hacia el lado.</figcaption>
+      <figcaption>Los botones en celeste están encendidos. Los cuadraditos celestes sobre la barra son los puntos de cámara (el blanco es el punto donde estás); el tramo morado va en cámara lenta. En el celular puedes deslizar la imagen hacia el lado.</figcaption>
     </figure>
+    <p>Sobre la imagen hay dos paneles chicos: a la izquierda la lista de puntos (o de jugadores), y
+    a la derecha los ajustes del punto donde estás.</p>
+    <div class="sides" role="img" aria-label="Panel izquierdo con la lista de puntos y panel derecho con los ajustes del punto 2">
+      <div class="side">
+        <div><span class="btn on">Puntos</span> <span class="btn">Jugadores</span></div>
+        <div class="li">1 &nbsp; 0:58.0</div>
+        <div class="li on">2 &nbsp; 1:04.0 x0.25 sigue Hans</div>
+        <div class="li">3 &nbsp; 1:09.5 recta</div>
+      </div>
+      <div class="side">
+        <div class="t">Punto 2 de 3</div>
+        <div class="pr"><span>Movimiento</span><span class="btn">Curva</span></div>
+        <div class="pr"><span>Objetivo</span><span class="btn on">Sigue a Hans</span></div>
+        <div class="pr"><span>Velocidad</span><span class="btn">-</span><span>x0.25</span><span class="btn">+</span></div>
+        <div class="pr"><span>FOV</span><span class="btn">-</span><span>90</span><span class="btn">+</span></div>
+        <div class="pr"><span></span><span class="btn">Actualizar</span><span class="btn">Borrar</span></div>
+      </div>
+    </div>
     <ul class="plain">
-      <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en un cuadradito para ir a ese punto.</li>
+      <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en un cuadradito (o en la lista) para ir a ese punto.</li>
+      <li><strong>Pestañas:</strong> <strong>Cámara</strong> (modos de cámara, proyectiles), <strong>Puntos</strong>, <strong>Ver</strong> (lo que sale en pantalla), <strong>Video</strong> (grabar y lo que sale en el video) y <strong>Ajustes</strong>.</li>
       <li><strong>Mover la cámara:</strong> mantén el <strong>clic derecho</strong> apretado sobre la imagen y mueve el mouse para mirar. Mientras lo mantienes, vuela con <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, sube y baja con <kbd>Espacio</kbd> / <kbd>Ctrl</kbd>, y ve más rápido con <kbd>Shift</kbd>. Al soltar el clic vuelve el cursor.</li>
+      <li><strong>Clic izquierdo</strong> sobre un jugador o una granada en la imagen: seguirlo.</li>
       <li><strong>Rueda del mouse</strong> sobre la imagen: velocidad de la cámara libre.</li>
     </ul>
   </section>
@@ -221,33 +254,56 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       <li><div>Avanza unos segundos (<span class="btn">+10 s</span>, o deja correr el demo y vuelve a pausar). Mueve la cámara a la siguiente posición y otra vez <span class="btn">+ Punto</span>. Repite las veces que quieras.</div></li>
       <li><div>Vuelve al primer punto (clic en su cuadradito) y dale <span class="btn">&gt; Seguir</span>: la cámara viaja sola por los puntos y abajo dice <em>PUNTOS DE CAMARA</em>.</div></li>
     </ol>
-    <p class="note"><strong>Corregir un punto:</strong> clic en su cuadradito (o <span class="btn">&lt; Punto</span> / <span class="btn">Punto &gt;</span>), mueve la cámara y clic en <span class="btn">Actualizar punto</span>.
+    <p class="note"><strong>Corregir un punto:</strong> clic en su cuadradito (o en la lista, o <span class="btn">&lt; Punto</span> / <span class="btn">Punto &gt;</span>): la cámara queda exactamente en la vista que guardaste. Muévela desde ahí y clic en <span class="btn">Actualizar punto</span>.
     <strong>Agregar uno en medio:</strong> deja correr el demo, pausa donde quieras (la cámara sigue desde donde iba), muévela y pon el punto.
-    <strong>Recta en vez de curva:</strong> <span class="btn">Curva</span> cambia cómo va la cámara de ese punto al siguiente.
+    <strong>Ver por dónde pasa:</strong> <span class="btn">Ver recorrido</span> dibuja la línea de la cámara en el mapa.
+    <strong>Recta en vez de curva:</strong> <span class="btn">Curva</span> (panel derecho) cambia cómo va la cámara de ese punto al siguiente.
     <strong>Empezar de cero:</strong> <span class="btn rec">Borrar todo</span> borra todos los puntos y el recorrido grabado de ese demo. Pide un segundo clic en <span class="btn rec">Sí, borrar todo</span> para que no lo borres por accidente.</p>
   </section>
 
   <section>
-    <h2>4. Seguir a un jugador</h2>
+    <h2>4. Mirar o seguir a un jugador</h2>
     <p>Para la toma clásica en la que la cámara se mueve pero siempre mira al jugador:</p>
     <ol class="steps">
       <li><div>Ve a un punto de cámara (o pon uno nuevo).</div></li>
       <li><div>Con el clic derecho, apunta la cámara al jugador para que quede <strong>al centro de la pantalla</strong>.</div></li>
-      <li><div>Clic en <span class="btn">Mirar jugador</span> (o <kbd>L</kbd>). El botón queda celeste y abajo dice <em>mira a</em> y su nick.</div></li>
+      <li><div>En el panel derecho, clic en <span class="btn">Nada</span> junto a <em>Objetivo</em> (o <kbd>L</kbd>). Ahora dice <span class="btn on">Mira a</span> y su nick.</div></li>
     </ol>
     <p>Desde ese punto la cámara gira sola para no perderlo mientras viaja. Si un punto mira a un
-    jugador y el siguiente a otro, la cámara pasa de uno al otro. Un segundo clic en
-    <span class="btn">Mirar jugador</span> vuelve a la mirada libre.</p>
+    jugador y el siguiente a otro, la cámara pasa de uno al otro. Un segundo clic cambia a
+    <span class="btn on">Sigue a</span>: hasta el punto siguiente la cámara va <strong>detrás</strong> del
+    jugador, entrando y saliendo de a poco. Un tercer clic vuelve a <span class="btn">Nada</span>.</p>
   </section>
 
   <section>
-    <h2>5. Grabar el clip</h2>
+    <h2>5. Cámara lenta en un tramo (efecto Matrix)</h2>
+    <ol class="steps">
+      <li><div>Ve al punto donde quieres que empiece la cámara lenta.</div></li>
+      <li><div>En el panel derecho, <em>Velocidad</em>: clic en <span class="btn">-</span> hasta x0.25 (o <kbd>3</kbd>).</div></li>
+      <li><div>Reproduce: al llegar a ese punto el juego se frena de a poco y la cámara sigue moviéndose a su ritmo hasta el punto siguiente, donde todo vuelve a la velocidad normal.</div></li>
+    </ol>
+    <p class="note">El tramo lento se ve morado en la barra. El clip lo graba igual: un segundo a x0.25 dura cuatro en el video.</p>
+  </section>
+
+  <section>
+    <h2>6. Seguir una granada o un cohete</h2>
+    <ol class="steps">
+      <li><div>Pestaña <span class="btn">Cámara</span>, clic en <span class="btn">Proyectil &gt;</span>: salta al siguiente lanzamiento (las rayitas naranjas de la barra) y la cámara se pone detrás de la granada.</div></li>
+      <li><div>O pausa justo cuando vuela y haz <strong>clic izquierdo</strong> sobre ella.</div></li>
+      <li><div>Para cambiar el ángulo, mantén el clic derecho y mueve el mouse: queda así todo el vuelo. <span class="btn">Angulo: atras</span> lo devuelve.</div></li>
+      <li><div>Para el clip: mientras la sigues, pon un punto (<span class="btn">+ Punto</span>); ese punto la sigue hasta el siguiente.</div></li>
+    </ol>
+    <p class="note">Detrás de cada proyectil queda una estela tipo láser (pestaña <span class="btn">Ver</span>, botón <span class="btn on">Estelas</span>, o <kbd>6</kbd>). Con <kbd>Y</kbd> salen los nombres sobre los jugadores.</p>
+  </section>
+
+  <section>
+    <h2>7. Grabar el clip</h2>
     <ol class="steps">
       <li><div>Ve al comienzo de la toma y clic en <span class="btn">Inicio</span>. Ve al final y clic en <span class="btn">Fin</span>. En la barra queda el tramo en naranjo.</div></li>
       <li><div>Clic en <span class="btn rec">Grabar clip</span>. El demo salta al inicio, graba hasta el fin y se pausa. Arriba aparece "GRABANDO" con el porcentaje.</div></li>
       <li><div>El video queda en <code>Quake2\dday\videos\</code>: MP4 1080p a 60 fps, listo para el editor de video. El panel no sale en el video.</div></li>
     </ol>
-    <p class="note"><strong>Kill feed y chat en el video:</strong> se eligen con los botones de <em>En el video</em> (fila Clip). Los de <em>En pantalla</em> (fila Cámara) y las teclas K / J solo cambian lo que ves mientras editas. Por defecto el video lleva el kill feed y no el chat.</p>
+    <p class="note"><strong>Kill feed, chat, nombres y estelas en el video:</strong> se eligen con los botones de la pestaña <em>Video</em>. Los de la pestaña <em>Ver</em> y las teclas K / J / Y / 6 solo cambian lo que ves mientras editas. Por defecto el video lleva el kill feed y las estelas, y no el chat ni los nombres.</p>
     <p class="note">Mientras graba, el juego puede verse más lento o más rápido que lo normal. El video sale perfecto igual, porque se arma cuadro a cuadro.</p>
     <h3>Todo el demo de una vez</h3>
     <p>Si quieres el demo entero en video, sin marcar nada: clic en <span class="btn rec">Demo completo</span>.
@@ -262,10 +318,11 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       <table>
         <tr><td class="grp" colspan="2">Puntos de cámara</td></tr>
         <tr><td><kbd>P</kbd></td><td>Poner un punto aquí (o actualizar el de aquí)</td></tr>
-        <tr><td><kbd>L</kbd></td><td>El punto mira al jugador del centro de la pantalla / mirada libre</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Objetivo del punto: mira al jugador del centro → lo sigue → nada</td></tr>
         <tr><td><kbd>M</kbd></td><td>Del punto al siguiente: curva o recta</td></tr>
         <tr><td><kbd>U</kbd></td><td>Borrar el punto</td></tr>
-        <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>Ir al punto anterior / siguiente</td></tr>
+        <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>Ir al punto anterior / siguiente (queda en su vista)</td></tr>
+        <tr><td><kbd>3</kbd> <kbd>4</kbd></td><td>Cámara lenta hasta el siguiente punto: más lento / más rápido</td></tr>
         <tr><td><kbd>V</kbd></td><td>Usar los puntos sí / no</td></tr>
         <tr><td class="grp" colspan="2">Lo demás</td></tr>
         <tr><td><kbd>Tab</kbd></td><td>Modo editor con mouse sí / no</td></tr>
@@ -274,9 +331,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
         <tr><td><kbd>Z</kbd> <kbd>X</kbd></td><td>Más lento / más rápido</td></tr>
         <tr><td><kbd>↑</kbd></td><td>Cámara libre sí / no</td></tr>
         <tr><td><kbd>E</kbd> <kbd>Q</kbd></td><td>Seguir al jugador siguiente / anterior</td></tr>
+        <tr><td><kbd>5</kbd></td><td>Seguir la granada, cohete o cuchillo del centro</td></tr>
+        <tr><td><kbd>6</kbd></td><td>Estelas: todos / el que sigues / no</td></tr>
+        <tr><td><kbd>Y</kbd></td><td>Nombres sobre los jugadores</td></tr>
         <tr><td><kbd>I</kbd> <kbd>O</kbd></td><td>Inicio / fin del clip</td></tr>
         <tr><td><kbd>G</kbd></td><td>Grabar el clip (grabando: detener)</td></tr>
-        <tr><td><kbd>K</kbd> <kbd>J</kbd></td><td>Kill feed / chat en pantalla (lo del video se elige con los botones <em>En el video</em>)</td></tr>
+        <tr><td><kbd>K</kbd> <kbd>J</kbd></td><td>Kill feed / chat en pantalla (lo del video se elige en la pestaña <em>Video</em>)</td></tr>
         <tr><td><kbd>H</kbd></td><td>Ayuda con todas las teclas</td></tr>
       </table>
     </div>
@@ -288,7 +348,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   <section>
     <h2>Límites de esta versión</h2>
     <ul class="plain">
-      <li>Los puntos de cámara funcionan con demos <code>.dm2</code>. Con <code>.mvd2</code> el editor y los botones sirven, pero los puntos todavía no.</li>
+      <li>Los puntos de cámara, la cámara lenta por tramo y seguir proyectiles funcionan con demos <code>.dm2</code>. Con <code>.mvd2</code> el editor y los botones sirven, pero eso todavía no.</li>
       <li>En un <code>.dm2</code> solo aparecen los jugadores que veía quien grabó. Si el jugador que sigues sale de esa zona, la cámara apunta a donde lo vio por última vez.</li>
       <li>Si la letra del panel se ve chica: abre la consola (<kbd>`</kbd>, al lado del 1) y escribe <code>visor_editor_size 1.5</code>.</li>
     </ul>
