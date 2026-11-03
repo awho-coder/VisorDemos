@@ -92,6 +92,8 @@ static struct {
     int64_t             apts;
 
     float               saved_volume;
+    char                saved_clear[16];    // gl_clear before recording
+
     char                filename[MAX_OSPATH];
 } cap;
 
@@ -695,6 +697,12 @@ static bool capture_start(const char *name)
     Cvar_Set("cl_paused", "0");
     CL_CheckForPause();
 
+    // clear the screen before each frame: where the camera sees nothing
+    // (outside the map, inside a wall) the last frame would stay, with the
+    // console and the editor panel drawn on it, and end up in the video
+    Q_strlcpy(cap.saved_clear, Cvar_VariableString("gl_clear"), sizeof(cap.saved_clear));
+    Cvar_Set("gl_clear", "1");
+
     cap.state = CAP_RUNNING;
 
     Com_Printf("Grabando %dx%d a %d fps en %s\n", cap.width, cap.height, cap.fps, cap.filename);
@@ -714,6 +722,7 @@ static void capture_stop(void)
     capture_close();
 
     set_cvar_now("s_volume", cap.saved_volume);
+    Cvar_Set("gl_clear", cap.saved_clear[0] ? cap.saved_clear : "0");
     S_StopAllSounds();
 
     if (cap.failed && !cap.vframes) {
