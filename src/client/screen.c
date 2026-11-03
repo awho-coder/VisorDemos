@@ -2451,6 +2451,8 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
         Q_strlcat(mid, "PUNTOS DE CAMARA", mid_size);
     else if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), mid_size);
+    else if (CL_FreecamProj() >= 0)
+        Q_strlcat(mid, va("SIGUIENDO: %s", CL_ProjName(CL_FreecamProj())), mid_size);
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", mid_size);
     else if (CL_ChaseFirstPerson())
@@ -2605,6 +2607,7 @@ static const helpline_t visor_help[] = {
     { "Rueda",      "Velocidad / distancia" },
     { "E / Q",      "Seguir jugador" },
     { "F",          "1a / 3a persona" },
+    { "5",          "Seguir proyectil" },
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
     { "V",          "Usar recorrido/puntos" },

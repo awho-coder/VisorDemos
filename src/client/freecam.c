@@ -32,7 +32,8 @@ GNU General Public License for more details.
 typedef enum {
     CAM_OFF,
     CAM_FREE,
-    CAM_CHASE
+    CAM_CHASE,
+    CAM_PROJ        // behind a projectile (proj.c)
 } cammode_t;
 
 static struct {
@@ -49,6 +50,8 @@ static struct {
     bool        preview;    // paused: the camera points show their view until
                             // the camera is moved
     vec3_t      set_ang;    // view angles left by the last frame, to see the mouse
+    int         proj;       // projectile followed
+    vec2_t      proj_off;   // turn from straight behind it: pitch (down), yaw
 } fc;
 
 static cvar_t   *freecam_speed;
@@ -59,6 +62,9 @@ static cvar_t   *freecam_fov;
 static cvar_t   *chase_dist;
 static cvar_t   *chase_height;
 static cvar_t   *chase_auto;
+static cvar_t   *follow_dist;
+static cvar_t   *follow_pitch;
+static cvar_t   *follow_hold;
 
 static bool     path_driving;   // a recorded camera path moves the view
 static bool     keys_driving;   // the camera points move the view
@@ -483,6 +489,44 @@ static bool player_position(int num, vec3_t out, float *yaw)
     return true;
 }
 
+/*
+===============
+CL_ChasePose
+
+Camera behind player `num` now, like the chase camera in third person but
+without the mouse (for camera points that follow a player). The player's
+turns are smoothed so the camera doesn't shake.
+===============
+*/
+bool CL_ChasePose(int num, vec3_t org, vec3_t ang)
+{
+    static const vec3_t mins = { -4, -4, -4 };
+    static const vec3_t maxs = {  4,  4,  4 };
+    static float yaw_s[MAX_CLIENTS + 1];
+    static unsigned last[MAX_CLIENTS + 1];
+    vec3_t pos, fwd, wanted;
+    trace_t tr;
+    float yaw, dt;
+
+    if (num < 1 || num > MAX_CLIENTS || !player_position(num, pos, &yaw))
+        return false;
+
+    dt = (cls.realtime - last[num]) * 0.001f;
+    last[num] = cls.realtime;
+    if (dt > 0.5f || chase_auto->value <= 0)
+        yaw_s[num] = yaw;
+    else
+        yaw_s[num] += angle_delta(yaw, yaw_s[num]) * (1.0f - expf(-dt / chase_auto->value));
+
+    pos[2] += chase_height->value;
+    VectorSet(ang, 15, yaw_s[num], 0);
+    AngleVectors(ang, fwd, NULL, NULL);
+    VectorMA(pos, -Cvar_ClampValue(chase_dist, 16, 1000), fwd, wanted);
+    CL_Trace(&tr, pos, wanted, mins, maxs, CONTENTS_SOLID);
+    VectorCopy(tr.endpos, org);
+    return true;
+}
+
 // for the camera points: where a player is now (their origin)
 bool CL_PlayerPosition(int num, vec3_t out)
 {
@@ -782,6 +826,90 @@ static void chase_view(void)
 
 /*
 ===============
+proj_view
+
+Behind a projectile. The mouse turns the camera around it and the turn
+stays the same for the rest of the flight. When it explodes the camera
+waits there follow_hold seconds and turns into the free camera.
+===============
+*/
+static void proj_view(void)
+{
+    vec3_t org, ang;
+    float since;
+    int state = CL_ProjState(fc.proj, &since);
+
+    // the mouse moved the view since the last frame: that is the new turn
+    fc.proj_off[0] = Q_clipf(fc.proj_off[0] + cl.viewangles[PITCH] - fc.set_ang[PITCH], -80, 85);
+    fc.proj_off[1] += angle_delta(cl.viewangles[YAW], fc.set_ang[YAW]);
+
+    if (state == 2) {
+        if (since * CL_FRAMETIME > Cvar_ClampValue(follow_hold, 0, 30) * 1000) {
+            set_mode(CAM_FREE);
+            SCR_CenterPrint("Camara libre donde termino el proyectil", false);
+        }
+        return;     // stays where it was, looking at the spot
+    }
+
+    if (!CL_ProjFollowPose(fc.proj, fc.proj_off, Cvar_ClampValue(follow_dist, 16, 1000), org, ang))
+        return;
+    VectorCopy(org, fc.origin);
+    VectorCopy(ang, cl.viewangles);
+}
+
+// follow projectile `id` (proj.c), straight behind it and a bit above
+void CL_FreecamFollowProj(int id)
+{
+    if (!can_detach())
+        return;
+    if (fc.mode != CAM_PROJ)
+        fc.back = chase_active() ? fc.target : 0;
+    set_mode(CAM_PROJ);
+    fc.proj = id;
+    fc.proj_off[0] = follow_pitch->value;
+    fc.proj_off[1] = 0;
+    VectorCopy(cl.viewangles, fc.set_ang);
+    SCR_CenterPrint(va("Siguiendo: %s", CL_ProjName(id)), false);
+}
+
+// projectile followed now, -1 none
+int CL_FreecamProj(void)
+{
+    return fc.mode == CAM_PROJ && live_active() ? fc.proj : -1;
+}
+
+// follow [n]: the projectile in the middle of the screen (key 5)
+static void Follow_f(void)
+{
+    vec3_t fwd;
+    int id;
+
+    if (!can_detach())
+        return;
+    if (Cmd_Argc() > 1) {
+        id = Q_atoi(Cmd_Argv(1)) - 1;
+    } else {
+        AngleVectors(cl.refdef.viewangles, fwd, NULL, NULL);
+        id = CL_ProjAtRay(fwd);
+    }
+    if (id < 0) {
+        SCR_CenterPrint("No hay un proyectil en vuelo al centro de la pantalla\n"
+                        "(< Proyectil > buscan los lanzamientos)", false);
+        return;
+    }
+    CL_FreecamFollowProj(id);
+}
+
+// follow_angle: back to straight behind the projectile, a bit above
+static void Follow_Angle_f(void)
+{
+    fc.proj_off[0] = follow_pitch->value;
+    fc.proj_off[1] = 0;
+    SCR_CenterPrint("Camara detras del proyectil", false);
+}
+
+/*
+===============
 eyes_view
 
 First person of a player other than the recorder. The demo only has their
@@ -943,7 +1071,9 @@ void CL_FreecamView(void)
         }
     } else if (live_active()) {
         // the user is moving the camera
-        if (fc.mode == CAM_CHASE && fc.third)
+        if (fc.mode == CAM_PROJ)
+            proj_view();
+        else if (fc.mode == CAM_CHASE && fc.third)
             chase_view();
         else if (fc.mode == CAM_CHASE)
             eyes_view();
@@ -1082,8 +1212,16 @@ static int player_at(int x, int y)
 // left click on the image in editor mode: follow what is under the mouse
 void CL_EditorClickView(int x, int y)
 {
-    int num = player_at(x, y);
+    vec3_t dir;
+    int num, id;
 
+    if (cls.demo.playback && cls.state == ca_active && screen_ray(x, y, dir) &&
+        (id = CL_ProjAtRay(dir)) >= 0) {
+        CL_FreecamFollowProj(id);
+        return;
+    }
+
+    num = player_at(x, y);
     if (num)
         Cbuf_InsertText(&cmd_buffer, va("chase_player %d\n", num));
 }
@@ -1093,12 +1231,24 @@ const char *CL_EditorViewTip(void)
 {
     static char buf[96];
     int num = player_at(CL_EditorMouseX(), CL_EditorMouseY());
+    vec3_t dir;
+    int id;
+
+    if (cls.demo.playback && cls.state == ca_active &&
+        screen_ray(CL_EditorMouseX(), CL_EditorMouseY(), dir) && (id = CL_ProjAtRay(dir)) >= 0) {
+        Q_snprintf(buf, sizeof(buf), "Clic: seguir esta %s", CL_ProjName(id));
+        if (!strcmp(CL_ProjName(id), "cohete") || !strcmp(CL_ProjName(id), "cuchillo"))
+            Q_snprintf(buf, sizeof(buf), "Clic: seguir este %s", CL_ProjName(id));
+        return buf;
+    }
 
     if (num) {
         Q_snprintf(buf, sizeof(buf), "Clic: seguir a %s", cl.clientinfo[num - 1].name);
         return buf;
     }
-    return "Clic en un jugador: seguirlo.  Clic derecho mantenido: mover la camara.  Tab: ocultar el editor";
+    if (CL_FreecamProj() >= 0)
+        return "Clic derecho mantenido: girar la camara alrededor del proyectil.  Tab: ocultar el editor";
+    return "Clic en un jugador o un proyectil: seguirlo.  Clic derecho mantenido: mover la camara";
 }
 
 // a seek: paused on a moment the camera points cover, show their view
@@ -1121,6 +1271,8 @@ static const cmdreg_t c_freecam[] = {
     { "camera_speed", Camera_Speed_f },
     { "camera_view", Camera_View_f },
     { "chase_player", Chase_Player_f },
+    { "follow", Follow_f },
+    { "follow_angle", Follow_Angle_f },
     { NULL }
 };
 
@@ -1140,6 +1292,9 @@ void CL_InitFreecam(void)
     chase_dist = Cvar_Get("chase_dist", "110", CVAR_ARCHIVE);
     chase_height = Cvar_Get("chase_height", "28", CVAR_ARCHIVE);
     chase_auto = Cvar_Get("chase_auto", "0.6", CVAR_ARCHIVE);
+    follow_dist = Cvar_Get("follow_dist", "90", CVAR_ARCHIVE);
+    follow_pitch = Cvar_Get("follow_pitch", "15", CVAR_ARCHIVE);
+    follow_hold = Cvar_Get("follow_hold", "1.5", CVAR_ARCHIVE);
 
     Cmd_Register(c_freecam);
 }

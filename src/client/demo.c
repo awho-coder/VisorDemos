@@ -1211,6 +1211,8 @@ static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
         if (parse_demo_message(true))
             goto done;
         CL_EmitDemoSnapshot();
+        if (demo_indexing)
+            CL_ProjIndexFrame();
     }
 
     Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
@@ -1396,9 +1398,11 @@ static void CL_DemoIndex_f(void)
     index_stop = next_map_offset();
 
     CL_FeedIndexBegin();
+    CL_ProjIndexBegin();
     demo_indexing = true;
     seek_demo(INT64_MAX, false, false);
     demo_indexing = false;
+    CL_ProjIndexEnd();
     CL_FeedIndexEnd();
 
     if (cls.demo.playback && cls.state == ca_active)
