@@ -241,7 +241,7 @@
       <table>
         <tr><td><kbd>I</kbd></td><td>Marcar inicio</td></tr>
         <tr><td><kbd>O</kbd></td><td>Marcar fin</td></tr>
-        <tr><td><kbd>G</kbd></td><td>Grabar el clip a video</td></tr>
+        <tr><td><kbd>G</kbd></td><td>Grabar el clip a video (grabando: detener)</td></tr>
         <tr><td><kbd>Supr</kbd></td><td>Borrar las marcas</td></tr>
         <tr><td><kbd>C</kbd></td><td>Grabar recorrido de cámara / terminar</td></tr>
         <tr><td><kbd>V</kbd></td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
@@ -282,7 +282,15 @@
     <li>Presiona <kbd>G</kbd>. El demo salta al inicio, graba hasta el fin y se pausa. Arriba ves <em>GRABANDO</em> con el porcentaje, y al terminar, <em>Clip guardado</em>.</li>
   </ol>
   <p>Los videos quedan en <code>Quake2\dday\videos\</code> con el nombre del demo y el minuto,
-  por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben.</p>
+  por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben. <kbd>G</kbd> durante la
+  grabación la detiene y guarda lo grabado hasta ahí.</p>
+  <h3>Todo el demo de una vez</h3>
+  <p>En el <a href="#editor-mouse">modo editor</a>, el botón <strong>Demo completo</strong> graba
+  el demo entero, del principio al final, sin marcar inicio ni fin (en la consola:
+  <code>clip_export_all</code>). Usa la cámara que tengas: puntos de cámara, recorrido o seguir
+  a un jugador. Mientras graba, el panel muestra <strong>Detener grabación</strong> para cortar
+  antes. El archivo se llama <code>&lt;demo&gt;_completo.mp4</code>; al terminar, el demo se
+  cierra como siempre.</p>
   <div class="note">Mientras graba, el juego puede verse lento o acelerado. Es normal:
   el video se genera cuadro a cuadro y sale fluido igual.</div>
 

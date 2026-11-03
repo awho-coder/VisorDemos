@@ -2617,7 +2617,7 @@ static const helpline_t visor_help[] = {
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },
-    { "G",          "Grabar el clip" },
+    { "G",          "Grabar / detener" },
     { "Supr",       "Borrar marcas" },
     { "",           NULL },
     { "Tab",        "Editor con mouse" },

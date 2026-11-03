@@ -238,6 +238,17 @@ bool CL_EditorKeyEvent(unsigned key, bool down)
         }
     }
 
+    // recording: only the stop button answers
+    if (CL_CaptureActive() && CL_EditorActive() && key == K_MOUSE1 && down &&
+        !(cls.key_dest & (KEY_MENU | KEY_CONSOLE | KEY_MESSAGE))) {
+        const item_t *it = over_panel() ? item_at(ed.mx, ed.my) : NULL;
+
+        if (it && it->cmd && !strcmp(it->cmd, "clip_stop"))
+            run(it->cmd);
+        ed.clicked_panel = true;
+        return true;
+    }
+
     if (!interactive())
         return false;
 
@@ -367,6 +378,14 @@ static itemkind_t on_if(bool on)
 // all the buttons, top to bottom; positions relative to the panel top
 static void build_buttons(void)
 {
+    if (CL_CaptureActive()) {
+        // recording: the only thing to do is stopping it
+        group("GRABANDO");
+        button("DETENER GRABACION", "clip_stop",
+               "Terminar la grabacion aqui: el video se guarda hasta este momento  [G]", IT_RED);
+        return;
+    }
+
     bool paused = false, line, mvd = !cls.demo.playback;
     int here = CL_KeyCamHere(&line);
     float speed = CL_DemoSpeed();
@@ -428,6 +447,8 @@ static void build_buttons(void)
     button("Fin", "clip_out", "Marcar el fin del clip aqui  [O]", IT_BUTTON);
     button("Borrar marcas", "clip_clear", "Borrar las marcas de inicio y fin  [Supr]", IT_BUTTON);
     button("GRABAR CLIP", "clip_export", "Grabar el clip a video, de la marca de inicio a la de fin  [G]", IT_RED);
+    button("DEMO COMPLETO", "clip_export_all",
+           "Grabar todo el demo a video, del principio al final, sin marcar inicio ni fin", IT_RED);
     group("");
     button("Abrir demo", "pushmenu demos", "Elegir otro demo  [Esc]", IT_BUTTON);
     button("Ayuda", "visor_help", "Teclas y ajustes  [H]", on_if(CL_VisorHelpVisible()));
@@ -558,7 +579,7 @@ void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mi
     ed.tl_w = W - pad * 4;
     ed.tl_y = top + pad + ed.ch + pad + ed.ch + pad * 2;
 
-    if (interactive() && over_panel() && !ed.dragging)
+    if ((interactive() || CL_CaptureActive()) && over_panel() && !ed.dragging)
         hover = item_at(ed.mx, ed.my);
 
     // background, timeline and buttons
@@ -584,8 +605,10 @@ void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mi
     R_SetScale(ed.scale);
 
     // first line: what the thing under the mouse does, or how to use the editor
-    if (CL_CaptureActive())
-        tip = "Grabando el clip...";
+    if (CL_CaptureActive() && hover && hover->tip)
+        tip = hover->tip;
+    else if (CL_CaptureActive())
+        tip = "Grabando el video. El panel no sale en el video";
     else if (ed.flying)
         tip = "Moviendo la camara: mouse para mirar, W A S D para volar, Espacio / Ctrl subir / bajar, Shift rapido";
     else if (hover && hover->tip)

@@ -150,7 +150,7 @@ Quake 2 normal.
 | **1 / 2** | Ir al punto de cámara anterior / siguiente |
 | **I** | Marcar inicio del clip |
 | **O** | Marcar fin del clip |
-| **G** | Grabar el clip a video |
+| **G** | Grabar el clip a video (si ya está grabando: detener) |
 | **Supr** | Borrar las marcas de inicio y fin |
 | **K** | Kill feed: sí / solo el jugador que ves / no |
 | **,** / **.** | Bajar / subir el volumen |
@@ -190,6 +190,13 @@ abajo) = sus muertes. Nada de esto sale en los videos.
 5. Presiona **G**. El demo salta al inicio, se graba hasta el fin y se pausa.
    Arriba aparece "GRABANDO" con el porcentaje. Al terminar dice
    "Clip guardado".
+
+**Todo el demo de una vez:** en el modo editor, el botón **Demo completo**
+(o `clip_export_all` en la consola) graba el demo entero, del principio al
+final, sin marcar inicio ni fin. Usa la cámara que tengas (puntos de cámara,
+recorrido o seguir a un jugador). Para cortar antes: **Detener grabación** o
+**G**; lo grabado hasta ahí se guarda. El archivo se llama
+`<demo>_completo.mp4`. Al terminar, el demo se cierra como siempre.
 
 Los videos quedan en la carpeta **`videos`** del mod
 (`Quake2\dday\videos\` en Windows). Nunca se sobrescriben: si el nombre
@@ -369,6 +376,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `xray_alpha` | `0.45` | Opacidad de las siluetas (0.1 a 1) |
 
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
+`clip_export_all` (todo el demo), `clip_stop` (detener la grabación),
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
 `demo_speed 0.5`, `campath_clear`, `keycam_clear` (borra todos los puntos de cámara).
 
