@@ -1066,26 +1066,32 @@ static void Demo_Step_f(void)
         Cmd_ExecuteString(&cmd_buffer, va("seek %c%s", *arg, secs));
 }
 
-// feed_toggle killfeed | chat: what's on screen goes 1 -> 2 -> 0 -> 1
-// (all, the watched player only / with server messages, off)
+// feed_toggle killfeed | chat [clip]: goes 1 -> 2 -> 0 -> 1 (all, the
+// watched player only / with server messages, off). With "clip" it changes
+// what goes into the videos instead of what is on screen.
 static void Feed_Toggle_f(void)
 {
     static const char *const kill_says[] = { "no", "si", "solo el jugador que ves" };
     static const char *const chat_says[] = { "no", "si", "con avisos del servidor" };
     const char *what = Cmd_Argv(1);
     bool kills_ = !Q_stricmp(what, "killfeed");
+    bool clip = !Q_stricmp(Cmd_Argv(2), "clip");
     cvar_t *var;
     int v;
 
     if (!kills_ && Q_stricmp(what, "chat")) {
-        Com_Printf("Uso: %s killfeed | chat\n", Cmd_Argv(0));
+        Com_Printf("Uso: %s killfeed | chat [clip]\n", Cmd_Argv(0));
         return;
     }
 
-    var = kills_ ? visor_killfeed : visor_chat;
+    if (clip)
+        var = kills_ ? clip_killfeed : clip_chat;
+    else
+        var = kills_ ? visor_killfeed : visor_chat;
     v = (Cvar_ClampInteger(var, 0, 2) + 1) % 3;
     Cvar_SetInteger(var, v, FROM_CONSOLE);
-    SCR_CenterPrint(va("%s: %s", kills_ ? "Kill feed" : "Chat",
+    SCR_CenterPrint(va("%s %s: %s", kills_ ? "Kill feed" : "Chat",
+                       clip ? "en los videos" : "en pantalla",
                        (kills_ ? kill_says : chat_says)[v]), false);
 }
 

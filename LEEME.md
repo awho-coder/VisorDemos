@@ -316,9 +316,13 @@ ves o sigues, un par de segundos antes, en orden (en el centro dice
 amarillo (arriba) y sus muertes en rojo (abajo). Sin jugador (cámara
 libre) salta entre todas las muertes.
 
-En los clips sale el kill feed y no el chat: `clip_chat 1` lo agrega y
-`clip_killfeed 0` lo quita. `visor_killfeed 2` / `clip_killfeed 2` muestran
-solo las muertes del jugador que ves.
+Lo que sale en los videos se elige aparte de lo que ves en pantalla. Por
+defecto los clips llevan el kill feed y no el chat. En el modo editor, la
+fila *Clip* tiene sus propios botones **En el video: Muertes / Chat**; los
+de la fila *Cámara* (**En pantalla**) y las teclas **K** / **J** solo
+cambian la pantalla. En la consola: `clip_killfeed 0` quita el kill feed
+del video y `clip_chat 1` agrega el chat. `visor_killfeed 2` /
+`clip_killfeed 2` muestran solo las muertes del jugador que ves.
 
 ---
 
