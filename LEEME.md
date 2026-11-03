@@ -37,6 +37,7 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
      asociar-demos.bat
      1-Instalacion.html
      2-Guia-de-uso.html
+     3-Tutorial-tomas.html
      LEEME.txt
      baseq2\visor.cfg
      baseq2\q2pro.menu
@@ -115,7 +116,9 @@ tiempo grande:
   visor recuerda el último modo que usaste.
 - `visor_editor_size 1.5` agranda la letra del panel (0.5 a 3).
 
-El panel no sale en los videos.
+El panel no sale en los videos. Paso a paso, con dibujos:
+[tutorial de tomas con movimiento](https://awho-coder.github.io/VisorDemos/tutorial-tomas.html)
+(también viene en el `.zip` como `3-Tutorial-tomas.html`).
 
 Para saber si estás en el visor: la ventana se llama **VisorDemos** y abajo
 aparece la barra con *H: AYUDA*. Si no ves eso, el demo se abrió con tu
