@@ -785,6 +785,8 @@ bool CL_CamPathView(vec3_t org, vec3_t ang);
 bool CL_CamPathRecording(void);
 bool CL_CamPathPlaying(void);
 bool CL_CamPathRange(float *start, float *end);
+bool CL_CamPathHave(void);
+void CL_CamPathClear(void);
 
 
 //
@@ -794,6 +796,7 @@ void CL_InitKeyCam(void);
 bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
 bool CL_KeyCamPlaying(void);
 bool CL_KeyCamHaveKeys(void);
+int  CL_KeyCamCount(void);
 void CL_KeyCamSetPlaying(bool on);
 int  CL_KeyCamHere(bool *line);
 

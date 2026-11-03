@@ -447,7 +447,7 @@ static void CamPath_Play_f(void)
                                 : "Recorrido de camara desactivado", false);
 }
 
-static void CamPath_Clear_f(void)
+void CL_CamPathClear(void)
 {
     check_demo();
     recording = false;
@@ -455,6 +455,20 @@ static void CamPath_Clear_f(void)
     path_free(&path);
     if (cls.demo.playback)
         path_save();
+}
+
+// there is a recorded path for this demo (or one being recorded)
+bool CL_CamPathHave(void)
+{
+    if (!cls.demo.playback)
+        return false;
+    check_demo();
+    return recording || path.num >= 2;
+}
+
+static void CamPath_Clear_f(void)
+{
+    CL_CamPathClear();
     SCR_CenterPrint("Recorrido de camara borrado", false);
 }
 
