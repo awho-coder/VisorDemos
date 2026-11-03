@@ -794,6 +794,7 @@ void CL_CamPathClear(void);
 //
 void CL_InitKeyCam(void);
 bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
+bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov);
 bool CL_KeyCamPlaying(void);
 bool CL_KeyCamHaveKeys(void);
 int  CL_KeyCamCount(void);
@@ -868,6 +869,7 @@ float CL_FreecamSpeed(void);
 float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
+void CL_FreecamSeeked(void);
 bool CL_FreecamKeysDriving(void);
 bool CL_PlayerPosition(int num, vec3_t out);
 
