@@ -40,11 +40,16 @@
     padding: 6px 12px; border-radius: 99px; background: rgba(0, 0, 0, .75); border: 1px solid var(--line);
     font-size: .85rem; pointer-events: none; white-space: nowrap; }
   #estado[hidden] { display: none; }
+  #teclas { position: fixed; left: 8px; bottom: 8px; z-index: 6; max-width: calc(100vw - 16px);
+    padding: 6px 8px; background: rgba(0, 0, 0, .8); border: 1px solid var(--line); border-radius: 6px;
+    font: 12px/1.35 ui-monospace, monospace; white-space: pre; pointer-events: none; }
+  #teclas[hidden] { display: none; }
 </style>
 </head>
 <body>
 <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 <div id="estado" hidden></div>
+<div id="teclas" hidden></div>
 <div id="portada">
   <div class="caja">
     <h1>Jugar D-Day</h1>
@@ -87,6 +92,7 @@
   //   ?api=<url>           host del backend y de los archivos
   //   ?log=1               consola del motor más detallada
   //   ?auto=1&nick=<nick>  arranca solo (pruebas)
+  //   ?teclas=1            muestra lo que llega de cada tecla (diagnóstico de teclados)
   const q = new URLSearchParams(location.search);
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
   const API = (q.get('api') || 'https://dday-server-api.duckdns.org').replace(/\/$/, '');
@@ -325,7 +331,11 @@
     await pantallaCompleta();
     jugando = true;
     q2net.cola.length = 0;
+    // que el campo del nick suelte el foco: en Chrome para Android, con un campo de texto
+    // enfocado el teclado del sistema se queda con las teclas físicas (llegan sin código)
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     $('portada').hidden = true;
+    if (q.has('teclas')) diagnosticoTeclas();
     const canvas = $('canvas');
     Object.assign(Module, {
       canvas,
@@ -401,6 +411,24 @@
       guardar(CLAVE_CONFIG, t.split('\n').filter((l) => !/\bvid_(geometry|fullscreen)\b/.test(l)).join('\n'));
       if (q.has('log')) console.warn(`CONFIG guardada (${t.length} bytes): ${(t.match(/bind MOUSE2 .*/) || [''])[0]}`);
     } catch { /* todavía no arranca */ }
+  }
+
+  // ?teclas=1: muestra lo que el navegador entrega con cada tecla (para revisar teclados en Android)
+  function diagnosticoTeclas() {
+    const caja = $('teclas');
+    const filas = [];
+    caja.hidden = false;
+    const anotar = (t) => {
+      filas.push(t);
+      if (filas.length > 10) filas.shift();
+      const foco = document.activeElement ? document.activeElement.tagName.toLowerCase() : '-';
+      caja.textContent = `foco: ${foco} · mouse capturado: ${document.pointerLockElement ? 'sí' : 'no'}\n${filas.join('\n')}`;
+    };
+    for (const tipo of ['keydown', 'keyup']) {
+      addEventListener(tipo, (e) => anotar(`${tipo.padEnd(7)} key=${JSON.stringify(e.key)} code=${JSON.stringify(e.code)} keyCode=${e.keyCode}${e.isComposing ? ' (IME)' : ''}`), true);
+    }
+    for (const tipo of ['compositionstart', 'beforeinput']) addEventListener(tipo, () => anotar(tipo), true);
+    anotar('listo: presiona teclas');
   }
 
   // ?log=1: copia el log del motor a la consola del navegador
