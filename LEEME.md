@@ -112,6 +112,9 @@ tiempo grande:
   mouse para mirar; con el clic derecho apretado vuela con **W A S D**,
   **Espacio** / **Ctrl** para subir / bajar y **Shift** para ir rápido. Al
   soltar el clic vuelve el cursor.
+- **Borrar todo** (rojo, en *Puntos de cámara*): borra todos los puntos y el
+  recorrido grabado de ese demo. Pide un segundo clic en **Sí, borrar todo**
+  para confirmar.
 - Todas las teclas siguen funcionando. **Tab** vuelve a la barra simple; el
   visor recuerda el último modo que usaste.
 - `visor_editor_size 1.5` agranda la letra del panel (0.5 a 3).
@@ -381,7 +384,8 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
 `clip_export_all` (todo el demo), `clip_stop` (detener la grabación),
 `capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
-`demo_speed 0.5`, `campath_clear`, `keycam_clear` (borra todos los puntos de cámara).
+`demo_speed 0.5`, `campath_clear` (borra el recorrido grabado), `keycam_clear` (borra
+todos los puntos de cámara), `camera_clear` (borra las dos cosas).
 
 Para mejor calidad de imagen el visor usa la ventana tal como la tengas.
 Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
@@ -412,6 +416,10 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
 - **No veo la barra o las teclas del visor no hacen nada**: revisa que la
   ventana se llame *VisorDemos*. Si dice otra cosa, el demo se abrió con otro
   programa (tu Quake 2 normal).
+- **Demos dañados**: algunos demos tienen pedazos rotos (el Quake 2 normal
+  dice *Invalid file format* o *illegible server message*). El visor salta
+  esas partes y sigue; se pierde a lo más un instante del demo. En la
+  consola aparece "Demo danado: ...".
 - **Las teclas de velocidad**: usa **Z / X** o **Av Pág / Re Pág**. Los
   símbolos `[` `]` no funcionan en teclados en español.
 

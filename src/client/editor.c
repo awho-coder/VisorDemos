@@ -49,6 +49,7 @@ static struct {
     bool        clicked_panel;  // left button went down on the panel
     float       drag_frac;
     unsigned    last_seek;
+    unsigned    confirm_until;  // "BORRAR TODO" asks for a second click
 
     // layout of the last drawn frame, for hit testing
     item_t      items[MAX_ITEMS];
@@ -440,6 +441,17 @@ static void build_buttons(void)
     button(CL_CamPathRecording() ? "Terminar" : "Grabar recorrido", "campath_record",
            "Grabar la camara mientras corre el demo / terminar  [C]",
            mvd ? IT_OFF : CL_CamPathRecording() ? IT_RED : IT_BUTTON);
+
+    bool have = !mvd && (CL_KeyCamCount() > 0 || CL_CamPathHave());
+    if (!have)
+        ed.confirm_until = 0;
+    if (have && cls.realtime < ed.confirm_until)
+        button("SI, BORRAR TODO", "camera_clear",
+               "Clic otra vez para borrar todos los puntos y el recorrido de este demo", IT_RED);
+    else
+        button("BORRAR TODO", "editor_clear_ask",
+               "Borrar todos los puntos de camara y el recorrido grabado de este demo (pide confirmar)",
+               have ? IT_RED : IT_OFF);
     new_row();
 
     group("CLIP");
@@ -643,6 +655,13 @@ void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mi
     R_SetScale(1.0f);
 }
 
+// first click on "BORRAR TODO": the button asks to click again
+static void Editor_ClearAsk_f(void)
+{
+    ed.confirm_until = cls.realtime + 4000;
+    SCR_CenterPrint("Clic otra vez en SI, BORRAR TODO para confirmar", false);
+}
+
 #if USE_DEBUG
 // editor_mouse <x> <y> [key] [down|up|click]: fake mouse input, for tests.
 // Goes through Key_Event like a real button.
@@ -666,6 +685,7 @@ void CL_InitEditor(void)
     visor_editor = Cvar_Get("visor_editor", "0", CVAR_ARCHIVE);
     visor_editor->changed = editor_changed;
     visor_editor_size = Cvar_Get("visor_editor_size", "1", CVAR_ARCHIVE);
+    Cmd_AddCommand("editor_clear_ask", Editor_ClearAsk_f);
 #if USE_DEBUG
     Cmd_AddCommand("editor_mouse", Editor_Mouse_f);
 #endif

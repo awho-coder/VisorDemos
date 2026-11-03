@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 
 #include "client.h"
+#include "common/intreadwrite.h"
 
 static byte     demo_buffer[MAX_MSGLEN];
 
@@ -610,10 +611,164 @@ static int read_first_message(qhandle_t f)
     return type;
 }
 
+/*
+Damaged demos: in some recordings a piece of the file, starting at a 4 KiB
+boundary, holds garbage (zeros, or bytes from elsewhere). The message length
+read from there makes no sense. When a demo is opened it is read through
+once; at each damaged spot the messages that touch the damage are dropped,
+and reading goes on from the next spot where several lengths in a row fit.
+A message that runs into the damage keeps the part before it.
+*/
+#define RESYNC_WINDOW   0x10000
+#define RESYNC_LINKS    8
+#define MAX_REPAIRS     256
+#define DAMAGE_ALIGN    4096
+#define RECENT          64
+
+typedef struct {
+    int64_t     pos;        // start of the first damaged message
+    uint32_t    cut;        // keep this much of it (what is before the damage)
+    int64_t     skip_to;    // where reading goes on
+} repair_t;
+
+static repair_t repairs[MAX_REPAIRS];
+static int      num_repairs;
+static int      bad_messages;   // unreadable messages left out
+
+// first offset at or after 'from' where several message lengths in a row
+// fit, -1 if there is none close by
+static int64_t find_chain(qhandle_t f, int64_t from)
+{
+    static byte buf[RESYNC_WINDOW];
+    int n, i;
+
+    if (FS_Seek(f, from, SEEK_SET) < 0)
+        return -1;
+    n = FS_Read(buf, sizeof(buf), f);
+
+    for (i = 0; i + 4 <= n; i++) {
+        int p = i, links = 0;
+
+        while (links < RESYNC_LINKS && p + 4 <= n) {
+            uint32_t len = RL32(buf + p);
+
+            if (len == (uint32_t)-1) {
+                links = RESYNC_LINKS;   // the end of the demo
+                break;
+            }
+            if (!len || len > MAX_MSGLEN)
+                break;
+            p += 4 + len;
+            links++;
+        }
+        // a chain that runs out of the window is good too
+        if (links == RESYNC_LINKS || (links >= 2 && p + 4 > n))
+            return from + i;
+    }
+    return -1;
+}
+
+// read the demo through once (after the first message) and note the repairs
+static void scan_demo(qhandle_t f)
+{
+    int64_t start = FS_Tell(f), pos = start;
+    int64_t recent[RECENT];     // starts of the last messages
+    int num_recent = 0;
+    uint32_t len;
+
+    num_repairs = bad_messages = 0;
+    if (start < 0)
+        return;
+
+    while (num_repairs < MAX_REPAIRS && FS_Read(&len, 4, f) == 4) {
+        int64_t next, drop, damage;
+
+        if (len == (uint32_t)-1)
+            break;
+        len = LittleLong(len);
+        if (len <= MAX_MSGLEN) {
+            recent[num_recent++ % RECENT] = pos;
+            pos += 4 + len;
+            if (FS_Seek(f, pos, SEEK_SET) < 0)
+                break;
+            continue;
+        }
+
+        next = find_chain(f, pos + 1);
+        if (next < 0)
+            break;
+
+        // drop the messages that reach into the damaged piece
+        damage = pos & ~(int64_t)(DAMAGE_ALIGN - 1);
+        drop = pos;
+        for (int i = 1; i <= min(num_recent, RECENT) && drop > damage; i++)
+            drop = recent[(num_recent - i) % RECENT];   // ends past the boundary
+
+        repairs[num_repairs].pos = drop;
+        repairs[num_repairs].cut = drop + 4 < damage ? damage - drop - 4 : 0;
+        repairs[num_repairs++].skip_to = next;
+        num_recent = 0;
+        pos = next;
+        if (FS_Seek(f, pos, SEEK_SET) < 0)
+            break;
+    }
+
+    if (num_repairs)
+        Com_WPrintf("Demo danado: se saltaron %d partes rotas\n", num_repairs);
+    FS_Seek(f, start, SEEK_SET);
+}
+
+// parse the message just read (or skip through it when seeking); a message
+// that can't be read is left out instead of closing the demo
+static bool parse_demo_message(bool seek)
+{
+    jmp_buf jump;
+    bool ret = false;
+
+    if (setjmp(jump)) {
+        com_catch_drop = NULL;
+        if (bad_messages++ < 5)
+            Com_WPrintf("Demo danado: se salto un mensaje ilegible (%s)\n", com_catch_msg);
+        return false;
+    }
+    com_catch_drop = &jump;
+    if (seek)
+        ret = CL_SeekDemoMessage();
+    else
+        CL_ParseServerMessage();
+    com_catch_drop = NULL;
+    return ret;
+}
+
+static const repair_t *find_repair(qhandle_t f)
+{
+    int64_t pos;
+
+    if (!num_repairs || f != cls.demo.playback || (pos = FS_Tell(f)) < 0)
+        return NULL;
+    for (int i = 0; i < num_repairs; i++)
+        if (repairs[i].pos == pos)
+            return &repairs[i];
+    return NULL;
+}
+
 static int read_next_message(qhandle_t f)
 {
+    const repair_t *fix = find_repair(f);
     uint32_t msglen;
     int read;
+
+    if (fix && fix->cut) {
+        // the part of the message before the damage
+        if (FS_Seek(f, fix->pos + 4, SEEK_SET) < 0 ||
+            FS_Read(msg_read_buffer, fix->cut, f) != fix->cut ||
+            FS_Seek(f, fix->skip_to, SEEK_SET) < 0)
+            return Q_ERR_INVALID_FORMAT;
+        SZ_InitRead(&msg_read, msg_read_buffer, fix->cut);
+        return 1;
+    }
+    if (fix && FS_Seek(f, fix->skip_to, SEEK_SET) < 0)
+        return Q_ERR_INVALID_FORMAT;
 
     // read msglen
     read = FS_Read(&msglen, 4, f);
@@ -692,7 +847,7 @@ static int parse_next_message(int wait)
         return -1;
     }
 
-    CL_ParseServerMessage();
+    parse_demo_message(false);
 
     // if recording demo, write the message out
     if (cls.demo.recording && !cls.demo.paused && CL_FRAMESYNC) {
@@ -753,6 +908,8 @@ static void CL_PlayDemo_f(void)
         FS_CloseFile(f);
         return;
     }
+
+    scan_demo(f);
 
     // if running a local server, kill it and reissue
     SV_Shutdown("Server was killed.\n", ERR_DISCONNECT);
@@ -1019,7 +1176,7 @@ static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
 
             SZ_InitRead(&msg_read, snap->data, snap->msglen);
 
-            CL_SeekDemoMessage();
+            parse_demo_message(true);
             cls.demo.frames_read = snap->framenum;
             Com_DPrintf("[%d] after snap parse %d\n", cls.demo.frames_read, cl.frame.number);
         } else if (back_seek) {
@@ -1051,7 +1208,7 @@ static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
             return;
         }
 
-        if (CL_SeekDemoMessage())
+        if (parse_demo_message(true))
             goto done;
         CL_EmitDemoSnapshot();
     }
