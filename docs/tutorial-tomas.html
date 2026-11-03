@@ -103,6 +103,7 @@ ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .track .frag { position: absolute; top: -6px; width: 2px; height: 6px; background: #ffd200; }
 .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .row .lbl { width: 140px; color: var(--panel-label); text-transform: uppercase; }
+.row .lbl.in { width: auto; margin-left: 12px; }
 .row .sp { width: 14px; }
 figcaption { color: var(--muted); font-size: 15px; margin-top: 8px; }
 figure { margin: 0; }
@@ -163,9 +164,9 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
             <div class="head"></div>
           </div>
           <div class="row"><span class="lbl">Reproducir</span><span class="btn">-10 s</span><span class="btn">&lt; Frag</span><span class="btn on">&gt; Seguir</span><span class="btn">Frag &gt;</span><span class="btn">+10 s</span><span class="sp"></span><span class="btn">-</span><span class="btn">x1</span><span class="btn">+</span></div>
-          <div class="row"><span class="lbl">Cámara</span><span class="btn on">Libre</span><span class="btn">&lt; Jugador</span><span class="btn">Jugador &gt;</span><span class="btn">1a / 3a</span><span class="btn">Original</span><span class="btn">X-ray</span></div>
+          <div class="row"><span class="lbl">Cámara</span><span class="btn on">Libre</span><span class="btn">&lt; Jugador</span><span class="btn">Jugador &gt;</span><span class="btn">1a / 3a</span><span class="btn">Original</span><span class="btn">X-ray</span><span class="lbl in">En pantalla</span><span class="btn on">Muertes</span><span class="btn on">Chat</span></div>
           <div class="row"><span class="lbl">Puntos de cámara</span><span class="btn">Actualizar punto</span><span class="btn">&lt; Punto</span><span class="btn">Punto &gt;</span><span class="btn on">Mirar jugador</span><span class="btn">Curva</span><span class="btn">Borrar punto</span><span class="btn on">Usar cámara</span><span class="btn">Grabar recorrido</span><span class="btn rec">Borrar todo</span></div>
-          <div class="row"><span class="lbl">Clip</span><span class="btn">Inicio</span><span class="btn">Fin</span><span class="btn">Borrar marcas</span><span class="btn rec">Grabar clip</span><span class="btn rec">Demo completo</span><span class="sp"></span><span class="btn">Abrir demo</span><span class="btn">Ayuda</span></div>
+          <div class="row"><span class="lbl">Clip</span><span class="btn">Inicio</span><span class="btn">Fin</span><span class="btn">Borrar marcas</span><span class="btn rec">Grabar clip</span><span class="btn rec">Demo completo</span><span class="lbl in">En el video</span><span class="btn on">Muertes</span><span class="btn">Chat</span><span class="sp"></span><span class="btn">Abrir demo</span><span class="btn">Ayuda</span></div>
         </div>
       </div>
       <figcaption>Los botones en celeste están encendidos. Los cuadraditos celestes sobre la barra son los puntos de cámara (el blanco es el punto donde estás). En el celular puedes deslizar la imagen hacia el lado.</figcaption>
@@ -246,6 +247,7 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       <li><div>Clic en <span class="btn rec">Grabar clip</span>. El demo salta al inicio, graba hasta el fin y se pausa. Arriba aparece "GRABANDO" con el porcentaje.</div></li>
       <li><div>El video queda en <code>Quake2\dday\videos\</code>: MP4 1080p a 60 fps, listo para el editor de video. El panel no sale en el video.</div></li>
     </ol>
+    <p class="note"><strong>Kill feed y chat en el video:</strong> se eligen con los botones de <em>En el video</em> (fila Clip). Los de <em>En pantalla</em> (fila Cámara) y las teclas K / J solo cambian lo que ves mientras editas. Por defecto el video lleva el kill feed y no el chat.</p>
     <p class="note">Mientras graba, el juego puede verse más lento o más rápido que lo normal. El video sale perfecto igual, porque se arma cuadro a cuadro.</p>
     <h3>Todo el demo de una vez</h3>
     <p>Si quieres el demo entero en video, sin marcar nada: clic en <span class="btn rec">Demo completo</span>.

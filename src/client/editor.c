@@ -376,6 +376,24 @@ static itemkind_t on_if(bool on)
     return on ? IT_ON : IT_BUTTON;
 }
 
+// kill feed and chat, on screen or in the videos (each has its own setting)
+static void feed_buttons(bool clip)
+{
+    int kills = Cvar_VariableInteger(clip ? "clip_killfeed" : "visor_killfeed");
+    int chat = Cvar_VariableInteger(clip ? "clip_chat" : "visor_chat");
+
+    button(kills == 2 ? "Muertes: jugador" : "Muertes",
+           clip ? "feed_toggle killfeed clip" : "feed_toggle killfeed",
+           clip ? "Kill feed en los videos: si / solo el jugador / no (en pantalla no cambia)"
+                : "Kill feed en pantalla: si / solo el jugador / no (en el video no cambia)  [K]",
+           on_if(kills));
+    button(chat == 2 ? "Chat + avisos" : "Chat",
+           clip ? "feed_toggle chat clip" : "feed_toggle chat",
+           clip ? "Chat en los videos: si / con avisos del servidor / no (en pantalla no cambia)"
+                : "Chat en pantalla: si / con avisos del servidor / no (en el video no cambia)  [J]",
+           on_if(chat));
+}
+
 // all the buttons, top to bottom; positions relative to the panel top
 static void build_buttons(void)
 {
@@ -418,10 +436,8 @@ static void build_buttons(void)
     button("Original", "camera_reset", "Volver a la vista de quien grabo el demo  [R]", IT_BUTTON);
     button("X-ray", "visor_xray", "Siluetas de los jugadores detras de las paredes  [T]",
            on_if(Cvar_VariableInteger("xray")));
-    button("Muertes", "feed_toggle killfeed", "Kill feed: si / solo el jugador / no  [K]",
-           on_if(Cvar_VariableInteger("visor_killfeed")));
-    button("Chat", "feed_toggle chat", "Chat: si / con avisos del servidor / no  [J]",
-           on_if(Cvar_VariableInteger("visor_chat")));
+    group("EN PANTALLA");
+    feed_buttons(false);
     new_row();
 
     group("PUNTOS DE CAMARA");
@@ -461,6 +477,8 @@ static void build_buttons(void)
     button("GRABAR CLIP", "clip_export", "Grabar el clip a video, de la marca de inicio a la de fin  [G]", IT_RED);
     button("DEMO COMPLETO", "clip_export_all",
            "Grabar todo el demo a video, del principio al final, sin marcar inicio ni fin", IT_RED);
+    group("EN EL VIDEO");
+    feed_buttons(true);
     group("");
     button("Abrir demo", "pushmenu demos", "Elegir otro demo  [Esc]", IT_BUTTON);
     button("Ayuda", "visor_help", "Teclas y ajustes  [H]", on_if(CL_VisorHelpVisible()));
