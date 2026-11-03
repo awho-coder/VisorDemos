@@ -14,8 +14,15 @@ Qué puedes hacer:
   desde sus ojos o desde atrás (tecla F).
 - **Grabar un recorrido de cámara** mientras miras el demo, para que el video
   repita ese movimiento suave.
+- **Poner puntos de cámara** (como en Keygrip): la cámara viaja sola entre
+  ellos en una curva suave, y puede ir mirando a un jugador.
+- Hacer todo **con el mouse** en el modo editor (tecla **Tab**): botones y
+  una barra de tiempo con clic.
 - Marcar inicio y fin de una jugada y **exportarla a video** (MP4 o MOV) con
-  imagen y sonido, a 1080p y 60 cuadros por segundo.
+  imagen y sonido, a 1080p y 60 cuadros por segundo, o grabar **el demo
+  completo** de una vez.
+- Ver el **kill feed** y el chat, saltar de frag en frag y usar el **x-ray**
+  para ver a los jugadores detrás de las paredes.
 
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
@@ -104,20 +111,57 @@ tiempo grande:
 
 - **Barra de tiempo**: haz clic o arrastra para ir a cualquier momento. Los
   cuadraditos celestes son los puntos de cámara: clic en uno para ir a él.
-- **Botones**: hacen lo mismo que las teclas (pausa, ±10 s, frags,
-  velocidad, cámara libre, seguir jugadores, puntos de cámara, inicio y fin
-  del clip, grabar el clip...). Al pasar el mouse por encima, arriba del
-  panel dice qué hace cada uno y cuál es su tecla.
+- **Botones**: hacen lo mismo que las teclas (ver la tabla de abajo). Al
+  pasar el mouse por encima, arriba del panel dice qué hace cada uno y cuál
+  es su tecla. Los que están encendidos se ven en celeste; los grises no se
+  pueden usar en ese momento.
 - **Mover la cámara**: mantén el **clic derecho** sobre la imagen y mueve el
   mouse para mirar; con el clic derecho apretado vuela con **W A S D**,
   **Espacio** / **Ctrl** para subir / bajar y **Shift** para ir rápido. Al
   soltar el clic vuelve el cursor.
-- **Borrar todo** (rojo, en *Puntos de cámara*): borra todos los puntos y el
-  recorrido grabado de ese demo. Pide un segundo clic en **Sí, borrar todo**
-  para confirmar.
 - Todas las teclas siguen funcionando. **Tab** vuelve a la barra simple; el
   visor recuerda el último modo que usaste.
 - `visor_editor_size 1.5` agranda la letra del panel (0.5 a 3).
+
+#### Botones del modo editor
+
+| Fila | Botón | Qué hace | Tecla |
+|---|---|---|---|
+| Reproducir | **−10 s** / **+10 s** | Retroceder / adelantar 10 segundos | Flechas izquierda / derecha |
+| Reproducir | **< Frag** / **Frag >** | Frag o muerte anterior / siguiente del jugador que ves (sin jugador: de todos) | B / N |
+| Reproducir | **\|\| Pausa** / **> Seguir** | Pausa / continuar (en pausa se ve en celeste) | Flecha abajo |
+| Velocidad | **−** / **+** | Más lento (cámara lenta) / más rápido, de x0.1 a x4 | Z / X |
+| Velocidad | **x1** (muestra la velocidad) | Volver a la velocidad normal | Retroceso |
+| Volumen | **−** / **+** | Bajar / subir el volumen del visor | , / . |
+| Cámara | **Libre** | Cámara libre sí / no (también: clic derecho mantenido) | Flecha arriba |
+| Cámara | **< Jugador** / **Jugador >** | Seguir al jugador anterior / siguiente | Q / E |
+| Cámara | **1a / 3a** | Primera / tercera persona al seguir a alguien | F |
+| Cámara | **Original** | Volver a la vista de quien grabó el demo | R |
+| Cámara | **X-ray** | Siluetas de los jugadores detrás de las paredes | T |
+| En pantalla | **Muertes** | Kill feed **en pantalla**: sí / solo el jugador (dice "Muertes: jugador") / no. No cambia el video | K |
+| En pantalla | **Chat** | Chat **en pantalla**: sí / con avisos del servidor (dice "Chat + avisos") / no. No cambia el video | J |
+| Puntos de cámara | **+ Punto** / **Actualizar punto** | Poner un punto de cámara aquí con lo que ves; si ya hay uno aquí, lo actualiza | P |
+| Puntos de cámara | **< Punto** / **Punto >** | Ir al punto anterior / siguiente (y pausar) | 1 / 2 |
+| Puntos de cámara | **Mirar jugador** | El punto de aquí mira al jugador del centro de la pantalla / vuelve a mirada libre | L |
+| Puntos de cámara | **Curva** / **Recta** | Del punto de aquí al siguiente: curva suave o línea recta | M |
+| Puntos de cámara | **Borrar punto** | Borrar el punto de cámara de aquí | U |
+| Puntos de cámara | **Usar cámara** | Usar los puntos y el recorrido grabado sí / no | V |
+| Puntos de cámara | **Grabar recorrido** / **Terminar** | Grabar la cámara mientras corre el demo / terminar | C |
+| Puntos de cámara | **BORRAR TODO** | Borra todos los puntos y el recorrido grabado de este demo. Pide un segundo clic en **SI, BORRAR TODO** (4 segundos) | — |
+| Clip | **Inicio** / **Fin** | Marcar el inicio / fin del clip aquí | I / O |
+| Clip | **Borrar marcas** | Borrar las marcas de inicio y fin | Supr |
+| Clip | **GRABAR CLIP** | Grabar a video de la marca de inicio a la de fin | G |
+| Clip | **DEMO COMPLETO** | Grabar todo el demo a video, sin marcar inicio ni fin | — |
+| En el video | **Muertes** | Kill feed **en los videos**: sí / solo el jugador / no. No cambia la pantalla | — |
+| En el video | **Chat** | Chat **en los videos**: sí / con avisos del servidor / no. No cambia la pantalla | — |
+| (al final) | **Abrir demo** | Elegir otro demo | Esc |
+| (al final) | **Ayuda** | Mostrar / ocultar la ayuda con teclas y ajustes | H |
+| (al final) | **Ocultar editor** | Volver a la barra simple y al teclado | Tab |
+| Mientras graba | **DETENER GRABACION** | Es el único botón mientras se graba: corta y guarda lo grabado | G |
+
+Los botones de puntos de cámara y de recorrido solo funcionan con demos
+`.dm2` (con `.mvd2` se ven grises). **Curva / Recta** y **Borrar punto** se
+activan cuando estás justo en un punto (clic en su cuadradito o 1 / 2).
 
 El panel no sale en los videos. Paso a paso, con dibujos:
 [tutorial de tomas con movimiento](https://awho-coder.github.io/VisorDemos/tutorial-tomas.html)
@@ -372,6 +416,9 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `s_volume` | `0.3` | Volumen del visor (también con las teclas **,** y **.**) |
 | `clip_volume` | `auto` | Volumen del sonido en el video: `auto` = el mismo que escuchas en el visor, o un valor fijo de 0 a 1 |
 | `freecam_speed` | `300` | Velocidad de la cámara libre (también con la rueda del mouse) |
+| `freecam_fast` | `3` | Cuántas veces más rápido va la cámara libre con **Shift** |
+| `freecam_smooth` | `0.15` | Suavizado del movimiento de la cámara libre (segundos; `0` = sin suavizado) |
+| `freecam_hud` | `0` | `1` = mostrar el HUD del juego con la cámara libre |
 | `freecam_fov` | `90` | Campo de visión de la cámara libre / al seguir jugadores (no usa el zoom del rifle) |
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
@@ -381,15 +428,53 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `visor_editor_size` | `1` | Tamaño de la letra del panel del editor (0.5 a 3) |
 | `visor_help_pos` | `right` | Lado del panel de ayuda (H): `right` o `left` |
 | `visor_help_size` | `0.8` | Tamaño de la letra de la ayuda (0.5 a 1.5) |
+| `xray` | `0` | X-ray encendido (`1`) o apagado (`0`); es lo que cambia la tecla **T** |
 | `xray_color` | `team` | Color de las siluetas del x-ray: `team` = por equipo, o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white` |
 | `xray_color_allies` / `xray_color_axis` | `blue` / `red` | Colores de Aliados y Eje con `xray_color team` |
 | `xray_alpha` | `0.45` | Opacidad de las siluetas (0.1 a 1) |
 
-Comandos útiles: `clip_in`, `clip_out`, `clip_export nombre`,
-`clip_export_all` (todo el demo), `clip_stop` (detener la grabación),
-`capture_start nombre` / `capture_stop` (grabar a mano, sin marcas),
-`demo_speed 0.5`, `campath_clear` (borra el recorrido grabado), `keycam_clear` (borra
-todos los puntos de cámara), `camera_clear` (borra las dos cosas).
+### Comandos de consola
+
+Todo lo que hacen las teclas y los botones se puede escribir en la consola
+(o usar en tus propias teclas con `bind`, en `baseq2/visor.cfg`).
+
+| Comando | Tecla | Qué hace |
+|---|---|---|
+| `pause` | Flecha abajo | Pausa / continuar |
+| `demo_step -` / `demo_step +` | Flechas izq. / der. | Retroceder / adelantar 10 s. `demo_step + 30` = 30 s |
+| `seek 1:30` / `seek 50%` | — | Ir a un momento (minutos:segundos o porcentaje del demo) |
+| `demo_speed down` / `up` / `reset` / `0.5` | Z / X / Retroceso | Más lento / más rápido / normal / una velocidad fija (0.1 a 4) |
+| `frag_next` / `frag_prev` | N / B | Siguiente / anterior frag o muerte del jugador que ves |
+| `visor_volume up` / `down` / `0.5` | . / , | Subir / bajar el volumen, o fijarlo (0 a 1) |
+| `freecam` / `freecam 1` / `freecam 0` | Flecha arriba | Cámara libre sí / no |
+| `camera_speed up` / `down` / `reset` / `500` | Rueda del mouse | Velocidad de la cámara libre (siguiendo a alguien: distancia) |
+| `chase_next` / `chase_prev` | E / Q | Seguir al siguiente / anterior jugador |
+| `camera_view` / `camera_view 1` / `camera_view 3` | F | Primera / tercera persona |
+| `camera_reset` | R | Volver a la vista de quien grabó |
+| `campath_record` | C | Grabar recorrido de cámara / terminar |
+| `campath_play` | V | Usar el recorrido y los puntos de cámara sí / no |
+| `campath_clear` | — | Borrar el recorrido grabado de este demo |
+| `keycam_add` | P | Poner un punto de cámara aquí (o actualizar el de aquí) |
+| `keycam_target` | L | El punto mira al jugador del centro / mirada libre |
+| `keycam_mode` | M | Del punto al siguiente: curva / recta |
+| `keycam_delete` | U | Borrar el punto de aquí |
+| `keycam_prev` / `keycam_next` | 1 / 2 | Ir al punto anterior / siguiente |
+| `keycam_goto 3` | — | Ir al punto 3 |
+| `keycam_clear` | — | Borrar todos los puntos de cámara de este demo |
+| `camera_clear` | — | Borrar todos los puntos y el recorrido (como **BORRAR TODO**) |
+| `clip_in` / `clip_out` | I / O | Marcar inicio / fin del clip |
+| `clip_clear` | Supr | Borrar las marcas |
+| `clip_export` / `clip_export nombre` | G | Grabar el clip a video (con nombre opcional); si ya graba, lo detiene |
+| `clip_export_all` | — | Grabar todo el demo a video |
+| `clip_stop` | — | Detener la grabación y guardar lo grabado |
+| `capture_start nombre` / `capture_stop` / `capture_toggle` | — | Grabar a mano, sin marcas: empieza / termina / alterna |
+| `feed_toggle killfeed` / `feed_toggle chat` | K / J | Kill feed / chat **en pantalla**: sí / solo el jugador o con avisos / no |
+| `feed_toggle killfeed clip` / `feed_toggle chat clip` | — | Lo mismo, pero **en los videos** |
+| `visor_xray` | T | X-ray sí / no |
+| `visor_players` | — | Lista en la consola los jugadores y su equipo |
+| `visor_help` | H | Mostrar / ocultar la ayuda |
+| `toggle visor_editor` | Tab | Modo editor con mouse sí / no |
+| `demo nombre` | — | Abrir un demo |
 
 Para mejor calidad de imagen el visor usa la ventana tal como la tengas.
 Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
@@ -413,6 +498,9 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   y los puntos de cámara (C, P, V) por ahora solo funcionan con `.dm2`.
 - **El video no tiene sonido**: el audio se graba con el sonido por
   software. En la consola: `s_enable 1`, luego `snd_restart`.
+- **Partes negras en el clip**: la cámara pasó por dentro de una pared o
+  quedó fuera del mapa (por ejemplo, un punto de cámara mal ubicado). Mueve
+  ese punto a un lugar dentro del mapa.
 - **"cambió el tamaño de la ventana"**: no cambies el tamaño de la ventana
   ni pases a pantalla completa mientras se graba un clip.
 - **Windows: no abre al hacer doble clic en un demo**: ejecuta

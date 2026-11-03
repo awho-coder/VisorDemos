@@ -2592,7 +2592,7 @@ static const helpline_t visor_help[] = {
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
     { "N / B",      "Frag/muerte sig. / ant." },
-    { "K / J",      "Kill feed / chat" },
+    { "K / J",      "Muertes/chat pantalla" },
     { ", / .",      "Volumen - / +" },
     { "",           NULL },
     { NULL,         "Camara" },
