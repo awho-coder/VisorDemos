@@ -69,8 +69,9 @@
     <ul class="ayuda">
       <li><b>Clic</b> captura el mouse · <b>Esc</b> menú y suelta el mouse</li>
       <li><b>WASD</b> moverse · <b>Espacio</b> saltar · <b>Ctrl</b> agacharse · <b>C</b> postura</li>
-      <li><b>1–5</b> armas · <b>R</b> recargar · <b>Clic derecho</b> apuntar</li>
-      <li><b>M</b> clase · <b>TAB</b> marcador · <b>T / Y</b> chat · <b>`</b> consola</li>
+      <li><b>Clic derecho</b> apuntar / zoom · <b>R</b> recargar · <b>1–5</b> armas · <b>G</b> granada</li>
+      <li><b>B / N / M</b> menú, equipo, clase · <b>TAB</b> marcador · <b>T / Y</b> chat · <b>F1–F12</b> gritos</li>
+      <li><b>Q</b> recoger armas · <b>,</b> lista de teclas · <b>`</b> consola</li>
       <li>La primera vez baja los archivos del mapa (queda guardado en el navegador).</li>
     </ul>
   </div>
@@ -95,6 +96,9 @@
   const SERVER = q.get('server') || '146.181.54.5:27910';
   const HOME = '/home/jugar';
   const GAMEDIR = `${HOME}/dday`;
+  // config guardada del jugador; cambia de nombre cuando cambian las teclas por defecto
+  // (v2: binds oficiales de D-Day, clic derecho = use weapon)
+  const CLAVE_CONFIG = 'jugar-config-v2';
 
   const $ = (id) => document.getElementById(id);
   const paso = (t, error = false) => { $('paso').textContent = t; $('paso').className = error ? 'error' : ''; };
@@ -309,7 +313,7 @@
     const sens = Math.min(30, Math.max(0.1, Number($('sens').value) || 3));
     guardar('jugar-nick', nick);
     guardar('jugar-sens', String(sens));
-    if ($('reset').checked) { try { localStorage.removeItem('jugar-config'); } catch { /* nada */ } }
+    if ($('reset').checked) { try { localStorage.removeItem(CLAVE_CONFIG); } catch { /* nada */ } }
     const cfg = await (await fetch('jugar.cfg')).text();
     await pantallaCompleta();
     jugando = true;
@@ -337,7 +341,7 @@
         FS.mkdirTree(GAMEDIR);
         // config del jugador de la vez anterior (teclas, sensibilidad, opciones del menú);
         // si existe, las teclas por defecto no se aplican encima
-        const previa = guardado('jugar-config', '');
+        const previa = guardado(CLAVE_CONFIG, '');
         if (previa) FS.writeFile(`${GAMEDIR}/visordemos.cfg`, previa);
         FS.writeFile(`${GAMEDIR}/visor.cfg`, previa ? '// teclas: las de visordemos.cfg\n' : cfg);
         for (const [ruta, bytes] of base) if (bytes) escribir(`/q2/dday/${ruta}`, bytes);
@@ -385,8 +389,8 @@
       if (!Module._web_write_config) return;
       Module._web_write_config();
       const t = FS.readFile(`${GAMEDIR}/visordemos.cfg`, { encoding: 'utf8' });
-      guardar('jugar-config', t.split('\n').filter((l) => !/\bvid_(geometry|fullscreen)\b/.test(l)).join('\n'));
-      if (q.has('log')) console.warn(`CONFIG guardada (${t.length} bytes)`);
+      guardar(CLAVE_CONFIG, t.split('\n').filter((l) => !/\bvid_(geometry|fullscreen)\b/.test(l)).join('\n'));
+      if (q.has('log')) console.warn(`CONFIG guardada (${t.length} bytes): ${(t.match(/bind MOUSE2 .*/) || [''])[0]}`);
     } catch { /* todavía no arranca */ }
   }
 
@@ -409,7 +413,7 @@
       $('aviso').hidden = false;
     $('nick').value = q.get('nick') || guardado('jugar-nick', '');
     $('sens').value = guardado('jugar-sens', '3');
-    $('filaReset').hidden = !guardado('jugar-config', '');
+    $('filaReset').hidden = !guardado(CLAVE_CONFIG, '');
 
     paso('Conectando…');
     const [r] = await Promise.all([
