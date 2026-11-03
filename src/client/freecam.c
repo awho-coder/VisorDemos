@@ -343,6 +343,9 @@ static void set_mode(cammode_t mode)
     if (mode != fc.mode)
         fc.fov = 0;
 
+    // a camera picked by hand: paused, the camera points stop showing theirs
+    fc.preview = false;
+
     if (mode != CAM_OFF && fc.mode == CAM_OFF) {
         // start from wherever the view currently is
         VectorCopy(cl.refdef.vieworg, fc.origin);
