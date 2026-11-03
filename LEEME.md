@@ -416,6 +416,10 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
 - **No veo la barra o las teclas del visor no hacen nada**: revisa que la
   ventana se llame *VisorDemos*. Si dice otra cosa, el demo se abrió con otro
   programa (tu Quake 2 normal).
+- **Demos dañados**: algunos demos tienen pedazos rotos (el Quake 2 normal
+  dice *Invalid file format* o *illegible server message*). El visor salta
+  esas partes y sigue; se pierde a lo más un instante del demo. En la
+  consola aparece "Demo danado: ...".
 - **Las teclas de velocidad**: usa **Z / X** o **Av Pág / Re Pág**. Los
   símbolos `[` `]` no funcionan en teclados en español.
 

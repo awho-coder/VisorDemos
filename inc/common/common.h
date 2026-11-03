@@ -21,6 +21,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cmd.h"
 #include "common/utils.h"
 
+#include <setjmp.h>
+
 //
 // common.h -- definitions common between client and server, but not game.dll
 //
@@ -175,6 +177,11 @@ extern cvar_t   *cl_paused;
 extern cvar_t   *sv_running;
 extern cvar_t   *sv_paused;
 extern cvar_t   *com_timedemo;
+
+// while set, an ERR_DROP jumps here instead of dropping the game (to skip
+// an unreadable message of a damaged demo); the message is in com_catch_msg
+extern jmp_buf  *com_catch_drop;
+extern char     com_catch_msg[MAXPRINTMSG];
 extern cvar_t   *com_sleep;
 
 extern cvar_t   *allow_download;

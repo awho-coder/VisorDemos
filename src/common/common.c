@@ -56,6 +56,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <setjmp.h>
 
 static jmp_buf  com_abortframe;    // an ERR_DROP occurred, exit the entire frame
+jmp_buf         *com_catch_drop;
+char            com_catch_msg[MAXPRINTMSG];
 
 static void     (*com_abort_func)(void *);
 static void     *com_abort_arg;
@@ -523,6 +525,16 @@ void Com_Error(error_type_t code, const char *fmt, ...)
         }
 #endif
         Sys_Error("recursive error after: %s", com_errorMsg);
+    }
+
+    if (code == ERR_DROP && com_catch_drop) {
+        jmp_buf *jump = com_catch_drop;
+
+        com_catch_drop = NULL;
+        va_start(argptr, fmt);
+        Q_vscnprintf(com_catch_msg, sizeof(com_catch_msg), fmt, argptr);
+        va_end(argptr);
+        longjmp(*jump, 1);
     }
 
     com_errorEntered = true;
