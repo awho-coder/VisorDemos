@@ -193,6 +193,7 @@
   // navegador (si no cambiaron, no se bajan de nuevo).
   const MEJORAS = ['png', 'tga'];   // texturas mejoradas (jpg no: el motor web no lo lee)
   let indice = {};
+  const fallados = new Set();   // ?fallar= (pruebas)
   let base = new Map();   // ruta -> bytes, se escriben en /q2/dday al arrancar
   let cache = null;
 
@@ -257,6 +258,12 @@
     },
     async bajar(ruta, destinoArchivo) {
       const r = ruta.toLowerCase();
+      // pruebas, solo en este PC: ?fallar=<texto> hace fallar la primera descarga que lo contenga
+      if (local && q.get('fallar') && r.includes(q.get('fallar')) && !fallados.has(r)) {
+        fallados.add(r);
+        console.warn(`PRUEBA: falla a propósito ${r}`);
+        return 0;
+      }
       const carpeta = destinoArchivo.slice(0, destinoArchivo.length - ruta.length);
       // los mapas, primero del servidor en vivo: tienen que ser idénticos a los suyos
       const fuentes = [];

@@ -669,6 +669,69 @@ void CL_CheckPlayerDownloads(const char *name)
         return;
     check_player(name);
 }
+
+static unsigned player_retry[MAX_CLIENTS];
+
+// let the files of this model be queued again (each path is tried once per
+// connection, so a download that failed would never be retried)
+static void forget_player_downloads(const char *model)
+{
+    char prefix[MAX_QPATH];
+    dlqueue_t *q, *n;
+    size_t len;
+
+    len = Q_concat(prefix, sizeof(prefix), "players/", model, "/");
+    FOR_EACH_DLQ_SAFE(q, n) {
+        if (q->state == DL_DONE && !Q_strncasecmp(q->path, prefix, len)) {
+            List_Remove(&q->entry);
+            Z_Free(q);
+        }
+    }
+}
+
+/*
+===============
+CL_WebCheckPlayers
+
+Browser build, called every few seconds in game: a player drawn with the
+fallback model (because a file was missing) is reloaded, and if a file is
+still missing its downloads are tried again. At most every 15 s per player.
+===============
+*/
+void CL_WebCheckPlayers(void)
+{
+    char model[MAX_QPATH], skin[MAX_QPATH];
+    clientinfo_t *ci;
+    const char *s;
+    int i;
+
+    if (cls.state != ca_active || NET_IsLocalAddress(&cls.serverAddress))
+        return;
+
+    for (i = 0; i < MAX_CLIENTS; i++) {
+        s = cl.configstrings[cl.csr.playerskins + i];
+        if (!s[0])
+            continue;
+        ci = &cl.clientinfo[i];
+        CL_ParsePlayerSkin(NULL, model, skin, s);
+        if (!Q_stricmp(ci->model_name, model) && !Q_stricmp(ci->skin_name, skin))
+            continue;   // drawn as it should
+        if (cls.realtime < player_retry[i])
+            continue;
+        player_retry[i] = cls.realtime + 15000;
+
+        // maybe the files arrived: look again
+        R_ForgetMissingImages();
+        CL_LoadClientinfo(ci, s);
+        if (!Q_stricmp(ci->model_name, model) && !Q_stricmp(ci->skin_name, skin))
+            continue;
+
+        Com_DPrintf("%s: %s is %s/%s, downloading %s/%s again\n", __func__,
+                    ci->name, ci->model_name, ci->skin_name, model, skin);
+        forget_player_downloads(model);
+        CL_CheckPlayerDownloads(s);
+    }
+}
 #endif
 
 // for precaching dependencies

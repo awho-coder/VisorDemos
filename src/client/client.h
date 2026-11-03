@@ -1158,6 +1158,7 @@ void HTTP_SetServer(const char *url);
 int HTTP_QueueDownload(const char *path, dltype_t type);
 #if USE_WEBDL
 void CL_CheckPlayerDownloads(const char *name);
+void CL_WebCheckPlayers(void);
 #endif
 void HTTP_RunDownloads(void);
 void HTTP_CleanupDownloads(void);

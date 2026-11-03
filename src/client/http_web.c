@@ -163,12 +163,19 @@ static void fallback_udp(dlqueue_t *q)
 
 void HTTP_RunDownloads(void)
 {
+    static unsigned next_check;
     dlqueue_t *q;
     int id, status;
     bool finished = false;
 
     if (!web_active)
         return;
+
+    // players drawn with the fallback model: reload / download again
+    if (cls.realtime >= next_check) {
+        next_check = cls.realtime + 3000;
+        CL_WebCheckPlayers();
+    }
 
     while ((id = web_dl_done(web_gen, &status))) {
         q = (dlqueue_t *)(intptr_t)id;
@@ -186,7 +193,7 @@ void HTTP_RunDownloads(void)
     if (!finished)
         return;
 
-    if (cls.state == ca_active && !cls.download.pending)
+    if (cls.state == ca_active)
         reload_players();
 
     // see if we have more to download
