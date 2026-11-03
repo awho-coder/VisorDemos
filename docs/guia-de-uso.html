@@ -77,6 +77,9 @@
   }
   .card h3 { margin: 0 0 8px; font-size: 16px; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
   table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  table.ref td:first-child { width: auto; }
+  table.ref td { font-size: 15px; }
+  .scroll { overflow-x: auto; }
   td, th { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
   td:first-child { width: 42%; }
@@ -148,6 +151,7 @@
       <li><a href="#feed">Muertes y chat</a></li>
       <li><a href="#editor">Llevarlo al editor</a></li>
       <li><a href="#ajustes">Ajustes</a></li>
+      <li><a href="#comandos">Comandos de consola</a></li>
       <li><a href="#limites">Límites y consejos</a></li>
     </ol>
   </nav>
@@ -197,21 +201,60 @@
   <ul>
     <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en
     un cuadradito celeste (punto de cámara) para ir a ese punto.</li>
-    <li><strong>Botones</strong> agrupados en <em>Reproducir</em>, <em>Cámara</em>,
-    <em>Puntos de cámara</em> y <em>Clip</em>. Hacen lo mismo que las teclas; al pasar el
-    mouse por encima, arriba del panel aparece qué hace cada uno y su tecla. Los que
-    están encendidos (pausa, x-ray, mirar jugador...) se ven en celeste.</li>
+    <li><strong>Botones</strong> agrupados en filas (ver la tabla de abajo). Hacen lo mismo que
+    las teclas; al pasar el mouse por encima, arriba del panel aparece qué hace cada uno y su
+    tecla. Los que están encendidos (pausa, x-ray, mirar jugador...) se ven en celeste; los
+    grises no se pueden usar en ese momento.</li>
     <li><strong>Mover la cámara:</strong> mantén el <strong>clic derecho</strong> sobre la imagen
     y mueve el mouse para mirar; mientras lo mantienes, vuela con <kbd>W</kbd> <kbd>A</kbd>
     <kbd>S</kbd> <kbd>D</kbd>, <kbd>Espacio</kbd> / <kbd>Ctrl</kbd> y <kbd>Shift</kbd>. Al
     soltarlo vuelve el cursor.</li>
-    <li><strong>Borrar todo</strong> (rojo, en <em>Puntos de cámara</em>): borra todos los puntos y
-    el recorrido grabado de ese demo. Pide un segundo clic en <strong>Sí, borrar todo</strong> para
-    confirmar.</li>
   </ul>
   <p>Las teclas siguen funcionando igual. <kbd>Tab</kbd> vuelve a la barra simple y el visor
   recuerda el último modo. Si la letra se ve chica: <code>visor_editor_size 1.5</code> en la
   consola. El panel no sale en los videos.</p>
+  <h3 id="botones">Botones del modo editor</h3>
+  <div class="scroll">
+  <table class="ref">
+    <thead><tr><th>Fila</th><th>Botón</th><th>Qué hace</th><th>Tecla</th></tr></thead>
+    <tbody>
+      <tr><td>Reproducir</td><td><strong>−10 s</strong> / <strong>+10 s</strong></td><td>Retroceder / adelantar 10 segundos</td><td>Flechas izquierda / derecha</td></tr>
+      <tr><td>Reproducir</td><td><strong>&lt; Frag</strong> / <strong>Frag &gt;</strong></td><td>Frag o muerte anterior / siguiente del jugador que ves (sin jugador: de todos)</td><td>B / N</td></tr>
+      <tr><td>Reproducir</td><td><strong>|| Pausa</strong> / <strong>&gt; Seguir</strong></td><td>Pausa / continuar (en pausa se ve en celeste)</td><td>Flecha abajo</td></tr>
+      <tr><td>Velocidad</td><td><strong>−</strong> / <strong>+</strong></td><td>Más lento (cámara lenta) / más rápido, de x0.1 a x4</td><td>Z / X</td></tr>
+      <tr><td>Velocidad</td><td><strong>x1</strong> (muestra la velocidad)</td><td>Volver a la velocidad normal</td><td>Retroceso</td></tr>
+      <tr><td>Volumen</td><td><strong>−</strong> / <strong>+</strong></td><td>Bajar / subir el volumen del visor</td><td>, / .</td></tr>
+      <tr><td>Cámara</td><td><strong>Libre</strong></td><td>Cámara libre sí / no (también: clic derecho mantenido)</td><td>Flecha arriba</td></tr>
+      <tr><td>Cámara</td><td><strong>&lt; Jugador</strong> / <strong>Jugador &gt;</strong></td><td>Seguir al jugador anterior / siguiente</td><td>Q / E</td></tr>
+      <tr><td>Cámara</td><td><strong>1a / 3a</strong></td><td>Primera / tercera persona al seguir a alguien</td><td>F</td></tr>
+      <tr><td>Cámara</td><td><strong>Original</strong></td><td>Volver a la vista de quien grabó el demo</td><td>R</td></tr>
+      <tr><td>Cámara</td><td><strong>X-ray</strong></td><td>Siluetas de los jugadores detrás de las paredes</td><td>T</td></tr>
+      <tr><td>En pantalla</td><td><strong>Muertes</strong></td><td>Kill feed <strong>en pantalla</strong>: sí / solo el jugador (dice "Muertes: jugador") / no. No cambia el video</td><td>K</td></tr>
+      <tr><td>En pantalla</td><td><strong>Chat</strong></td><td>Chat <strong>en pantalla</strong>: sí / con avisos del servidor (dice "Chat + avisos") / no. No cambia el video</td><td>J</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>+ Punto</strong> / <strong>Actualizar punto</strong></td><td>Poner un punto de cámara aquí con lo que ves; si ya hay uno aquí, lo actualiza</td><td>P</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>&lt; Punto</strong> / <strong>Punto &gt;</strong></td><td>Ir al punto anterior / siguiente (y pausar)</td><td>1 / 2</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>Mirar jugador</strong></td><td>El punto de aquí mira al jugador del centro de la pantalla / vuelve a mirada libre</td><td>L</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>Curva</strong> / <strong>Recta</strong></td><td>Del punto de aquí al siguiente: curva suave o línea recta</td><td>M</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>Borrar punto</strong></td><td>Borrar el punto de cámara de aquí</td><td>U</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>Usar cámara</strong></td><td>Usar los puntos y el recorrido grabado sí / no</td><td>V</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>Grabar recorrido</strong> / <strong>Terminar</strong></td><td>Grabar la cámara mientras corre el demo / terminar</td><td>C</td></tr>
+      <tr><td>Puntos de cámara</td><td><strong>BORRAR TODO</strong></td><td>Borra todos los puntos y el recorrido grabado de este demo. Pide un segundo clic en <strong>SI, BORRAR TODO</strong> (4 segundos)</td><td>—</td></tr>
+      <tr><td>Clip</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
+      <tr><td>Clip</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
+      <tr><td>Clip</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
+      <tr><td>Clip</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
+      <tr><td>En el video</td><td><strong>Muertes</strong></td><td>Kill feed <strong>en los videos</strong>: sí / solo el jugador / no. No cambia la pantalla</td><td>—</td></tr>
+      <tr><td>En el video</td><td><strong>Chat</strong></td><td>Chat <strong>en los videos</strong>: sí / con avisos del servidor / no. No cambia la pantalla</td><td>—</td></tr>
+      <tr><td>(al final)</td><td><strong>Abrir demo</strong></td><td>Elegir otro demo</td><td>Esc</td></tr>
+      <tr><td>(al final)</td><td><strong>Ayuda</strong></td><td>Mostrar / ocultar la ayuda con teclas y ajustes</td><td>H</td></tr>
+      <tr><td>(al final)</td><td><strong>Ocultar editor</strong></td><td>Volver a la barra simple y al teclado</td><td>Tab</td></tr>
+      <tr><td>Mientras graba</td><td><strong>DETENER GRABACION</strong></td><td>Es el único botón mientras se graba: corta y guarda lo grabado</td><td>G</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Los botones de puntos de cámara y de recorrido solo funcionan con demos <code>.dm2</code>
+  (con <code>.mvd2</code> se ven grises). <strong>Curva / Recta</strong> y <strong>Borrar punto</strong>
+  se activan cuando estás justo en un punto (clic en su cuadradito, o <kbd>1</kbd> / <kbd>2</kbd>).</p>
   <p>Paso a paso, con dibujos: <a href="https://awho-coder.github.io/VisorDemos/tutorial-tomas.html">tutorial de tomas con movimiento</a> (en el <code>.zip</code>: <code>3-Tutorial-tomas.html</code>).</p>
 
   <h2 id="teclas">3. Teclas</h2>
@@ -451,6 +494,7 @@
       <tr><td><code>clip_size</code></td><td>1920x1080</td><td>Resolución del video. <code>clip_size ""</code> usa el tamaño de la ventana</td></tr>
       <tr><td><code>clip_fps</code></td><td>60</td><td>Cuadros por segundo</td></tr>
       <tr><td><code>clip_format</code></td><td>mp4</td><td><code>mov</code> = ProRes, calidad de edición profesional (archivos muy grandes)</td></tr>
+      <tr><td><code>clip_quality</code></td><td>16</td><td>Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien)</td></tr>
       <tr><td><code>clip_hud</code></td><td>0</td><td><code>1</code> = incluir el HUD del juego en el video</td></tr>
       <tr><td><code>clip_name</code></td><td>0</td><td><code>1</code> = el nick del jugador que se ve o se sigue sale en el video</td></tr>
       <tr><td><code>visor_name</code></td><td>1</td><td>Muestra arriba el nick del jugador que ves o sigues (<code>0</code> = no)</td></tr>
@@ -464,6 +508,9 @@
       <tr><td><code>s_volume</code></td><td>0.3</td><td>Volumen del visor (también con <kbd>,</kbd> y <kbd>.</kbd>)</td></tr>
       <tr><td><code>clip_volume</code></td><td>auto</td><td>Volumen del video: <code>auto</code> = el mismo que escuchas en el visor, o un valor fijo de 0 a 1</td></tr>
       <tr><td><code>freecam_speed</code></td><td>300</td><td>Velocidad de la cámara libre (también con la rueda del mouse)</td></tr>
+      <tr><td><code>freecam_fast</code></td><td>3</td><td>Cuántas veces más rápido va la cámara libre con <kbd>Shift</kbd></td></tr>
+      <tr><td><code>freecam_smooth</code></td><td>0.15</td><td>Suavizado del movimiento de la cámara libre (segundos; <code>0</code> = sin suavizado)</td></tr>
+      <tr><td><code>freecam_hud</code></td><td>0</td><td><code>1</code> = mostrar el HUD del juego con la cámara libre</td></tr>
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
       <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues (también con la rueda del mouse)</td></tr>
       <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
@@ -473,13 +520,60 @@
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
       <tr><td><code>visor_help_pos</code></td><td>right</td><td>Lado del panel de ayuda (<kbd>H</kbd>): <code>right</code> o <code>left</code></td></tr>
       <tr><td><code>visor_help_size</code></td><td>0.8</td><td>Tamaño de la letra de la ayuda (0.5 a 1.5)</td></tr>
+      <tr><td><code>xray</code></td><td>0</td><td>X-ray encendido (<code>1</code>) o apagado (<code>0</code>); es lo que cambia la tecla <kbd>T</kbd></td></tr>
       <tr><td><code>xray_color</code></td><td>team</td><td>Color de las siluetas del x-ray: <code>team</code> = por equipo, o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code></td></tr>
       <tr><td><code>xray_color_allies</code> / <code>xray_color_axis</code></td><td>blue / red</td><td>Colores de Aliados y Eje con <code>xray_color team</code></td></tr>
       <tr><td><code>xray_alpha</code></td><td>0.45</td><td>Opacidad de las siluetas (0.1 a 1)</td></tr>
     </tbody>
   </table>
 
-  <h2 id="limites">10. Límites y consejos</h2>
+  <h2 id="comandos">10. Comandos de consola</h2>
+  <p>Todo lo que hacen las teclas y los botones se puede escribir en la consola
+  (<kbd>`</kbd>), o usar en tus propias teclas con <code>bind</code> en <code>baseq2\visor.cfg</code>.</p>
+  <div class="scroll">
+  <table class="ref">
+    <thead><tr><th>Comando</th><th>Tecla</th><th>Qué hace</th></tr></thead>
+    <tbody>
+      <tr><td><code>pause</code></td><td>Flecha abajo</td><td>Pausa / continuar</td></tr>
+      <tr><td><code>demo_step -</code> / <code>demo_step +</code></td><td>Flechas izq. / der.</td><td>Retroceder / adelantar 10 s. <code>demo_step + 30</code> = 30 s</td></tr>
+      <tr><td><code>seek 1:30</code> / <code>seek 50%</code></td><td>—</td><td>Ir a un momento (minutos:segundos o porcentaje del demo)</td></tr>
+      <tr><td><code>demo_speed down</code> / <code>up</code> / <code>reset</code> / <code>0.5</code></td><td>Z / X / Retroceso</td><td>Más lento / más rápido / normal / una velocidad fija (0.1 a 4)</td></tr>
+      <tr><td><code>frag_next</code> / <code>frag_prev</code></td><td>N / B</td><td>Siguiente / anterior frag o muerte del jugador que ves</td></tr>
+      <tr><td><code>visor_volume up</code> / <code>down</code> / <code>0.5</code></td><td>. / ,</td><td>Subir / bajar el volumen, o fijarlo (0 a 1)</td></tr>
+      <tr><td><code>freecam</code> / <code>freecam 1</code> / <code>freecam 0</code></td><td>Flecha arriba</td><td>Cámara libre sí / no</td></tr>
+      <tr><td><code>camera_speed up</code> / <code>down</code> / <code>reset</code> / <code>500</code></td><td>Rueda del mouse</td><td>Velocidad de la cámara libre (siguiendo a alguien: distancia)</td></tr>
+      <tr><td><code>chase_next</code> / <code>chase_prev</code></td><td>E / Q</td><td>Seguir al siguiente / anterior jugador</td></tr>
+      <tr><td><code>camera_view</code> / <code>camera_view 1</code> / <code>camera_view 3</code></td><td>F</td><td>Primera / tercera persona</td></tr>
+      <tr><td><code>camera_reset</code></td><td>R</td><td>Volver a la vista de quien grabó</td></tr>
+      <tr><td><code>campath_record</code></td><td>C</td><td>Grabar recorrido de cámara / terminar</td></tr>
+      <tr><td><code>campath_play</code></td><td>V</td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
+      <tr><td><code>campath_clear</code></td><td>—</td><td>Borrar el recorrido grabado de este demo</td></tr>
+      <tr><td><code>keycam_add</code></td><td>P</td><td>Poner un punto de cámara aquí (o actualizar el de aquí)</td></tr>
+      <tr><td><code>keycam_target</code></td><td>L</td><td>El punto mira al jugador del centro / mirada libre</td></tr>
+      <tr><td><code>keycam_mode</code></td><td>M</td><td>Del punto al siguiente: curva / recta</td></tr>
+      <tr><td><code>keycam_delete</code></td><td>U</td><td>Borrar el punto de aquí</td></tr>
+      <tr><td><code>keycam_prev</code> / <code>keycam_next</code></td><td>1 / 2</td><td>Ir al punto anterior / siguiente</td></tr>
+      <tr><td><code>keycam_goto 3</code></td><td>—</td><td>Ir al punto 3</td></tr>
+      <tr><td><code>keycam_clear</code></td><td>—</td><td>Borrar todos los puntos de cámara de este demo</td></tr>
+      <tr><td><code>camera_clear</code></td><td>—</td><td>Borrar todos los puntos y el recorrido (como <strong>BORRAR TODO</strong>)</td></tr>
+      <tr><td><code>clip_in</code> / <code>clip_out</code></td><td>I / O</td><td>Marcar inicio / fin del clip</td></tr>
+      <tr><td><code>clip_clear</code></td><td>Supr</td><td>Borrar las marcas</td></tr>
+      <tr><td><code>clip_export</code> / <code>clip_export nombre</code></td><td>G</td><td>Grabar el clip a video (con nombre opcional); si ya graba, lo detiene</td></tr>
+      <tr><td><code>clip_export_all</code></td><td>—</td><td>Grabar todo el demo a video</td></tr>
+      <tr><td><code>clip_stop</code></td><td>—</td><td>Detener la grabación y guardar lo grabado</td></tr>
+      <tr><td><code>capture_start nombre</code> / <code>capture_stop</code> / <code>capture_toggle</code></td><td>—</td><td>Grabar a mano, sin marcas: empieza / termina / alterna</td></tr>
+      <tr><td><code>feed_toggle killfeed</code> / <code>feed_toggle chat</code></td><td>K / J</td><td>Kill feed / chat <strong>en pantalla</strong>: sí / solo el jugador o con avisos / no</td></tr>
+      <tr><td><code>feed_toggle killfeed clip</code> / <code>feed_toggle chat clip</code></td><td>—</td><td>Lo mismo, pero <strong>en los videos</strong></td></tr>
+      <tr><td><code>visor_xray</code></td><td>T</td><td>X-ray sí / no</td></tr>
+      <tr><td><code>visor_players</code></td><td>—</td><td>Lista en la consola los jugadores y su equipo</td></tr>
+      <tr><td><code>visor_help</code></td><td>H</td><td>Mostrar / ocultar la ayuda</td></tr>
+      <tr><td><code>toggle visor_editor</code></td><td>Tab</td><td>Modo editor con mouse sí / no</td></tr>
+      <tr><td><code>demo nombre</code></td><td>—</td><td>Abrir un demo</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="limites">11. Límites y consejos</h2>
   <ul>
     <li><strong>En un <code>.dm2</code> solo existe lo que veía quien grabó.</strong> Si alejas la
     cámara, puede haber jugadores que no aparecen o que aparecen de golpe. Si quien grabó estaba
@@ -492,6 +586,11 @@
     <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>
     cambian de jugador. El recorrido y los puntos de cámara (<kbd>C</kbd>, <kbd>P</kbd>, <kbd>V</kbd>) por ahora son solo para <code>.dm2</code>.</li>
     <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
+    <li><strong>Partes negras en el clip:</strong> la cámara pasó por dentro de una pared o quedó fuera
+    del mapa (por ejemplo, un punto de cámara mal ubicado). Mueve ese punto a un lugar dentro del mapa.</li>
+    <li><strong>Demos dañados:</strong> algunos demos tienen pedazos rotos (el Quake 2 normal dice
+    <em>Invalid file format</em> o <em>illegible server message</em>). El visor salta esas partes y
+    sigue; se pierde a lo más un instante. En la consola aparece "Demo danado: ...".</li>
     <li>Si el video sale sin sonido: en la consola, <code>s_enable 1</code> y luego <code>snd_restart</code>.</li>
     <li>Para cambiar la velocidad usa <kbd>Z</kbd> / <kbd>X</kbd> o <kbd>Av Pág</kbd> / <kbd>Re Pág</kbd>: los símbolos <code>[</code> <code>]</code> no funcionan en teclados en español.</li>
   </ul>
