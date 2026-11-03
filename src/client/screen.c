@@ -2607,6 +2607,7 @@ static const helpline_t visor_help[] = {
     { "C",          "Grabar recorrido" },
     { "V",          "Usar recorrido/puntos" },
     { "T",          "Siluetas (x-ray)" },
+    { "Y",          "Nombres jugadores" },
     { "",           NULL },
     { NULL,         "Puntos de camara" },
     { "P",          "Poner punto aqui" },
@@ -2642,6 +2643,7 @@ static const settingline_t visor_settings[] = {
     { "visor_editor",    "editor con mouse, Tab" },
     { "visor_editor_size", "letra del editor" },
     { "visor_name",      "nick arriba" },
+    { "visor_names",     "nombres, Y" },
     { "s_volume",        "volumen, teclas , ." },
     { "",                NULL },
     { NULL,              "En el video" },
@@ -2649,6 +2651,7 @@ static const settingline_t visor_settings[] = {
     { "clip_chat",       "0 no, 1 si, 2 +avisos" },
     { "clip_hud",        "HUD del juego" },
     { "clip_name",       "nick del jugador" },
+    { "clip_names",      "nombres jugadores" },
     { "clip_size",       "resolucion" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
@@ -2866,6 +2869,9 @@ static void SCR_DrawActive(void)
 
     // draw 3D game view
     V_RenderView();
+
+    // nicks above the players (in the clip too if wanted)
+    CL_DrawNames(scr.font_pic);
 
     // draw all 2D elements
     SCR_Draw2D();

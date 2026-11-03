@@ -889,6 +889,9 @@ bool CL_IsAxisPlayer(int clientnum);
 void CL_AddBeam(const vec3_t from, const vec3_t to, uint32_t rgba, float alpha, int width);
 void CL_AddVisorEntities(void);
 void CL_KeyCamAddPath(void);
+void CL_InitNames(void);
+void CL_DrawNames(qhandle_t font);
+bool CL_NamesOn(bool clip);
 bool CL_FreecamKeysDriving(void);
 bool CL_PlayerPosition(int num, vec3_t out);
 

@@ -495,6 +495,10 @@ static void feed_buttons(bool clip)
 // the same switches on screen and in the videos, in the same order
 static void overlay_buttons(bool clip)
 {
+    button("Nombres", clip ? "names_toggle clip" : "names_toggle",
+           clip ? "Nicks sobre los jugadores en los videos (en pantalla no cambia)"
+                : "Nicks sobre los jugadores en pantalla (en el video no cambia)  [Y]",
+           on_if(CL_NamesOn(clip)));
     feed_buttons(clip);
     button("HUD", clip ? "toggle clip_hud" : "toggle freecam_hud",
            clip ? "HUD del juego (vida, municion) en los videos"
@@ -617,6 +621,10 @@ static void tab_settings(void)
     setting("PANEL", "visor_editor_size", 0.1f, 0.5f, 3, NULL, "Tamano de la letra del editor");
     setting("KILL FEED", "visor_feed_size", 0.1f, 0.5f, 3, NULL, "Tamano de la letra del kill feed y del chat");
     setting("MOUSE", "sensitivity", 0.5f, 0.5f, 30, NULL, "Sensibilidad del mouse al mover la camara");
+    new_row();
+
+    setting("NOMBRES MIN", "names_min", 1, 4, 64, NULL, "Tamano de los nombres lejos (pixeles en 1080p)");
+    setting("MAX", "names_max", 1, 4, 96, NULL, "Tamano de los nombres cerca (pixeles en 1080p)");
     new_row();
 
     setting("X-RAY", "xray_alpha", 0.05f, 0.1f, 1, NULL, "Opacidad de las siluetas del x-ray");
