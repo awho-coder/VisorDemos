@@ -397,14 +397,14 @@ int CL_KeyCamMarks(float *pos, int max, int *current)
     return n;
 }
 
-// for the timeline text: "PUNTO 2 de 5 (mira a nick)"
+// for the timeline text: "PUNTO 2 (TOTAL 5), mira a nick"
 const char *CL_KeyCamStatus(void)
 {
     int i;
 
     if (!watching_dm2() || (i = key_here()) < 0)
         return NULL;
-    return va("PUNTO %d de %d%s%s", i + 1, num_keys,
+    return va("PUNTO %d (TOTAL %d)%s%s", i + 1, num_keys,
               keys[i].mode == SEG_LINE ? ", recta" : "",
               keys[i].target ? va(", mira a %s", player_name(keys[i].target)) : "");
 }
@@ -461,7 +461,7 @@ static void KeyCam_Add_f(void)
         k.target = keys[i].target;
         keys[i] = k;
         keys_save();
-        announce(va("Punto %d de %d actualizado", i + 1, num_keys));
+        announce(va("Punto %d actualizado (total %d)", i + 1, num_keys));
         return;
     }
 
@@ -478,9 +478,9 @@ static void KeyCam_Add_f(void)
     keys_save();
 
     if (num_keys == 1)
-        announce("Punto 1 puesto. Avanza el demo, mueve la camara y pon otro con P");
+        announce("Punto 1 puesto. Avanza el demo, mueve la camara y pon otro con P (sin limite)");
     else
-        announce(va("Punto %d de %d puesto", i + 1, num_keys));
+        announce(va("Punto %d puesto (total %d, puedes poner mas)", i + 1, num_keys));
 }
 
 // keycam_delete: remove the point at this moment (U)
@@ -609,7 +609,7 @@ static void go_to(int i)
     Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", k->frame / 10, k->frame % 10));
     if (!(sv_paused->integer && cl_paused->integer))
         Cmd_ExecuteString(&cmd_buffer, "pause");
-    announce(va("Punto %d de %d", i + 1, num_keys));
+    announce(va("Punto %d (total %d)", i + 1, num_keys));
 }
 
 static void jump_to(int dir)
