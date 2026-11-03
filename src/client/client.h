@@ -795,6 +795,15 @@ void CL_CamPathClear(void);
 void CL_InitKeyCam(void);
 bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
 bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov);
+typedef struct {
+    int         frame;          // demo frame, for its time
+    bool        line;           // straight line to the next point
+    int         target;         // player it looks at, 0 = none
+    const char  *target_name;
+    float       fov;
+} keyinfo_t;
+bool CL_KeyCamGet(int i, keyinfo_t *out);
+int  CL_KeyCamIndex(void);
 bool CL_KeyCamPlaying(void);
 bool CL_KeyCamHaveKeys(void);
 int  CL_KeyCamCount(void);
@@ -810,6 +819,10 @@ bool CL_EditorActive(void);
 bool CL_EditorFlying(void);
 bool CL_EditorKeyEvent(unsigned key, bool down);
 int  CL_EditorPanelHeight(void);
+int  CL_EditorMouseX(void);
+int  CL_EditorMouseY(void);
+void CL_EditorClickView(int x, int y);
+const char *CL_EditorViewTip(void);
 void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mid, const char *right);
 int  CL_KeyCamMarks(float *pos, int max, int *current);
 const char *CL_KeyCamStatus(void);
@@ -870,6 +883,12 @@ float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
 void CL_FreecamSeeked(void);
+void CL_FreecamSetFov(float fov);
+int  CL_ChaseTarget(void);
+bool CL_IsAxisPlayer(int clientnum);
+void CL_AddBeam(const vec3_t from, const vec3_t to, uint32_t rgba, float alpha, int width);
+void CL_AddVisorEntities(void);
+void CL_KeyCamAddPath(void);
 bool CL_FreecamKeysDriving(void);
 bool CL_PlayerPosition(int num, vec3_t out);
 

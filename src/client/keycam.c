@@ -49,6 +49,9 @@ static char         loaded_for[MAX_QPATH];
 static int          pending_view = -1;  // jumped to this point: show its view
 
 static cvar_t       *keycam_aim_height;
+static cvar_t       *keycam_show;
+
+static int key_here(void);
 
 // same clock as campath.c: stays put across seeks
 static int demo_time(void)
@@ -385,6 +388,48 @@ bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov)
         return false;
     point_view(i, org, ang, fov);
     return true;
+}
+
+/*
+===============
+CL_KeyCamAddPath
+
+"Ver recorrido": the path through the points as a line in the map, and at
+each point a short line where it looks. Not in the videos.
+===============
+*/
+#define PATH_COLOR      MakeColor(  0, 220, 230, 255)
+#define POINT_COLOR     MakeColor(255, 255, 255, 255)
+#define POINT_HERE      MakeColor(255, 200,  60, 255)
+
+void CL_KeyCamAddPath(void)
+{
+    vec3_t org, ang, prev, fwd, tip;
+    float fov;
+    int here;
+
+    if (!keycam_show->integer || CL_CaptureActive() || !watching_dm2())
+        return;
+    check_demo();
+    here = key_here();
+
+    for (int a = 0; a + 1 < num_keys; a++) {
+        int t0 = keys[a].time, t1 = keys[a + 1].time;
+        int steps = Q_clip((t1 - t0) / 50, 1, 60);
+
+        VectorCopy(keys[a].org, prev);
+        for (int s = 1; s <= steps; s++) {
+            sample_segment(a, t0 + (t1 - t0) * s / steps, org, ang, &fov);
+            CL_AddBeam(prev, org, PATH_COLOR, 0.8f, 2);
+            VectorCopy(org, prev);
+        }
+    }
+
+    for (int i = 0; i < num_keys; i++) {
+        AngleVectors(keys[i].ang, fwd, NULL, NULL);
+        VectorMA(keys[i].org, 40, fwd, tip);
+        CL_AddBeam(keys[i].org, tip, i == here ? POINT_HERE : POINT_COLOR, 1, 4);
+    }
 }
 
 /*
@@ -747,6 +792,52 @@ int CL_KeyCamHere(bool *line)
     return keys[i].target ? 2 : 1;
 }
 
+// point i for the editor's list; false if there is no such point
+bool CL_KeyCamGet(int i, keyinfo_t *out)
+{
+    const keyframe_t *k;
+
+    if (!watching_dm2())
+        return false;
+    check_demo();
+    if (i < 0 || i >= num_keys)
+        return false;
+    k = &keys[i];
+    out->frame = k->frame;
+    out->line = k->mode == SEG_LINE;
+    out->target = k->target;
+    out->fov = k->fov;
+    out->target_name = k->target ? player_name(k->target) : NULL;
+    return true;
+}
+
+// index of the point at this moment, -1 if none
+int CL_KeyCamIndex(void)
+{
+    if (!watching_dm2())
+        return -1;
+    check_demo();
+    return key_here();
+}
+
+// keycam_fov <change>: zoom of the point here (- / + in the editor)
+static void KeyCam_Fov_f(void)
+{
+    int i;
+
+    if (!can_edit())
+        return;
+    i = key_here();
+    if (i < 0) {
+        announce("No hay punto aqui (1 / 2 para ir a uno)");
+        return;
+    }
+    keys[i].fov = Q_clipf(keys[i].fov + Q_atof(Cmd_Argv(1)), 10, 160);
+    keys_save();
+    CL_FreecamSetFov(keys[i].fov);
+    announce(va("Punto %d: zoom %g", i + 1, keys[i].fov));
+}
+
 // on / off; campath_play (V) switches both the recorded path and the points
 void CL_KeyCamSetPlaying(bool on)
 {
@@ -769,6 +860,7 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_next", KeyCam_Next_f },
     { "keycam_prev", KeyCam_Prev_f },
     { "keycam_goto", KeyCam_Goto_f },
+    { "keycam_fov", KeyCam_Fov_f },
     { "keycam_clear", KeyCam_Clear_f },
     { "camera_clear", Camera_Clear_f },
     { NULL }
@@ -777,5 +869,6 @@ static const cmdreg_t c_keycam[] = {
 void CL_InitKeyCam(void)
 {
     keycam_aim_height = Cvar_Get("keycam_aim_height", "12", CVAR_ARCHIVE);
+    keycam_show = Cvar_Get("keycam_show", "0", CVAR_ARCHIVE);
     Cmd_Register(c_keycam);
 }

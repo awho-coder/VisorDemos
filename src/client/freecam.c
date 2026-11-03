@@ -979,6 +979,128 @@ void CL_FreecamView(void)
     VectorCopy(cl.viewangles, fc.set_ang);
 }
 
+// the zoom of a camera point changed: the free camera takes it too
+void CL_FreecamSetFov(float fov)
+{
+    if (free_active())
+        fc.fov = fov;
+}
+
+// chase_player <num>: follow this player (entity number; the editor's list)
+static void Chase_Player_f(void)
+{
+    int num = Q_atoi(Cmd_Argv(1));
+
+    if (Cmd_Argc() < 2) {
+        Com_Printf("Uso: %s <numero de jugador>  (visor_players los muestra)\n", Cmd_Argv(0));
+        return;
+    }
+    if (mvd_command(va("follow %d", num - 1), NULL))
+        return;
+    if (!can_detach())
+        return;
+    if (!follow(num))
+        SCR_CenterPrint("Ese jugador no esta a la vista ahora", false);
+}
+
+// entity number of the player followed now, 0 = none
+int CL_ChaseTarget(void)
+{
+    return chase_active() ? fc.target : 0;
+}
+
+/*
+===============================================================================
+
+CLICKS ON THE IMAGE (editor mode)
+
+===============================================================================
+*/
+
+// direction of the line of sight through window pixel x, y
+static bool screen_ray(int x, int y, vec3_t dir)
+{
+    const refdef_t *rd = &cl.refdef;
+    vec3_t f, r, u;
+    float nx, ny;
+
+    if (rd->width <= 0 || rd->height <= 0 || rd->fov_x <= 0 || rd->fov_y <= 0)
+        return false;
+
+    nx = (x - rd->x + 0.5f) / rd->width * 2 - 1;
+    ny = 1 - (y - rd->y + 0.5f) / rd->height * 2;
+    AngleVectors(rd->viewangles, f, r, u);
+    VectorMA(f, nx * tanf(DEG2RAD(rd->fov_x) * 0.5f), r, dir);
+    VectorMA(dir, ny * tanf(DEG2RAD(rd->fov_y) * 0.5f), u, dir);
+    VectorNormalize(dir);
+    return true;
+}
+
+// how far a point is from the line of sight; -1 behind the camera
+static float ray_distance(const vec3_t dir, const vec3_t pos)
+{
+    vec3_t d, closest;
+    float along;
+
+    VectorSubtract(pos, cl.refdef.vieworg, d);
+    along = DotProduct(d, dir);
+    if (along < 16)
+        return -1;
+    VectorScale(dir, along, closest);
+    return Distance(d, closest);
+}
+
+// player under the mouse (entity number), 0 = none
+static int player_at(int x, int y)
+{
+    vec3_t dir, pos;
+    float yaw, best = 40;
+    int found = 0;
+
+    if (!cls.demo.playback || cls.state != ca_active || !screen_ray(x, y, dir))
+        return 0;
+
+    for (int num = 1; num <= cl.maxclients && num <= MAX_CLIENTS; num++) {
+        float d;
+
+        if (eyes_active() && num == fc.target)
+            continue;
+        if (!player_position(num, pos, &yaw))
+            continue;
+        if (Distance(pos, cl.refdef.vieworg) < 48)
+            continue;   // the camera is on them
+        pos[2] += 8;    // the middle of the body
+        d = ray_distance(dir, pos);
+        if (d >= 0 && d < best) {
+            best = d;
+            found = num;
+        }
+    }
+    return found;
+}
+
+// left click on the image in editor mode: follow what is under the mouse
+void CL_EditorClickView(int x, int y)
+{
+    int num = player_at(x, y);
+
+    if (num)
+        Cbuf_InsertText(&cmd_buffer, va("chase_player %d\n", num));
+}
+
+// editor tip line when the mouse is on the image
+const char *CL_EditorViewTip(void)
+{
+    static char buf[96];
+    int num = player_at(CL_EditorMouseX(), CL_EditorMouseY());
+
+    if (num) {
+        Q_snprintf(buf, sizeof(buf), "Clic: seguir a %s", cl.clientinfo[num - 1].name);
+        return buf;
+    }
+    return "Clic en un jugador: seguirlo.  Clic derecho mantenido: mover la camara.  Tab: ocultar el editor";
+}
+
 // a seek: paused on a moment the camera points cover, show their view
 void CL_FreecamSeeked(void)
 {
@@ -998,6 +1120,7 @@ static const cmdreg_t c_freecam[] = {
     { "camera_reset", Camera_Reset_f },
     { "camera_speed", Camera_Speed_f },
     { "camera_view", Camera_View_f },
+    { "chase_player", Chase_Player_f },
     { NULL }
 };
 
