@@ -9,7 +9,7 @@ MIME="$HOME/.local/share/mime"
 ICONS="$HOME/.local/share/icons/hicolor/scalable/apps"
 
 if [ "$1" = "--quitar" ]; then
-    rm -f "$APPS/visordemos.desktop" "$MIME/packages/visordemos.xml" "$ICONS/visordemos.xpm"
+    rm -f "$APPS/visordemos.desktop" "$APPS/visordemos-editor.desktop" "$MIME/packages/visordemos.xml" "$ICONS/visordemos.xpm"
     update-mime-database "$MIME" >/dev/null 2>&1 || true
     update-desktop-database "$APPS" >/dev/null 2>&1 || true
     echo "VisorDemos quitado del escritorio."
@@ -38,6 +38,20 @@ Name=VisorDemos
 GenericName=Visor de demos de Quake 2
 Comment=Ver demos de Quake 2 y sacar clips de video
 Exec="$DIR/visor.sh" %f
+Icon=$ICONS/visordemos.xpm
+Terminal=false
+Categories=Game;
+MimeType=application/x-quake2-demo;
+DESKTOP
+
+# the same viewer, opened in mouse editor mode (buttons, clickable timeline)
+cat > "$APPS/visordemos-editor.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=VisorDemos Editor
+GenericName=Editor de clips de demos de Quake 2
+Comment=Hacer clips de demos de Quake 2 con el mouse
+Exec="$DIR/visor.sh" %f +set visor_editor 1
 Icon=$ICONS/visordemos.xpm
 Terminal=false
 Categories=Game;

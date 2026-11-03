@@ -76,6 +76,10 @@ static bool IN_GetCurrentGrab(void)
     if (cls.active != ACT_ACTIVATED)
         return false;   // main window doesn't have focus
 
+    // VisorDemos editor: free cursor, grabbed only while flying the camera
+    if (CL_EditorActive() && !(cls.key_dest & (KEY_MENU | KEY_CONSOLE)))
+        return CL_EditorFlying();
+
     if (r_config.flags & QVF_FULLSCREEN)
         return true;    // full screen
 
@@ -454,6 +458,10 @@ static void CL_MouseMove(void)
         return;
     }
     if (cls.key_dest & (KEY_MENU | KEY_CONSOLE)) {
+        return;
+    }
+    if (CL_EditorActive() && !CL_EditorFlying()) {
+        vid->get_mouse_motion(&dx, &dy);    // the cursor moves, not the view
         return;
     }
     if (!vid->get_mouse_motion(&dx, &dy)) {

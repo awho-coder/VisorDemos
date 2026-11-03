@@ -184,11 +184,31 @@
     <span style="--c:var(--mark-out)">fin del clip</span>
     <span style="--c:var(--clip)">el clip</span>
     <span style="--c:var(--path)">recorrido de cámara grabado</span>
+    <span style="--c:#00dce6">puntos de cámara (cuadraditos sobre la barra)</span>
     <span style="--c:#ffd200">frags del jugador que ves (rayitas arriba)</span>
     <span style="--c:#ff2d2d">sus muertes (rayitas abajo)</span>
   </div>
   <p>A la izquierda está el tiempo del demo; al centro, el estado (pausa, velocidad,
   tipo de cámara); a la derecha, las marcas del clip.</p>
+
+  <h3 id="editor-mouse">Modo editor: todo con el mouse</h3>
+  <p>Presiona <kbd>Tab</kbd> (o abre <code>VisorDemos Editor.bat</code>) y la barra se
+  cambia por un panel con botones, al estilo de Keygrip:</p>
+  <ul>
+    <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en
+    un cuadradito celeste (punto de cámara) para ir a ese punto.</li>
+    <li><strong>Botones</strong> agrupados en <em>Reproducir</em>, <em>Cámara</em>,
+    <em>Puntos de cámara</em> y <em>Clip</em>. Hacen lo mismo que las teclas; al pasar el
+    mouse por encima, arriba del panel aparece qué hace cada uno y su tecla. Los que
+    están encendidos (pausa, x-ray, mirar jugador...) se ven en celeste.</li>
+    <li><strong>Mover la cámara:</strong> mantén el <strong>clic derecho</strong> sobre la imagen
+    y mueve el mouse para mirar; mientras lo mantienes, vuela con <kbd>W</kbd> <kbd>A</kbd>
+    <kbd>S</kbd> <kbd>D</kbd>, <kbd>Espacio</kbd> / <kbd>Ctrl</kbd> y <kbd>Shift</kbd>. Al
+    soltarlo vuelve el cursor.</li>
+  </ul>
+  <p>Las teclas siguen funcionando igual. <kbd>Tab</kbd> vuelve a la barra simple y el visor
+  recuerda el último modo. Si la letra se ve chica: <code>visor_editor_size 1.5</code> en la
+  consola. El panel no sale en los videos.</p>
 
   <h2 id="teclas">3. Teclas</h2>
   <div class="keys">
@@ -221,15 +241,26 @@
       <table>
         <tr><td><kbd>I</kbd></td><td>Marcar inicio</td></tr>
         <tr><td><kbd>O</kbd></td><td>Marcar fin</td></tr>
-        <tr><td><kbd>G</kbd></td><td>Grabar el clip a video</td></tr>
+        <tr><td><kbd>G</kbd></td><td>Grabar el clip a video (grabando: detener)</td></tr>
         <tr><td><kbd>Supr</kbd></td><td>Borrar las marcas</td></tr>
         <tr><td><kbd>C</kbd></td><td>Grabar recorrido de cámara / terminar</td></tr>
-        <tr><td><kbd>V</kbd></td><td>Usar el recorrido grabado sí / no</td></tr>
+        <tr><td><kbd>V</kbd></td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Puntos de cámara</h3>
+      <table>
+        <tr><td><kbd>P</kbd></td><td>Poner un punto aquí (o actualizarlo)</td></tr>
+        <tr><td><kbd>L</kbd></td><td>El punto mira al jugador del centro / mirada libre</td></tr>
+        <tr><td><kbd>M</kbd></td><td>Hasta el siguiente punto: curva o recta</td></tr>
+        <tr><td><kbd>U</kbd></td><td>Borrar el punto</td></tr>
+        <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Ir al punto anterior / siguiente</td></tr>
       </table>
     </div>
     <div class="card">
       <h3>Otros</h3>
       <table>
+        <tr><td><kbd>Tab</kbd></td><td>Modo editor con mouse: botones y barra de tiempo con clic</td></tr>
         <tr><td><kbd>H</kbd></td><td>Ayuda en pantalla: las teclas a un lado y los ajustes de consola, con su valor actual, al otro</td></tr>
         <tr><td><kbd>K</kbd></td><td>Kill feed: sí / solo el jugador que ves / no</td></tr>
         <tr><td><kbd>,</kbd> <kbd>.</kbd></td><td>Bajar / subir el volumen</td></tr>
@@ -251,7 +282,15 @@
     <li>Presiona <kbd>G</kbd>. El demo salta al inicio, graba hasta el fin y se pausa. Arriba ves <em>GRABANDO</em> con el porcentaje, y al terminar, <em>Clip guardado</em>.</li>
   </ol>
   <p>Los videos quedan en <code>Quake2\dday\videos\</code> con el nombre del demo y el minuto,
-  por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben.</p>
+  por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben. <kbd>G</kbd> durante la
+  grabación la detiene y guarda lo grabado hasta ahí.</p>
+  <h3>Todo el demo de una vez</h3>
+  <p>En el <a href="#editor-mouse">modo editor</a>, el botón <strong>Demo completo</strong> graba
+  el demo entero, del principio al final, sin marcar inicio ni fin (en la consola:
+  <code>clip_export_all</code>). Usa la cámara que tengas: puntos de cámara, recorrido o seguir
+  a un jugador. Mientras graba, el panel muestra <strong>Detener grabación</strong> para cortar
+  antes. El archivo se llama <code>&lt;demo&gt;_completo.mp4</code>; al terminar, el demo se
+  cierra como siempre.</p>
   <div class="note">Mientras graba, el juego puede verse lento o acelerado. Es normal:
   el video se genera cuadro a cuadro y sale fluido igual.</div>
 
@@ -323,6 +362,37 @@
   reemplaza esa parte. <kbd>V</kbd> activa o desactiva el recorrido. Se guarda solo y
   vuelve a estar ahí la próxima vez que abras el mismo demo.</p>
 
+  <h3 id="puntos">Puntos de cámara (como en Keygrip)</h3>
+  <p>En vez de actuar la toma, le dices al visor dónde tiene que estar la cámara en
+  algunos momentos y él la mueve sola entre esos puntos, en una curva suave:</p>
+  <ol class="steps">
+    <li>Pausa (<kbd>↓</kbd>) donde empieza la toma, suelta la cámara (<kbd>↑</kbd>) y ubícala.</li>
+    <li>Presiona <kbd>P</kbd>: queda un punto (un cuadradito celeste en la barra).</li>
+    <li>Avanza el demo (<kbd>→</kbd>, o déjalo correr y vuelve a pausar), mueve la cámara a
+    la siguiente posición y presiona <kbd>P</kbd> otra vez. Repite las veces que quieras.</li>
+    <li>Vuelve al inicio y deja correr el demo: la cámara viaja sola por los puntos
+    (abajo dice <em>PUNTOS DE CAMARA</em>). Marca inicio y fin y graba con <kbd>G</kbd>.</li>
+  </ol>
+  <ul>
+    <li><strong>Seguir a un objetivo:</strong> con la cámara en un punto, apunta a un jugador
+    (que quede al centro de la pantalla) y presiona <kbd>L</kbd>. Desde ese punto la cámara
+    gira sola para mirarlo mientras viaja. Si dos puntos miran a jugadores distintos, la
+    cámara pasa de uno a otro. <kbd>L</kbd> otra vez vuelve a la mirada libre.</li>
+    <li><strong>Corregir un punto:</strong> <kbd>1</kbd> / <kbd>2</kbd> saltan al punto
+    anterior / siguiente y pausan. Mueve la cámara y presiona <kbd>P</kbd>: se actualiza.
+    <kbd>U</kbd> lo borra.</li>
+    <li><strong>Agregar un punto en medio:</strong> deja correr el demo y pausa donde
+    quieras; la cámara libre sigue desde donde iba. Muévela y presiona <kbd>P</kbd>.</li>
+    <li><strong>Curva o recta:</strong> <kbd>M</kbd> cambia cómo va la cámara de ese punto al
+    siguiente: en curva suave (lo normal) o en línea recta a velocidad pareja.</li>
+    <li>Cada punto guarda también el zoom (<code>freecam_fov</code>) que tenías, así que
+    puedes hacer acercamientos.</li>
+  </ul>
+  <div class="note">Mientras el demo corre, los puntos mandan sobre la cámara. En pausa
+  puedes mover la cámara libre para preparar el siguiente punto. Para ver el
+  demo sin los puntos, apágalos con <kbd>V</kbd>. Se guardan solos por demo en la
+  carpeta <code>campaths</code> (archivo <code>.keys</code>).</div>
+
   <h2 id="feed">7. Muertes y chat</h2>
   <p>Mientras miras el demo, arriba a la derecha aparece quién mató a quién, en corto:
   <em>asesino &nbsp;sniped&nbsp; víctima</em>. Los nombres van con el color de su equipo
@@ -391,6 +461,9 @@
       <tr><td><code>freecam_fov</code></td><td>90</td><td>Campo de visión de la cámara libre y al seguir jugadores</td></tr>
       <tr><td><code>chase_dist</code></td><td>110</td><td>Distancia al jugador que sigues (también con la rueda del mouse)</td></tr>
       <tr><td><code>campath_smooth</code></td><td>0.25</td><td>Suavizado del recorrido de cámara, en segundos</td></tr>
+      <tr><td><code>visor_editor</code></td><td>0</td><td><code>1</code> = modo editor con mouse (también con <kbd>Tab</kbd>)</td></tr>
+      <tr><td><code>visor_editor_size</code></td><td>1</td><td>Tamaño de la letra del panel del editor (0.5 a 3)</td></tr>
+      <tr><td><code>keycam_aim_height</code></td><td>12</td><td>Altura sobre el jugador a la que miran los puntos de cámara con <kbd>L</kbd></td></tr>
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
       <tr><td><code>visor_help_pos</code></td><td>right</td><td>Lado del panel de ayuda (<kbd>H</kbd>): <code>right</code> o <code>left</code></td></tr>
       <tr><td><code>visor_help_size</code></td><td>0.8</td><td>Tamaño de la letra de la ayuda (0.5 a 1.5)</td></tr>
@@ -411,7 +484,7 @@
     <li>En algunos servidores el <code>.dm2</code> no incluye el cuerpo de quien grabó: con cámara
     libre no se le ve.</li>
     <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>
-    cambian de jugador. El recorrido de cámara (<kbd>C</kbd>/<kbd>V</kbd>) por ahora es solo para <code>.dm2</code>.</li>
+    cambian de jugador. El recorrido y los puntos de cámara (<kbd>C</kbd>, <kbd>P</kbd>, <kbd>V</kbd>) por ahora son solo para <code>.dm2</code>.</li>
     <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
     <li>Si el video sale sin sonido: en la consola, <code>s_enable 1</code> y luego <code>snd_restart</code>.</li>
     <li>Para cambiar la velocidad usa <kbd>Z</kbd> / <kbd>X</kbd> o <kbd>Av Pág</kbd> / <kbd>Re Pág</kbd>: los símbolos <code>[</code> <code>]</code> no funcionan en teclados en español.</li>

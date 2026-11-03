@@ -688,6 +688,11 @@ void Key_Event(unsigned key, bool down, unsigned time)
         return;
     }
 
+    // VisorDemos editor mode: mouse clicks on its panel, right button flies
+    if ((cls.key_dest == KEY_GAME || !down) && CL_EditorKeyEvent(key, down)) {
+        return;
+    }
+
     // track if any key is down for BUTTON_ANY
     if (down) {
         if (keydown[key] == 1)
