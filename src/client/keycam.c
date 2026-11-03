@@ -755,6 +755,21 @@ static void KeyCam_Target_f(void)
     announce(va("Punto %d: mira a %s", i + 1, player_name(num)));
 }
 
+// projectile a camera point follows right now, -1 none (its trail stands out)
+int CL_KeyCamProjNow(void)
+{
+    int t, a;
+
+    if (!CL_FreecamKeysDriving() || num_keys < 2)
+        return -1;
+    t = demo_time();
+    for (a = 0; a < num_keys - 2 && keys[a + 1].time <= t; a++)
+        ;
+    if (keys[a].follow != FOLLOW_PROJ)
+        return -1;
+    return CL_ProjFind(keys[a].proj_ent, keys[a].proj_first);
+}
+
 // keycam_follow_proj: from the point here to the next the camera follows
 // the projectile being followed now, or the one in the middle of the screen
 static void KeyCam_FollowProj_f(void)

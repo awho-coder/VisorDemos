@@ -490,6 +490,145 @@ int CL_ProjMarks(float *pos, int max)
 /*
 ===============================================================================
 
+TRAILS
+
+A glowing line behind each projectile, fading towards the tail. Built from
+the kept flight, so it is there after a seek, while paused and in slow
+motion. Between the positions of two frames the line follows a smooth
+curve (Catmull-Rom), the head sits on the projectile drawn.
+
+===============================================================================
+*/
+
+int CL_TrailsMode(bool clip)
+{
+    return Q_clip((clip ? clip_trails : visor_trails)->integer, 0, 2);
+}
+
+bool CL_TrailsOn(bool clip)
+{
+    return CL_TrailsMode(clip) > 0;
+}
+
+static uint32_t trail_rgba(projtype_t type)
+{
+    static const struct {
+        const char *name;
+        uint32_t color;
+    } colors[] = {
+        { "red",     MakeColor(255,  60,  50, 255) },
+        { "green",   MakeColor( 80, 255, 120, 255) },
+        { "blue",    MakeColor( 80, 150, 255, 255) },
+        { "yellow",  MakeColor(255, 230,  60, 255) },
+        { "magenta", MakeColor(255,  80, 255, 255) },
+        { "cyan",    MakeColor( 60, 240, 255, 255) },
+        { "white",   MakeColor(245, 245, 255, 255) },
+        { "orange",  MakeColor(255, 140,  40, 255) },
+    };
+    static const uint32_t by_type[] = {
+        MakeColor(255, 140,  40, 255),  // rocket
+        MakeColor( 80, 255, 120, 255),  // grenade
+        MakeColor(245, 245, 255, 255),  // knife
+    };
+
+    for (int i = 0; i < q_countof(colors); i++)
+        if (!Q_stricmp(trail_color->string, colors[i].name))
+            return colors[i].color;
+    return by_type[type];
+}
+
+static float catmull(float p0, float p1, float p2, float p3, float s)
+{
+    float s2 = s * s, s3 = s2 * s;
+    return 0.5f * (2 * p1 + (p2 - p0) * s + (2 * p0 - 5 * p1 + 4 * p2 - p3) * s2 +
+                   (3 * p1 - p0 - 3 * p2 + p3) * s3);
+}
+
+// smooth position at time T (inside the flight)
+static void curve_pos(const track_t *t, float T, vec3_t out)
+{
+    int i = (int)floorf(T);
+    const float *p0 = point(t, i - 1), *p1 = point(t, i), *p2 = point(t, i + 1), *p3 = point(t, i + 2);
+    float s = T - i;
+
+    for (int k = 0; k < 3; k++)
+        out[k] = catmull(p0[k], p1[k], p2[k], p3[k], s);
+}
+
+static void add_trail(const track_t *t, float T, float len, bool followed)
+{
+    float tail = max(T - len, t->first), head = min(T, t->last);
+    float step = 0.34f, alpha_scale = followed ? 1.0f : 0.75f;
+    int width = Cvar_ClampInteger(trail_width, 1, 32) * (followed ? 2 : 1);
+    uint32_t rgba = trail_rgba(t->type);
+    vec3_t a, b;
+
+    if (head <= tail)
+        return;
+
+    curve_pos(t, tail, a);
+    for (float s = tail + step; ; s += step) {
+        bool last = s >= head;
+        float age, near;
+
+        if (last)
+            track_pos(t, head, b);  // on the projectile itself
+        else
+            curve_pos(t, s, b);
+
+        // newer = brighter; the tail fades out, and so does the part
+        // passing by the camera (following it, the trail comes at us)
+        age = (T - min(s, head)) / len;
+        near = Q_clipf((Distance(b, cl.refdef.vieworg) - 24) / 140, 0, 1);
+        if (near > 0)
+            CL_AddBeam(a, b, rgba, (1 - age) * alpha_scale * near, width);
+        VectorCopy(b, a);
+        if (last)
+            break;
+    }
+}
+
+void CL_ProjAddTrails(void)
+{
+    bool clip = CL_CaptureActive();
+    int mode = CL_TrailsMode(clip), followed = CL_FreecamProj();
+    float T, len;
+
+    if (!mode || !have_tracks())
+        return;
+
+    if (followed < 0)
+        followed = CL_KeyCamProjNow();
+
+    T = CL_ProjNow();
+    len = Cvar_ClampValue(trail_time, 0.1f, 30) * 1000 / CL_FRAMETIME;
+
+    for (int i = 0; i < pj.num; i++) {
+        const track_t *t = &pj.tracks[i];
+
+        if (T < t->first || T - len > t->last)
+            continue;
+        if (mode == 2 && i != followed)
+            continue;
+        add_trail(t, T, len, i == followed);
+    }
+}
+
+// trails_toggle [clip]: all / only the one followed / none (key 6)
+static void Trails_Toggle_f(void)
+{
+    bool clip = !strcmp(Cmd_Argv(1), "clip");
+    cvar_t *var = clip ? clip_trails : visor_trails;
+    static const char *const names[] = { "no", "todos los proyectiles", "solo el que sigues" };
+    int v = (CL_TrailsMode(clip) + 1) % 3;
+
+    Cvar_SetInteger(var, v, FROM_CONSOLE);
+    SCR_CenterPrint(va("Estelas %s: %s", clip ? "en el video" : "en pantalla", names[v]), false);
+}
+
+/*
+===============================================================================
+
 COMMANDS
 
 ===============================================================================
@@ -572,4 +711,5 @@ void CL_InitProj(void)
     Cmd_AddCommand("proj_next", Proj_Next_f);
     Cmd_AddCommand("proj_prev", Proj_Prev_f);
     Cmd_AddCommand("proj_list", Proj_List_f);
+    Cmd_AddCommand("trails_toggle", Trails_Toggle_f);
 }

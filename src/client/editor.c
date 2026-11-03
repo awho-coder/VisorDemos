@@ -499,6 +499,13 @@ static void feed_buttons(bool clip)
 // the same switches on screen and in the videos, in the same order
 static void overlay_buttons(bool clip)
 {
+    static const char *const trail_labels[] = { "Estelas: no", "Estelas: todos", "Estelas: el que sigo" };
+    int trails = CL_TrailsMode(clip);
+
+    button(trail_labels[trails], clip ? "trails_toggle clip" : "trails_toggle",
+           clip ? "Estelas de granadas, cohetes y cuchillos en los videos: todos / solo el que sigues / no"
+                : "Estelas de granadas, cohetes y cuchillos en pantalla: todos / solo el que sigues / no  [6]",
+           on_if(trails));
     button("Nombres", clip ? "names_toggle clip" : "names_toggle",
            clip ? "Nicks sobre los jugadores en los videos (en pantalla no cambia)"
                 : "Nicks sobre los jugadores en pantalla (en el video no cambia)  [Y]",
@@ -640,6 +647,15 @@ static void tab_settings(void)
 
     setting("NOMBRES MIN", "names_min", 1, 4, 64, NULL, "Tamano de los nombres lejos (pixeles en 1080p)");
     setting("MAX", "names_max", 1, 4, 96, NULL, "Tamano de los nombres cerca (pixeles en 1080p)");
+    new_row();
+
+    setting("ESTELA", "trail_time", 0.5f, 0.5f, 10, va("%g s", Cvar_VariableValue("trail_time")),
+            "Cuanto dura la estela detras de cada proyectil");
+    setting("GROSOR", "trail_width", 1, 1, 16, NULL, "Grosor de las estelas (la del que sigues es el doble)");
+    button(Q_stricmp(Cvar_VariableString("trail_color"), "tipo") ? va("Color: %s", Cvar_VariableString("trail_color"))
+                                                               : "Color: por tipo",
+           "editor_trail_color", "Color de las estelas: por tipo (cohete naranjo, granada verde, cuchillo blanco) o uno solo",
+           IT_BUTTON);
     new_row();
 
     setting("X-RAY", "xray_alpha", 0.05f, 0.1f, 1, NULL, "Opacidad de las siluetas del x-ray");
@@ -1279,6 +1295,18 @@ static void Editor_XrayColor_f(void)
         Cvar_Set("xray_color", "magenta");
 }
 
+// trail colors: by type, then a few fixed ones
+static void Editor_TrailColor_f(void)
+{
+    static const char *const order[] = { "tipo", "cyan", "red", "yellow", "white", "magenta" };
+    const char *cur = Cvar_VariableString("trail_color");
+    int i;
+
+    for (i = 0; i < q_countof(order) && Q_stricmp(cur, order[i]); i++)
+        ;
+    Cvar_Set("trail_color", order[(i + 1) % q_countof(order)]);
+}
+
 // visor_step <cvar> <change> <min> <max>: the - / + buttons of a setting
 static void Visor_Step_f(void)
 {
@@ -1327,6 +1355,7 @@ void CL_InitEditor(void)
     visor_editor_sides = Cvar_Get("visor_editor_sides", "1", CVAR_ARCHIVE);
     Cmd_AddCommand("editor_clear_ask", Editor_ClearAsk_f);
     Cmd_AddCommand("editor_xray_color", Editor_XrayColor_f);
+    Cmd_AddCommand("editor_trail_color", Editor_TrailColor_f);
     Cmd_AddCommand("visor_step", Visor_Step_f);
 #if USE_DEBUG
     Cmd_AddCommand("editor_mouse", Editor_Mouse_f);

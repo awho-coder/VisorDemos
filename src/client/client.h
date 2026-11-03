@@ -909,6 +909,7 @@ void CL_ProjIdentity(int id, int *number, int *first);
 int  CL_ProjAtRay(const vec3_t dir);
 int  CL_ProjMarks(float *pos, int max);
 void CL_ProjAddTrails(void);
+int  CL_KeyCamProjNow(void);
 void CL_FreecamFollowProj(int id);
 int  CL_FreecamProj(void);
 bool CL_TrailsOn(bool clip);
