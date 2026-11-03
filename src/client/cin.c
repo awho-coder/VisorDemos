@@ -110,8 +110,8 @@ static void my_av_log_cb(void *avcl, int level, const char *fmt, va_list vl)
         type = PRINT_ERROR;
     else if (level <= AV_LOG_WARNING)
         type = PRINT_WARNING;
-    else if (level <= AV_LOG_INFO)
-        type = PRINT_ALL;
+    else if (level <= AV_LOG_INFO && COM_DEVELOPER)
+        type = PRINT_DEVELOPER;     // encoder stats: only with "developer 1"
     else
         return;
 
