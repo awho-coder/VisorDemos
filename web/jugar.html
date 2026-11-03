@@ -67,6 +67,10 @@
     <label class="check" id="filaReset" hidden><input type="checkbox" id="reset"> Volver a las teclas por defecto</label>
     <button id="jugar" disabled>Jugar</button>
     <p id="paso"></p>
+    <p class="aviso" id="avisoMouse" hidden>
+      Para jugar necesitas <b>mouse y teclado</b> conectados (en Android por Bluetooth o USB, con
+      Chrome actualizado). Con la pantalla táctil sola no se puede jugar.
+    </p>
     <p class="aviso" id="aviso" hidden>
       En Chrome para Linux la imagen puede parpadear. Para verla bien usa <b>Firefox</b>,
       o en Chrome abre <code>chrome://flags/#use-angle</code>, elige <b>Vulkan</b> y reinicia Chrome.
@@ -448,6 +452,8 @@
       throw new Error('Tu navegador no tiene WebGL2: prueba con Chrome, Edge o Firefox actualizados.');
     if (/Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent))
       $('aviso').hidden = false;
+    // sin un mouse (solo pantalla táctil) no se puede jugar: avisarlo de entrada
+    if (!matchMedia('(any-pointer: fine)').matches) $('avisoMouse').hidden = false;
     $('nick').value = q.get('nick') || guardado('jugar-nick', '');
     $('sens').value = guardado('jugar-sens', '3');
     $('filaReset').hidden = !guardado(CLAVE_CONFIG, '');
