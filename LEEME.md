@@ -212,8 +212,9 @@ Si ocultas los paneles a los lados, los botones del punto (**Curva /
 Recta**, **Mirar jugador**, **Borrar punto**) aparecen en la pestaña
 **PUNTOS**.
 
-Los botones de puntos de cámara, recorrido y proyectiles solo funcionan con
-demos `.dm2` (con `.mvd2` se ven grises). El panel derecho muestra los
+Todos los botones funcionan con demos `.dm2` y `.mvd2`. Solo en una
+transmisión en vivo (GTV) los de puntos de cámara, recorrido y proyectiles
+se ven grises. El panel derecho muestra los
 ajustes de un punto cuando estás justo en él (clic en su cuadradito, en la
 lista o 1 / 2).
 
@@ -404,7 +405,7 @@ los movimientos de los jugadores se ven algo rectos.
 ### Seguir granadas, cohetes y cuchillos
 
 Al abrir un demo el visor guarda el vuelo de cada granada, cohete y cuchillo
-lanzado. Para seguir uno:
+lanzado, y de las bombas del ataque aéreo. Para seguir uno:
 
 - **< Proyectil / Proyectil >** (pestaña CAMARA) saltan al lanzamiento
   anterior / siguiente y lo siguen; en la barra son las rayitas naranjas.
@@ -422,12 +423,14 @@ siguiendo el proyectil presiona **P** (el punto lo sigue hasta el punto
 siguiente), o en un punto usa **Seguir proyectil** del panel derecho.
 
 Las balas no se pueden seguir: el juego no las manda como objetos. En un
-`.dm2`, si el proyectil se aleja de quien grabó, desaparece del demo.
+`.dm2`, si el proyectil se aleja de quien grabó, desaparece del demo; en un
+`.mvd2` están todos.
 
 ### Estelas
 
 Detrás de cada proyectil queda una **estela tipo láser** que se va
-apagando: naranja los cohetes, verde las granadas, blanca los cuchillos.
+apagando: naranja los cohetes, verde las granadas, blanca los cuchillos y
+amarilla las bombas.
 La del proyectil que sigues es el doble de gruesa. **6** (o **Estelas** en
 VER / VIDEO) cambia entre *todos*, *solo el que sigo* y *no*. Duración,
 grosor y color están en AJUSTES (`trail_time`, `trail_width`,
@@ -561,7 +564,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_trails` | `1` | Lo mismo, en el video |
 | `trail_time` | `2` | Segundos que dura la estela |
 | `trail_width` | `3` | Grosor de la estela (la del proyectil que sigues es el doble) |
-| `trail_color` | `tipo` | `tipo` = cohete naranjo, granada verde, cuchillo blanco; o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white`, `orange` |
+| `trail_color` | `tipo` | `tipo` = cohete naranjo, granada verde, cuchillo blanco, bomba amarilla; o uno fijo: `red`, `green`, `blue`, `yellow`, `magenta`, `cyan`, `white`, `orange` |
 | `follow_dist` | `90` | Distancia de la cámara al proyectil que sigues |
 | `follow_pitch` | `15` | Ángulo desde arriba al empezar a seguir un proyectil (grados) |
 | `follow_hold` | `1.5` | Segundos que la cámara mira donde explotó el proyectil antes de pasar a cámara libre |
@@ -650,13 +653,16 @@ Si tu pantalla no es 16:9, el video se recorta al centro para quedar en 16:9.
   cercanos a quien grabó); en un `.mvd2` muestra a todos.
 - En algunos servidores el `.dm2` no incluye el cuerpo de quien grabó, así
   que con la cámara libre no se ve a ese jugador.
-- **MVD**: la cámara libre y el seguimiento usan los modos propios de MVD
-  (flecha arriba = volar / seguir, E / Q = cambiar de jugador). El recorrido,
-  los puntos de cámara (C, P, V), la cámara lenta por tramo y seguir
-  proyectiles por ahora solo funcionan con `.dm2`.
+- **MVD**: con un `.mvd2` funciona todo igual que con un `.dm2` (cámara
+  libre, puntos de cámara, recorrido, cámara lenta, proyectiles, estelas y
+  nombres), y además están todos los jugadores y proyectiles de la partida.
+  **E / Q**, **R** y **F** usan la vista propia del MVD: por los ojos del
+  jugador, con su arma y su HUD. Los puntos de un `.mvd2` se guardan como
+  `campaths/<demo>_mvd.keys`. En una transmisión en vivo (GTV) solo están los
+  modos de espectador del MVD.
 - **Proyectiles**: en un `.dm2` solo están los que pasaron cerca de quien
-  grabó; si uno se aleja, desaparece del demo (y la estela se corta). Las
-  balas no existen como objeto y no se pueden seguir.
+  grabó; si uno se aleja, desaparece del demo (y la estela se corta). En un
+  `.mvd2` están todos. Las balas no existen como objeto y no se pueden seguir.
 - **El video no tiene sonido**: el audio se graba con el sonido por
   software. En la consola: `s_enable 1`, luego `snd_restart`.
 - **Partes negras en el clip**: la cámara pasó por dentro de una pared o

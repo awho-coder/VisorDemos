@@ -291,8 +291,8 @@
   </div>
   <p>Si ocultas los paneles a los lados, los botones del punto (<strong>Curva / Recta</strong>,
   <strong>Mirar jugador</strong>, <strong>Borrar punto</strong>) aparecen en la pestaña <strong>PUNTOS</strong>.
-  Los botones de puntos de cámara, recorrido y proyectiles solo funcionan con demos <code>.dm2</code>
-  (con <code>.mvd2</code> se ven grises).</p>
+  Todos los botones funcionan con demos <code>.dm2</code> y <code>.mvd2</code>; solo en una
+  transmisión en vivo (GTV) los de puntos, recorrido y proyectiles se ven grises.</p>
   <p>Paso a paso, con dibujos: <a href="https://awho-coder.github.io/VisorDemos/tutorial-tomas.html">tutorial de tomas con movimiento</a> (en el <code>.zip</code>: <code>3-Tutorial-tomas.html</code>).</p>
 
   <h2 id="teclas">3. Teclas</h2>
@@ -414,8 +414,8 @@
   <p>En cámara libre y al seguir jugadores se ocultan el HUD y la mira de quien grabó, y no
   se ve el zoom del rifle de francotirador.</p>
   <h3 id="proyectiles">Seguir granadas, cohetes y cuchillos</h3>
-  <p>Al abrir un demo el visor guarda el vuelo de cada granada, cohete y cuchillo lanzado. Para
-  seguir uno:</p>
+  <p>Al abrir un demo el visor guarda el vuelo de cada granada, cohete y cuchillo lanzado, y de las
+  bombas del ataque aéreo. Para seguir uno:</p>
   <ul>
     <li><strong>&lt; Proyectil / Proyectil &gt;</strong> (pestaña CAMARA) saltan al lanzamiento anterior /
     siguiente y lo siguen. En la barra son las rayitas naranjas.</li>
@@ -429,11 +429,11 @@
   <p>Para un clip, usa un punto de cámara: siguiendo el proyectil presiona <kbd>P</kbd> (el punto lo
   sigue hasta el punto siguiente), o en un punto usa <strong>Seguir proyectil</strong> del panel derecho.</p>
   <div class="note">Las balas no se pueden seguir: el juego no las manda como objetos. En un
-  <code>.dm2</code>, si el proyectil se aleja de quien grabó, desaparece del demo.</div>
+  <code>.dm2</code>, si el proyectil se aleja de quien grabó, desaparece del demo; en un <code>.mvd2</code> están todos.</div>
 
   <h3 id="estelas">Estelas</h3>
   <p>Detrás de cada proyectil queda una <strong>estela tipo láser</strong> que se va apagando:
-  naranja los cohetes, verde las granadas, blanca los cuchillos. La del que sigues es el doble de
+  naranja los cohetes, verde las granadas, blanca los cuchillos y amarilla las bombas. La del que sigues es el doble de
   gruesa. <kbd>6</kbd> (o <strong>Estelas</strong> en VER / VIDEO) cambia entre <em>todos</em>,
   <em>solo el que sigo</em> y <em>no</em>. Duración, grosor y color están en AJUSTES. Salen en los
   videos salvo que las apagues en la pestaña VIDEO.</p>
@@ -627,7 +627,7 @@
       <tr><td><code>clip_trails</code></td><td><code>1</code></td><td>Lo mismo, en el video</td></tr>
       <tr><td><code>trail_time</code></td><td><code>2</code></td><td>Segundos que dura la estela</td></tr>
       <tr><td><code>trail_width</code></td><td><code>3</code></td><td>Grosor de la estela (la del proyectil que sigues es el doble)</td></tr>
-      <tr><td><code>trail_color</code></td><td><code>tipo</code></td><td><code>tipo</code> = cohete naranjo, granada verde, cuchillo blanco; o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code>, <code>orange</code></td></tr>
+      <tr><td><code>trail_color</code></td><td><code>tipo</code></td><td><code>tipo</code> = cohete naranjo, granada verde, cuchillo blanco, bomba amarilla; o uno fijo: <code>red</code>, <code>green</code>, <code>blue</code>, <code>yellow</code>, <code>magenta</code>, <code>cyan</code>, <code>white</code>, <code>orange</code></td></tr>
       <tr><td><code>follow_dist</code></td><td><code>90</code></td><td>Distancia de la cámara al proyectil que sigues</td></tr>
       <tr><td><code>follow_pitch</code></td><td><code>15</code></td><td>Ángulo desde arriba al empezar a seguir un proyectil (grados)</td></tr>
       <tr><td><code>follow_hold</code></td><td><code>1.5</code></td><td>Segundos que la cámara mira donde explotó el proyectil antes de pasar a cámara libre</td></tr>
@@ -705,10 +705,14 @@
     partida. En un <code>.dm2</code> muestra solo a los jugadores que trae el demo; en un <code>.mvd2</code>, a todos.</li>
     <li>En algunos servidores el <code>.dm2</code> no incluye el cuerpo de quien grabó: con cámara
     libre no se le ve.</li>
-    <li>En <code>.mvd2</code>, <kbd>↑</kbd> alterna entre volar y seguir, y <kbd>E</kbd>/<kbd>Q</kbd>
-    cambian de jugador. El recorrido, los puntos de cámara (<kbd>C</kbd>, <kbd>P</kbd>, <kbd>V</kbd>), la cámara lenta por tramo y seguir proyectiles por ahora son solo para <code>.dm2</code>.</li>
+    <li>Con un <code>.mvd2</code> funciona todo igual que con un <code>.dm2</code> (cámara libre, puntos,
+    recorrido, cámara lenta, proyectiles, estelas y nombres), y además están todos los jugadores y
+    proyectiles de la partida. <kbd>E</kbd>/<kbd>Q</kbd>, <kbd>R</kbd> y <kbd>F</kbd> usan la vista propia del MVD:
+    por los ojos del jugador, con su arma y su HUD. En una transmisión en vivo (GTV) solo están los modos
+    de espectador del MVD.</li>
     <li><strong>Proyectiles:</strong> en un <code>.dm2</code> solo están los que pasaron cerca de quien grabó;
-    si uno se aleja, desaparece del demo (y su estela se corta). Las balas no se pueden seguir.</li>
+    si uno se aleja, desaparece del demo (y su estela se corta). En un <code>.mvd2</code> están todos. Las
+    balas no se pueden seguir.</li>
     <li>No cambies el tamaño de la ventana mientras se graba un clip.</li>
     <li><strong>Partes negras en el clip:</strong> la cámara pasó por dentro de una pared o quedó fuera
     del mapa (por ejemplo, un punto de cámara mal ubicado). Mueve ese punto a un lugar dentro del mapa.</li>
