@@ -136,6 +136,13 @@ void CL_FeedIndexEnd(void);
 void CL_FeedIndexPlayers(const configstring_t *skins, int maxclients);
 void CL_FeedIndexPrint(int level, const char *s, int frame, float pos);
 
+// projectile flights: a demo read ahead (DM2 by the client, MVD by the
+// local MVD player)
+void CL_ProjIndexBegin(void);
+void CL_ProjIndexEntity(int number, int modelindex, const char *model, const vec3_t origin);
+void CL_ProjIndexFrame(int frame, int seek_frame, float pos);
+void CL_ProjIndexEnd(void);
+
 #else // USE_CLIENT
 
 #define CL_Init()                       (void)0

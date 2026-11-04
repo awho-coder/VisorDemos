@@ -42,7 +42,7 @@ typedef enum {
 
 typedef struct {
     int         time;       // demo_time(), ms
-    int         frame;      // cls.demo.frames_read, to seek back to it
+    int         frame;      // CL_DemoSeekFrame(), to seek back to it
     float       pos;        // demo file position, for the timeline
     segmode_t   mode;       // how to go from this point to the next
     int         target;     // player entity to look at, 0 = free view
@@ -68,19 +68,20 @@ static int key_here(void);
 // same clock as campath.c: stays put across seeks
 static int demo_time(void)
 {
-    return cl.time + cl.serverdelta * CL_FRAMETIME;
+    return CL_DemoTimeMs();
 }
 
+// a DM2 or a MVD demo file
 static bool watching_dm2(void)
 {
-    return cls.demo.playback && cls.state == ca_active;
+    return CL_DemoView();
 }
 
 static void demo_basename(char *buf, size_t size)
 {
     char *p;
 
-    Q_strlcpy(buf, COM_SkipPath(cls.servername), size);
+    Q_strlcpy(buf, COM_SkipPath(CL_DemoName()), size);
     p = strrchr(buf, '.');
     if (p)
         *p = 0;
@@ -88,6 +89,8 @@ static void demo_basename(char *buf, size_t size)
         if (!Q_isalnum(*p) && *p != '-' && *p != '_')
             *p = '_';
     }
+    if (!cls.demo.playback)
+        Q_strlcat(buf, "_mvd", size);   // not mixed up with a .dm2 of the same name
 }
 
 static const char *player_name(int num)
@@ -190,10 +193,10 @@ static void keys_load(void)
 // switching demos: drop the old points and pick up this demo's saved ones
 static void check_demo(void)
 {
-    if (!strcmp(loaded_for, cls.servername))
+    if (!strcmp(loaded_for, CL_DemoName()))
         return;
 
-    Q_strlcpy(loaded_for, cls.servername, sizeof(loaded_for));
+    Q_strlcpy(loaded_for, CL_DemoName(), sizeof(loaded_for));
     keys_load();
 }
 
@@ -536,10 +539,11 @@ const char *CL_KeyCamStatus(void)
 
     if (!watching_dm2() || (i = key_here()) < 0)
         return NULL;
+    // short: the speed shows as TRAMO next to it while it plays
     return va("PUNTO %d (TOTAL %d)%s%s%s", i + 1, num_keys,
               keys[i].mode == SEG_LINE ? ", recta" : "",
-              keys[i].speed != 1 && i < num_keys - 1 ? va(", x%g", keys[i].speed) : "",
-              keys[i].follow == FOLLOW_PROJ ? ", sigue un proyectil" :
+              keys[i].speed != 1 && i < num_keys - 1 && CL_KeyCamSpeed() == 1 ? va(", x%g", keys[i].speed) : "",
+              keys[i].follow == FOLLOW_PROJ ? ", sigue proyectil" :
               keys[i].follow ? va(", sigue a %s", player_name(keys[i].target)) :
               keys[i].target ? va(", mira a %s", player_name(keys[i].target)) : "");
 }
@@ -555,7 +559,7 @@ COMMANDS
 static bool can_edit(void)
 {
     if (!watching_dm2()) {
-        Com_Printf("Los puntos de camara por ahora funcionan con demos .dm2.\n");
+        Com_Printf("Los puntos de camara funcionan al ver un demo.\n");
         return false;
     }
     if (CL_CaptureActive()) {
@@ -581,8 +585,8 @@ static void KeyCam_Add_f(void)
         return;
 
     k.time = demo_time();
-    k.frame = cls.demo.frames_read;
-    k.pos = cls.demo.file_progress;
+    k.frame = CL_DemoSeekFrame();
+    k.pos = CL_DemoProgress();
     VectorCopy(cl.refdef.vieworg, k.org);
     VectorCopy(cl.refdef.viewangles, k.ang);
     if (k.ang[PITCH] > 180)
@@ -816,7 +820,7 @@ static void go_to(int i)
     const keyframe_t *k = &keys[i];
 
     Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", k->frame / 10, k->frame % 10));
-    if (!(sv_paused->integer && cl_paused->integer))
+    if (!CL_DemoPaused())
         Cmd_ExecuteString(&cmd_buffer, "pause");
     pending_view = i;
     announce(va("Punto %d (total %d)", i + 1, num_keys));
@@ -998,7 +1002,7 @@ float CL_KeyCamSpeed(void)
     bool first, last;
     float s;
 
-    if (!CL_KeyCamPlaying() || (sv_paused->integer && cl_paused->integer))
+    if (!CL_KeyCamPlaying() || CL_DemoPaused())
         return 1;
 
     t = demo_time();

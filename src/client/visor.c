@@ -37,6 +37,134 @@ float CL_DemoSpeed(void)
     return ts > 0 ? ts : 1.0f;
 }
 
+/*
+===============================================================================
+
+DEMO CLOCK
+
+The camera tools work the same with a DM2 (read by the client) and a MVD
+played from a file (read by the local MVD player, which sends the client
+frames like a server). These answer for both.
+
+===============================================================================
+*/
+
+#define MVD_FRAMETIME   100     // MVD frames are 1/10 s, like the seek times
+
+// a MVD demo file is playing on this machine
+bool CL_LocalMvd(void)
+{
+    return cls.state == ca_active && !cls.demo.playback && MVD_GetDemoStatus(NULL, NULL, NULL);
+}
+
+// watching a demo the camera tools work with
+bool CL_DemoView(void)
+{
+    return cls.state == ca_active && (cls.demo.playback || CL_LocalMvd());
+}
+
+bool CL_DemoPaused(void)
+{
+    bool paused = false;
+
+    if (cls.demo.playback)
+        return sv_paused->integer && cl_paused->integer;
+    MVD_GetDemoStatus(NULL, &paused, NULL);
+    return paused;
+}
+
+// pause the demo or let it run. A DM2 is held by cl_paused (manual pause
+// "2"); a MVD file by its own player (mvdpause switches it).
+void CL_DemoSetPaused(bool on)
+{
+    if (cls.demo.playback) {
+        Cvar_Set("cl_paused", on ? "2" : "0");
+        CL_CheckForPause();
+    } else if (CL_LocalMvd() && CL_DemoPaused() != on) {
+        Cmd_ExecuteString(&cmd_buffer, "mvdpause @@");
+    }
+}
+
+// length of a demo frame in ms
+int CL_DemoFrameMs(void)
+{
+    return cls.demo.playback ? CL_FRAMETIME : MVD_FRAMETIME;
+}
+
+// demo frame of a client frame: DM2 frames are the server's own, a MVD
+// player numbers its own frames (it noted which MVD frame each one shows)
+static bool demo_frame_of(const server_frame_t *frame, int *out)
+{
+    if (!frame->valid)
+        return false;
+    if (cls.demo.playback) {
+        *out = frame->number;
+        return true;
+    }
+    *out = MVD_ClientFrameToDemo(frame->number);
+    return *out >= 0;
+}
+
+/*
+===============
+CL_DemoFrameNow
+
+The moment drawn now, in demo frames with a fraction: entities are drawn
+between the previous frame and this one. Stays put while paused, also in
+a MVD (whose frames keep coming while it waits).
+===============
+*/
+float CL_DemoFrameNow(void)
+{
+    int cur, old;
+
+    if (!demo_frame_of(&cl.frame, &cur))
+        return 0;
+    if (!demo_frame_of(&cl.oldframe, &old) || cur - old != 1)
+        return cur;     // paused (same frame), or just after a seek
+    return old + cl.lerpfrac;
+}
+
+// demo time in ms for the camera points and paths. DM2: the same clock as
+// always (camera files saved before keep working).
+int CL_DemoTimeMs(void)
+{
+    if (cls.demo.playback)
+        return cl.time + cl.serverdelta * CL_FRAMETIME;
+    return Q_rint(CL_DemoFrameNow() * MVD_FRAMETIME);
+}
+
+// the frame "seek <s>.<tenths>" takes to come back here
+int CL_DemoSeekFrame(void)
+{
+    int frame = 0;
+
+    if (cls.demo.playback)
+        return cls.demo.frames_read;
+    CL_DemoPosition(&frame, NULL, NULL);
+    return frame;
+}
+
+// position in the demo file, 0 to 1 (timeline)
+float CL_DemoProgress(void)
+{
+    float prog = 0;
+
+    CL_DemoPosition(NULL, &prog, NULL);
+    return prog;
+}
+
+// demo file name (camera points and paths are saved per demo)
+const char *CL_DemoName(void)
+{
+    const char *name;
+
+    if (cls.demo.playback)
+        return cls.servername;
+    name = MVD_GetDemoName();
+    return name ? name : "";
+}
+
 // speed the demo really runs at: the user's, times the slow motion of the
 // camera points here
 float CL_PlaySpeed(void)

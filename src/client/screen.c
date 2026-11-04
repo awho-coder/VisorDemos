@@ -2448,7 +2448,7 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
     if (CL_KeyCamStatus())
         Q_strlcat(mid, va("%s   ", CL_KeyCamStatus()), mid_size);
     if (CL_FreecamKeysDriving())
-        Q_strlcat(mid, "PUNTOS DE CAMARA", mid_size);
+        Q_strlcat(mid, CL_KeyCamStatus() ? "" : "PUNTOS DE CAMARA", mid_size);
     else if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), mid_size);
     else if (CL_FreecamProj() >= 0)

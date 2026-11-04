@@ -47,7 +47,7 @@ static cvar_t       *campath_smooth;
 // position tied to the server frame number.
 static int demo_time(void)
 {
-    return cl.time + cl.serverdelta * CL_FRAMETIME;
+    return CL_DemoTimeMs();
 }
 
 static void path_push(campath_t *p, const campoint_t *pt)
@@ -69,7 +69,7 @@ static void demo_basename(char *buf, size_t size)
 {
     char *p;
 
-    Q_strlcpy(buf, COM_SkipPath(cls.servername), size);
+    Q_strlcpy(buf, COM_SkipPath(CL_DemoName()), size);
     p = strrchr(buf, '.');
     if (p)
         *p = 0;
@@ -77,6 +77,8 @@ static void demo_basename(char *buf, size_t size)
         if (!Q_isalnum(*p) && *p != '-' && *p != '_')
             *p = '_';
     }
+    if (!cls.demo.playback)
+        Q_strlcat(buf, "_mvd", size);   // not mixed up with a .dm2 of the same name
 }
 
 /*
@@ -163,10 +165,10 @@ static void path_load(void)
 // switching demos: drop the old path and pick up this demo's saved one
 static void check_demo(void)
 {
-    if (!strcmp(loaded_for, cls.servername))
+    if (!strcmp(loaded_for, CL_DemoName()))
         return;
 
-    Q_strlcpy(loaded_for, cls.servername, sizeof(loaded_for));
+    Q_strlcpy(loaded_for, CL_DemoName(), sizeof(loaded_for));
     recording = false;
     path_free(&rec);
     path_load();
@@ -226,7 +228,7 @@ void CL_CamPathRecord(bool detached)
 {
     campoint_t pt;
 
-    if (!cls.demo.playback || cls.state != ca_active)
+    if (!CL_DemoView())
         return;
 
     check_demo();
@@ -235,7 +237,7 @@ void CL_CamPathRecord(bool detached)
         return;
 
     pt.time = demo_time();
-    pt.pos = cls.demo.file_progress;
+    pt.pos = CL_DemoProgress();
     pt.detached = detached;
     VectorCopy(cl.refdef.vieworg, pt.org);
     VectorCopy(cl.refdef.viewangles, pt.ang);
@@ -329,7 +331,7 @@ bool CL_CamPathView(vec3_t org, vec3_t ang)
     float total, window;
     const int taps = 8;
 
-    if (!cls.demo.playback || cls.state != ca_active)
+    if (!CL_DemoView())
         return false;
 
     check_demo();
@@ -371,12 +373,12 @@ bool CL_CamPathView(vec3_t org, vec3_t ang)
 
 bool CL_CamPathRecording(void)
 {
-    return recording && cls.demo.playback;
+    return recording && CL_DemoView();
 }
 
 bool CL_CamPathPlaying(void)
 {
-    return playing && !recording && path.num >= 2 && cls.demo.playback;
+    return playing && !recording && path.num >= 2 && CL_DemoView();
 }
 
 // demo positions covered by the path, for the timeline
@@ -401,8 +403,8 @@ COMMANDS
 
 static void CamPath_Record_f(void)
 {
-    if (!cls.demo.playback || cls.state != ca_active) {
-        Com_Printf("Abre un demo .dm2 para grabar un recorrido de camara.\n");
+    if (!CL_DemoView()) {
+        Com_Printf("Abre un demo para grabar un recorrido de camara.\n");
         return;
     }
 
@@ -453,14 +455,14 @@ void CL_CamPathClear(void)
     recording = false;
     path_free(&rec);
     path_free(&path);
-    if (cls.demo.playback)
+    if (CL_DemoView())
         path_save();
 }
 
 // there is a recorded path for this demo (or one being recorded)
 bool CL_CamPathHave(void)
 {
-    if (!cls.demo.playback)
+    if (!CL_DemoView())
         return false;
     check_demo();
     return recording || path.num >= 2;

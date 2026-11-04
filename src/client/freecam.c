@@ -71,18 +71,25 @@ static bool     keys_driving;   // the camera points move the view
 
 static bool mvd_playing(void);
 static float angle_delta(float to, float from);
+static void set_mode(cammode_t mode);
+
+// a demo our own camera works with: a DM2, or a MVD file played here
+// (a live GTV stream keeps the MVD player's own spectator modes)
+static bool demo_view(void)
+{
+    return CL_DemoView();
+}
 
 // camera moved by the user right now (free or chase)
 static bool live_active(void)
 {
-    return fc.mode != CAM_OFF && cls.demo.playback && cls.state == ca_active;
+    return fc.mode != CAM_OFF && demo_view();
 }
 
 // any detached camera: live, or played back from a recorded path
 bool CL_FreecamActive(void)
 {
-    return live_active() ||
-           ((path_driving || keys_driving) && cls.demo.playback && cls.state == ca_active);
+    return live_active() || ((path_driving || keys_driving) && demo_view());
 }
 
 static bool free_active(void)
@@ -212,7 +219,7 @@ int CL_ChasedBodyToHide(void)
         return fc.target;
 
     if (!cls.demo.playback || cls.state != ca_active || CL_FreecamActive())
-        return 0;
+        return 0;   // (a MVD shows a followed player's body itself)
     if (cl.frame.ps.pmove.pm_type != PM_FREEZE)
         return 0;
 
@@ -294,6 +301,7 @@ bool CL_FreecamFlying(void)
 
 void CL_FreecamReset(void)
 {
+    MVD_SetViewerCamera(NULL);
     fc.mode = CAM_OFF;
     fc.target = 0;
     fc.back = 0;
@@ -315,6 +323,10 @@ static bool mvd_command(const char *cmd, const char *msg)
 {
     if (!mvd_playing())
         return false;
+    // the MVD player's view (a player through their eyes, with gun and
+    // HUD) takes over from our own camera
+    if (fc.mode != CAM_OFF)
+        set_mode(CAM_OFF);
     CL_ClientCommand(cmd);
     if (msg)
         SCR_CenterPrint(msg, false);
@@ -323,8 +335,8 @@ static bool mvd_command(const char *cmd, const char *msg)
 
 static bool can_detach(void)
 {
-    if (!cls.demo.playback || cls.state != ca_active) {
-        Com_Printf("La camara solo se puede mover al ver un demo .dm2.\n");
+    if (!demo_view()) {
+        Com_Printf("La camara solo se puede mover al ver un demo (.dm2 o .mvd2).\n");
         return false;
     }
     return true;
@@ -374,7 +386,8 @@ static void Freecam_f(void)
 {
     bool enable;
 
-    if (mvd_command("observe", "MVD: camara libre / seguir jugador"))
+    // a live MVD stream: its own free camera; a MVD file: ours
+    if (!CL_LocalMvd() && mvd_command("observe", "MVD: camara libre / seguir jugador"))
         return;
 
     if (Cmd_Argc() > 1)
@@ -394,9 +407,9 @@ static void Freecam_f(void)
         return;
     }
 
-    if (fc.mode == CAM_FREE && fc.back && follow(fc.back))
+    if (fc.mode == CAM_FREE && fc.back && !mvd_playing() && follow(fc.back))
         return;
-    set_mode(CAM_OFF);
+    set_mode(CAM_OFF);     // a MVD goes back to the player it was showing
 }
 
 /*
@@ -847,7 +860,7 @@ static void proj_view(void)
     fc.proj_off[1] += angle_delta(cl.viewangles[YAW], fc.set_ang[YAW]);
 
     if (state == 2) {
-        if (since * CL_FRAMETIME > Cvar_ClampValue(follow_hold, 0, 30) * 1000) {
+        if (since * CL_DemoFrameMs() > Cvar_ClampValue(follow_hold, 0, 30) * 1000) {
             set_mode(CAM_FREE);
             SCR_CenterPrint("Camara libre donde termino el proyectil", false);
         }
@@ -1035,10 +1048,13 @@ void CL_FreecamView(void)
 
     path_driving = keys_driving = false;
 
-    if (!cls.demo.playback || cls.state != ca_active)
+    if (!demo_view()) {
+        if (mvd_playing())
+            MVD_SetViewerCamera(NULL);
         return;
+    }
 
-    paused = sv_paused->integer && cl_paused->integer;
+    paused = CL_DemoPaused();
 
     // jumped to a camera point: the free camera goes to the view saved in
     // it, to change the point from there
@@ -1110,6 +1126,11 @@ void CL_FreecamView(void)
     CL_CamPathRecord(live_active() || keys_driving);
 
     VectorCopy(cl.viewangles, fc.set_ang);
+
+    // a MVD played here: the local MVD player picks what to send (players
+    // and things in view, sounds) from our camera while it is detached
+    if (!cls.demo.playback)
+        MVD_SetViewerCamera(CL_FreecamActive() ? cl.refdef.vieworg : NULL);
 }
 
 // the zoom of a camera point changed: the free camera takes it too
@@ -1190,7 +1211,7 @@ static int player_at(int x, int y)
     float yaw, best = 40;
     int found = 0;
 
-    if (!cls.demo.playback || cls.state != ca_active || !screen_ray(x, y, dir))
+    if (!demo_view() || !screen_ray(x, y, dir))
         return 0;
 
     for (int num = 1; num <= cl.maxclients && num <= MAX_CLIENTS; num++) {
@@ -1218,8 +1239,7 @@ void CL_EditorClickView(int x, int y)
     vec3_t dir;
     int num, id;
 
-    if (cls.demo.playback && cls.state == ca_active && screen_ray(x, y, dir) &&
-        (id = CL_ProjAtRay(dir)) >= 0) {
+    if (demo_view() && screen_ray(x, y, dir) && (id = CL_ProjAtRay(dir)) >= 0) {
         CL_FreecamFollowProj(id);
         return;
     }
@@ -1237,8 +1257,8 @@ const char *CL_EditorViewTip(void)
     vec3_t dir;
     int id;
 
-    if (cls.demo.playback && cls.state == ca_active &&
-        screen_ray(CL_EditorMouseX(), CL_EditorMouseY(), dir) && (id = CL_ProjAtRay(dir)) >= 0) {
+    if (demo_view() && screen_ray(CL_EditorMouseX(), CL_EditorMouseY(), dir) &&
+        (id = CL_ProjAtRay(dir)) >= 0) {
         Q_snprintf(buf, sizeof(buf), "Clic: seguir esta %s", CL_ProjName(id));
         if (!strcmp(CL_ProjName(id), "cohete") || !strcmp(CL_ProjName(id), "cuchillo"))
             Q_snprintf(buf, sizeof(buf), "Clic: seguir este %s", CL_ProjName(id));
@@ -1263,7 +1283,7 @@ void CL_FreecamSeeked(void)
 // the camera points move the view right now (for the timeline)
 bool CL_FreecamKeysDriving(void)
 {
-    return keys_driving && cls.demo.playback && cls.state == ca_active;
+    return keys_driving && demo_view();
 }
 
 static const cmdreg_t c_freecam[] = {
