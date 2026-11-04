@@ -572,6 +572,12 @@ void SV_BuildClientFrame(client_t *client)
     // find the client's PVS
     SV_GetClient_ViewOrg(client, org);
 
+    // VisorDemos: a demo file played here is seen from the viewer's camera
+    if (sv.state == ss_broadcast) {
+        MVD_ViewerOrigin(client, org);
+        MVD_NoteClientFrame(client);
+    }
+
     leaf = CM_PointLeaf(client->cm, org);
     clientarea = leaf->area;
     clientcluster = leaf->cluster;
@@ -619,11 +625,11 @@ void SV_BuildClientFrame(client_t *client)
     CM_FatPVS(client->cm, &clientpvs, org);
     BSP_ClusterVis(client->cm->cache, &clientphs, clientcluster, DVIS_PHS);
 
-    // VisorDemos x-ray: only for a MVD played from a file on this
-    // machine, never for a live GTV stream or a real game
-    bool xray_players = sv.state == ss_broadcast &&
-                        Cvar_VariableInteger("xray") &&
-                        MVD_GetDemoStatus(NULL, NULL, NULL);
+    // VisorDemos: in a MVD played from a file on this machine (never a
+    // live GTV stream or a real game) every player is sent, wherever they
+    // are: names above the players, x-ray, the player lists and following
+    // anyone need them all
+    bool xray_players = sv.state == ss_broadcast && MVD_IsLocalViewer(client);
 
     // build up the list of visible entities
     frame->num_entities = 0;
@@ -658,8 +664,8 @@ void SV_BuildClientFrame(client_t *client)
             continue;
 
         // ignore if not touching a PV leaf
-        // (VisorDemos x-ray: in a MVD played from a file, players are
-        // never culled, so the viewer gets every player of the match)
+        // (VisorDemos: in a MVD played from a file, players are never
+        // culled, so the viewer gets every player of the match)
         if (ent != clent && !sv_novis->integer && !(client->csr->extended && ent->svflags & SVF_NOCULL) &&
             !(xray_players && ent->s.modelindex == MODELINDEX_PLAYER)) {
             // check area

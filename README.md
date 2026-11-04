@@ -25,6 +25,17 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
   wallhack (ver [por qué](LEEME.md#x-ray-por-qué-no-es-un-wallhack)).
 - **Recorridos de cámara**: graba el movimiento de la cámara mientras miras
   el demo y el clip lo repite, suavizado.
+- **Puntos de cámara** (como en Keygrip): la cámara viaja sola entre ellos,
+  puede mirar o seguir a un jugador o a un proyectil, y cada tramo puede ir
+  en **cámara lenta** (efecto Matrix).
+- **Seguir granadas, cohetes, cuchillos y bombas** desde atrás, con
+  **estelas tipo láser** detrás de cada proyectil.
+- **Nombres sobre los jugadores**, más chicos de lejos, también detrás de
+  las paredes.
+- **Modo editor** con el mouse: pestañas, lista de puntos y de jugadores,
+  ajustes del punto y barra de tiempo con clic.
+- Todo funciona igual con `.dm2` y `.mvd2`; los `.mvd2` traen a todos los
+  jugadores y proyectiles de la partida.
 - **Clips de video**: marca inicio y fin, presiona una tecla y obtienes un MP4
   (H.264 + AAC) o MOV (ProRes) a resolución y cuadros fijos, sin HUD.
 - Cámara lenta fluida (los cuadros se generan, no se interpolan en el editor).
@@ -33,7 +44,8 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
 ## Descargar
 
 - **Windows**: baja el `.zip` desde la [última versión](../../releases/latest).
-  Adentro vienen `1-Instalacion.html` y `2-Guia-de-uso.html`.
+  Adentro vienen `1-Instalacion.html`, `2-Guia-de-uso.html` y
+  `3-Tutorial-tomas.html`.
 - **Linux**: compila desde el código con `./compilar.sh` (dependencias en
   [LEEME.md](LEEME.md#linux)).
 
@@ -41,7 +53,8 @@ Basado en [q2pro](https://github.com/q2pro/q2pro).
 
 - Guías en línea: **https://awho-coder.github.io/VisorDemos/**
   ([instalación](https://awho-coder.github.io/VisorDemos/instalacion.html) ·
-  [guía de uso](https://awho-coder.github.io/VisorDemos/guia-de-uso.html)).
+  [guía de uso](https://awho-coder.github.io/VisorDemos/guia-de-uso.html) ·
+  [tutorial de tomas](https://awho-coder.github.io/VisorDemos/tutorial-tomas.html)).
 - [LEEME.md](LEEME.md): instalación, teclas, cómo hacer clips, ajustes y límites.
 
 ## Compilar

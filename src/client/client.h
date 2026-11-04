@@ -794,6 +794,21 @@ void CL_CamPathClear(void);
 //
 void CL_InitKeyCam(void);
 bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
+bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov);
+typedef struct {
+    int         frame;          // demo frame, for its time
+    bool        line;           // straight line to the next point
+    int         target;         // player it looks at, 0 = none
+    const char  *target_name;
+    float       fov;
+    float       speed;          // slow motion to the next point
+    int         follow;         // 0 no, 1 follows target, 2 follows a projectile
+} keyinfo_t;
+bool CL_ChasePose(int num, vec3_t org, vec3_t ang);
+float CL_KeyCamSpeed(void);
+
+bool CL_KeyCamGet(int i, keyinfo_t *out);
+int  CL_KeyCamIndex(void);
 bool CL_KeyCamPlaying(void);
 bool CL_KeyCamHaveKeys(void);
 int  CL_KeyCamCount(void);
@@ -809,6 +824,10 @@ bool CL_EditorActive(void);
 bool CL_EditorFlying(void);
 bool CL_EditorKeyEvent(unsigned key, bool down);
 int  CL_EditorPanelHeight(void);
+int  CL_EditorMouseX(void);
+int  CL_EditorMouseY(void);
+void CL_EditorClickView(int x, int y);
+const char *CL_EditorViewTip(void);
 void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mid, const char *right);
 int  CL_KeyCamMarks(float *pos, int max, int *current);
 const char *CL_KeyCamStatus(void);
@@ -868,6 +887,43 @@ float CL_FreecamSpeed(void);
 float CL_ChaseDistance(void);
 void CL_FreecamMove(int msec, const vec3_t dir, bool fast);
 void CL_FreecamView(void);
+void CL_FreecamSeeked(void);
+void CL_FreecamSetFov(float fov);
+int  CL_ChaseTarget(void);
+bool CL_IsAxisPlayer(int clientnum);
+void CL_AddBeam(const vec3_t from, const vec3_t to, uint32_t rgba, float alpha, int width);
+void CL_AddVisorEntities(void);
+void CL_KeyCamAddPath(void);
+void CL_InitNames(void);
+void CL_InitProj(void);
+void CL_ProjIndexDm2Frame(void);
+bool CL_LocalMvd(void);
+bool CL_DemoView(void);
+bool CL_DemoPaused(void);
+void CL_DemoSetPaused(bool on);
+int  CL_DemoFrameMs(void);
+float CL_DemoFrameNow(void);
+int  CL_DemoTimeMs(void);
+int  CL_DemoSeekFrame(void);
+float CL_DemoProgress(void);
+const char *CL_DemoName(void);
+float CL_ProjNow(void);
+bool CL_ProjPos(int id, vec3_t out);
+int  CL_ProjState(int id, float *since_end);
+const char *CL_ProjName(int id);
+bool CL_ProjFollowPose(int id, const vec2_t off, float dist, vec3_t org, vec3_t ang);
+int  CL_ProjFind(int number, int first);
+void CL_ProjIdentity(int id, int *number, int *first);
+int  CL_ProjAtRay(const vec3_t dir);
+int  CL_ProjMarks(float *pos, int max);
+void CL_ProjAddTrails(void);
+int  CL_KeyCamProjNow(void);
+void CL_FreecamFollowProj(int id);
+int  CL_FreecamProj(void);
+bool CL_TrailsOn(bool clip);
+int  CL_TrailsMode(bool clip);
+void CL_DrawNames(qhandle_t font);
+bool CL_NamesOn(bool clip);
 bool CL_FreecamKeysDriving(void);
 bool CL_PlayerPosition(int num, vec3_t out);
 

@@ -2716,6 +2716,8 @@ static void CL_InitLocal(void)
     CL_InitFeed();
     CL_InitCamPath();
     CL_InitKeyCam();
+    CL_InitNames();
+    CL_InitProj();
     CL_InitEditor();
     LOC_Init();
     CL_InitAscii();

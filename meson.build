@@ -39,6 +39,8 @@ client_src = [
   'src/client/ascii.c',
   'src/client/campath.c',
   'src/client/keycam.c',
+  'src/client/names.c',
+  'src/client/proj.c',
   'src/client/editor.c',
   'src/client/capture.c',
   'src/client/console.c',

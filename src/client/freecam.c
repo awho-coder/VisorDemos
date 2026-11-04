@@ -32,7 +32,8 @@ GNU General Public License for more details.
 typedef enum {
     CAM_OFF,
     CAM_FREE,
-    CAM_CHASE
+    CAM_CHASE,
+    CAM_PROJ        // behind a projectile (proj.c)
 } cammode_t;
 
 static struct {
@@ -45,6 +46,12 @@ static struct {
     bool        third;      // follow players in third person (F)
     int         back;       // free camera: player to go back to, 0 = recorder
     float       eye_height; // first person: smoothed view height
+    float       fov;        // free camera zoom taken from a camera point, 0 = freecam_fov
+    bool        preview;    // paused: the camera points show their view until
+                            // the camera is moved
+    vec3_t      set_ang;    // view angles left by the last frame, to see the mouse
+    int         proj;       // projectile followed
+    vec2_t      proj_off;   // turn from straight behind it: pitch (down), yaw
 } fc;
 
 static cvar_t   *freecam_speed;
@@ -55,23 +62,34 @@ static cvar_t   *freecam_fov;
 static cvar_t   *chase_dist;
 static cvar_t   *chase_height;
 static cvar_t   *chase_auto;
+static cvar_t   *follow_dist;
+static cvar_t   *follow_pitch;
+static cvar_t   *follow_hold;
 
 static bool     path_driving;   // a recorded camera path moves the view
 static bool     keys_driving;   // the camera points move the view
 
 static bool mvd_playing(void);
+static float angle_delta(float to, float from);
+static void set_mode(cammode_t mode);
+
+// a demo our own camera works with: a DM2, or a MVD file played here
+// (a live GTV stream keeps the MVD player's own spectator modes)
+static bool demo_view(void)
+{
+    return CL_DemoView();
+}
 
 // camera moved by the user right now (free or chase)
 static bool live_active(void)
 {
-    return fc.mode != CAM_OFF && cls.demo.playback && cls.state == ca_active;
+    return fc.mode != CAM_OFF && demo_view();
 }
 
 // any detached camera: live, or played back from a recorded path
 bool CL_FreecamActive(void)
 {
-    return live_active() ||
-           ((path_driving || keys_driving) && cls.demo.playback && cls.state == ca_active);
+    return live_active() || ((path_driving || keys_driving) && demo_view());
 }
 
 static bool free_active(void)
@@ -201,7 +219,7 @@ int CL_ChasedBodyToHide(void)
         return fc.target;
 
     if (!cls.demo.playback || cls.state != ca_active || CL_FreecamActive())
-        return 0;
+        return 0;   // (a MVD shows a followed player's body itself)
     if (cl.frame.ps.pmove.pm_type != PM_FREEZE)
         return 0;
 
@@ -283,6 +301,7 @@ bool CL_FreecamFlying(void)
 
 void CL_FreecamReset(void)
 {
+    MVD_SetViewerCamera(NULL);
     fc.mode = CAM_OFF;
     fc.target = 0;
     fc.back = 0;
@@ -304,6 +323,10 @@ static bool mvd_command(const char *cmd, const char *msg)
 {
     if (!mvd_playing())
         return false;
+    // the MVD player's view (a player through their eyes, with gun and
+    // HUD) takes over from our own camera
+    if (fc.mode != CAM_OFF)
+        set_mode(CAM_OFF);
     CL_ClientCommand(cmd);
     if (msg)
         SCR_CenterPrint(msg, false);
@@ -312,8 +335,8 @@ static bool mvd_command(const char *cmd, const char *msg)
 
 static bool can_detach(void)
 {
-    if (!cls.demo.playback || cls.state != ca_active) {
-        Com_Printf("La camara solo se puede mover al ver un demo .dm2.\n");
+    if (!demo_view()) {
+        Com_Printf("La camara solo se puede mover al ver un demo (.dm2 o .mvd2).\n");
         return false;
     }
     return true;
@@ -329,6 +352,12 @@ static void normalize_view_angles(void)
 
 static void set_mode(cammode_t mode)
 {
+    if (mode != fc.mode)
+        fc.fov = 0;
+
+    // a camera picked by hand: paused, the camera points stop showing theirs
+    fc.preview = false;
+
     if (mode != CAM_OFF && fc.mode == CAM_OFF) {
         // start from wherever the view currently is
         VectorCopy(cl.refdef.vieworg, fc.origin);
@@ -357,7 +386,8 @@ static void Freecam_f(void)
 {
     bool enable;
 
-    if (mvd_command("observe", "MVD: camara libre / seguir jugador"))
+    // a live MVD stream: its own free camera; a MVD file: ours
+    if (!CL_LocalMvd() && mvd_command("observe", "MVD: camara libre / seguir jugador"))
         return;
 
     if (Cmd_Argc() > 1)
@@ -377,9 +407,9 @@ static void Freecam_f(void)
         return;
     }
 
-    if (fc.mode == CAM_FREE && fc.back && follow(fc.back))
+    if (fc.mode == CAM_FREE && fc.back && !mvd_playing() && follow(fc.back))
         return;
-    set_mode(CAM_OFF);
+    set_mode(CAM_OFF);     // a MVD goes back to the player it was showing
 }
 
 /*
@@ -399,6 +429,12 @@ void CL_FreecamMove(int msec, const vec3_t dir, bool fast)
         return;
 
     normalize_view_angles();
+
+    // the user moves the camera: from now on it is theirs, not the points'
+    if (fc.preview && (dir[0] || dir[1] || dir[2] ||
+        fabsf(angle_delta(cl.viewangles[YAW], fc.set_ang[YAW])) > 0.01f ||
+        fabsf(cl.viewangles[PITCH] - fc.set_ang[PITCH]) > 0.01f))
+        fc.preview = false;
 
     if (!free_active())
         return;     // chase camera only uses the mouse
@@ -466,6 +502,44 @@ static bool player_position(int num, vec3_t out, float *yaw)
         LerpVector(ent->prev.origin, ent->current.origin, cl.lerpfrac, out);
         *yaw = LerpAngle(ent->prev.angles[YAW], ent->current.angles[YAW], cl.lerpfrac);
     }
+    return true;
+}
+
+/*
+===============
+CL_ChasePose
+
+Camera behind player `num` now, like the chase camera in third person but
+without the mouse (for camera points that follow a player). The player's
+turns are smoothed so the camera doesn't shake.
+===============
+*/
+bool CL_ChasePose(int num, vec3_t org, vec3_t ang)
+{
+    static const vec3_t mins = { -4, -4, -4 };
+    static const vec3_t maxs = {  4,  4,  4 };
+    static float yaw_s[MAX_CLIENTS + 1];
+    static unsigned last[MAX_CLIENTS + 1];
+    vec3_t pos, fwd, wanted;
+    trace_t tr;
+    float yaw, dt;
+
+    if (num < 1 || num > MAX_CLIENTS || !player_position(num, pos, &yaw))
+        return false;
+
+    dt = (cls.realtime - last[num]) * 0.001f;
+    last[num] = cls.realtime;
+    if (dt > 0.5f || chase_auto->value <= 0)
+        yaw_s[num] = yaw;
+    else
+        yaw_s[num] += angle_delta(yaw, yaw_s[num]) * (1.0f - expf(-dt / chase_auto->value));
+
+    pos[2] += chase_height->value;
+    VectorSet(ang, 15, yaw_s[num], 0);
+    AngleVectors(ang, fwd, NULL, NULL);
+    VectorMA(pos, -Cvar_ClampValue(chase_dist, 16, 1000), fwd, wanted);
+    CL_Trace(&tr, pos, wanted, mins, maxs, CONTENTS_SOLID);
+    VectorCopy(tr.endpos, org);
     return true;
 }
 
@@ -768,6 +842,90 @@ static void chase_view(void)
 
 /*
 ===============
+proj_view
+
+Behind a projectile. The mouse turns the camera around it and the turn
+stays the same for the rest of the flight. When it explodes the camera
+waits there follow_hold seconds and turns into the free camera.
+===============
+*/
+static void proj_view(void)
+{
+    vec3_t org, ang;
+    float since;
+    int state = CL_ProjState(fc.proj, &since);
+
+    // the mouse moved the view since the last frame: that is the new turn
+    fc.proj_off[0] = Q_clipf(fc.proj_off[0] + cl.viewangles[PITCH] - fc.set_ang[PITCH], -80, 85);
+    fc.proj_off[1] += angle_delta(cl.viewangles[YAW], fc.set_ang[YAW]);
+
+    if (state == 2) {
+        if (since * CL_DemoFrameMs() > Cvar_ClampValue(follow_hold, 0, 30) * 1000) {
+            set_mode(CAM_FREE);
+            SCR_CenterPrint("Camara libre donde termino el proyectil", false);
+        }
+        return;     // stays where it was, looking at the spot
+    }
+
+    if (!CL_ProjFollowPose(fc.proj, fc.proj_off, Cvar_ClampValue(follow_dist, 16, 1000), org, ang))
+        return;
+    VectorCopy(org, fc.origin);
+    VectorCopy(ang, cl.viewangles);
+}
+
+// follow projectile `id` (proj.c), straight behind it and a bit above
+void CL_FreecamFollowProj(int id)
+{
+    if (!can_detach())
+        return;
+    if (fc.mode != CAM_PROJ)
+        fc.back = chase_active() ? fc.target : 0;
+    set_mode(CAM_PROJ);
+    fc.proj = id;
+    fc.proj_off[0] = follow_pitch->value;
+    fc.proj_off[1] = 0;
+    VectorCopy(cl.viewangles, fc.set_ang);
+    SCR_CenterPrint(va("Siguiendo: %s", CL_ProjName(id)), false);
+}
+
+// projectile followed now, -1 none
+int CL_FreecamProj(void)
+{
+    return fc.mode == CAM_PROJ && live_active() ? fc.proj : -1;
+}
+
+// follow [n]: the projectile in the middle of the screen (key 5)
+static void Follow_f(void)
+{
+    vec3_t fwd;
+    int id;
+
+    if (!can_detach())
+        return;
+    if (Cmd_Argc() > 1) {
+        id = Q_atoi(Cmd_Argv(1)) - 1;
+    } else {
+        AngleVectors(cl.refdef.viewangles, fwd, NULL, NULL);
+        id = CL_ProjAtRay(fwd);
+    }
+    if (id < 0) {
+        SCR_CenterPrint("No hay un proyectil en vuelo al centro de la pantalla\n"
+                        "(< Proyectil > buscan los lanzamientos)", false);
+        return;
+    }
+    CL_FreecamFollowProj(id);
+}
+
+// follow_angle: back to straight behind the projectile, a bit above
+static void Follow_Angle_f(void)
+{
+    fc.proj_off[0] = follow_pitch->value;
+    fc.proj_off[1] = 0;
+    SCR_CenterPrint("Camara detras del proyectil", false);
+}
+
+/*
+===============
 eyes_view
 
 First person of a player other than the recorder. The demo only has their
@@ -890,16 +1048,37 @@ void CL_FreecamView(void)
 
     path_driving = keys_driving = false;
 
-    if (!cls.demo.playback || cls.state != ca_active)
+    if (!demo_view()) {
+        if (mvd_playing())
+            MVD_SetViewerCamera(NULL);
         return;
+    }
 
-    paused = sv_paused->integer && cl_paused->integer;
+    paused = CL_DemoPaused();
 
-    if (CL_KeyCamView(org, ang, &fov) && (!live_active() || !paused)) {
+    // jumped to a camera point: the free camera goes to the view saved in
+    // it, to change the point from there
+    if (CL_KeyCamPendingView(org, ang, &fov)) {
+        if (fc.mode != CAM_FREE) {
+            fc.back = chase_active() ? fc.target : 0;
+            set_mode(CAM_FREE);
+        }
+        VectorCopy(org, fc.origin);
+        VectorCopy(ang, cl.viewangles);
+        normalize_view_angles();
+        VectorClear(fc.velocity);
+        fc.fov = fov;
+        fc.preview = false;
+    }
+
+    if (CL_KeyCamView(org, ang, &fov) && (!live_active() || !paused || fc.preview)) {
         // camera points cover this moment. They win over the live camera
-        // while the demo runs; paused, the live camera is free to set up a
-        // point. The free camera rides along, so pausing doesn't jump.
+        // while the demo runs; paused, until the camera is moved (then it is
+        // free to set up a point). The free camera rides along, so pausing
+        // doesn't jump.
         keys_driving = true;
+        if (!paused)
+            fc.preview = true;
         VectorCopy(org, cl.refdef.vieworg);
         VectorCopy(ang, cl.refdef.viewangles);
         if (free_active()) {
@@ -907,10 +1086,13 @@ void CL_FreecamView(void)
             VectorCopy(ang, cl.viewangles);
             normalize_view_angles();
             VectorClear(fc.velocity);
+            fc.fov = fov;
         }
     } else if (live_active()) {
         // the user is moving the camera
-        if (fc.mode == CAM_CHASE && fc.third)
+        if (fc.mode == CAM_PROJ)
+            proj_view();
+        else if (fc.mode == CAM_CHASE && fc.third)
             chase_view();
         else if (fc.mode == CAM_CHASE)
             eyes_view();
@@ -928,7 +1110,12 @@ void CL_FreecamView(void)
 
         // own field of view: ignore the recorder's zoom (sniper scope etc.),
         // or the one saved with the camera points
-        cl.fov_x = keys_driving ? fov : Cvar_ClampValue(freecam_fov, 10, 160);
+        if (keys_driving)
+            cl.fov_x = fov;
+        else if (free_active() && fc.fov > 0)
+            cl.fov_x = fc.fov;
+        else
+            cl.fov_x = Cvar_ClampValue(freecam_fov, 10, 160);
         cl.fov_y = V_CalcFov(cl.fov_x, 4, 3);
 
         // the recorder's damage flashes and underwater tint don't belong here
@@ -937,12 +1124,166 @@ void CL_FreecamView(void)
     }
 
     CL_CamPathRecord(live_active() || keys_driving);
+
+    VectorCopy(cl.viewangles, fc.set_ang);
+
+    // a MVD played here: the local MVD player picks what to send (players
+    // and things in view, sounds) from our camera while it is detached
+    if (!cls.demo.playback)
+        MVD_SetViewerCamera(CL_FreecamActive() ? cl.refdef.vieworg : NULL);
+}
+
+// the zoom of a camera point changed: the free camera takes it too
+void CL_FreecamSetFov(float fov)
+{
+    if (free_active())
+        fc.fov = fov;
+}
+
+// chase_player <num>: follow this player (entity number; the editor's list)
+static void Chase_Player_f(void)
+{
+    int num = Q_atoi(Cmd_Argv(1));
+
+    if (Cmd_Argc() < 2) {
+        Com_Printf("Uso: %s <numero de jugador>  (visor_players los muestra)\n", Cmd_Argv(0));
+        return;
+    }
+    if (mvd_command(va("follow %d", num - 1), NULL))
+        return;
+    if (!can_detach())
+        return;
+    if (!follow(num))
+        SCR_CenterPrint("Ese jugador no esta a la vista ahora", false);
+}
+
+// entity number of the player followed now, 0 = none
+int CL_ChaseTarget(void)
+{
+    return chase_active() ? fc.target : 0;
+}
+
+/*
+===============================================================================
+
+CLICKS ON THE IMAGE (editor mode)
+
+===============================================================================
+*/
+
+// direction of the line of sight through window pixel x, y
+static bool screen_ray(int x, int y, vec3_t dir)
+{
+    const refdef_t *rd = &cl.refdef;
+    vec3_t f, r, u;
+    float nx, ny;
+
+    if (rd->width <= 0 || rd->height <= 0 || rd->fov_x <= 0 || rd->fov_y <= 0)
+        return false;
+
+    nx = (x - rd->x + 0.5f) / rd->width * 2 - 1;
+    ny = 1 - (y - rd->y + 0.5f) / rd->height * 2;
+    AngleVectors(rd->viewangles, f, r, u);
+    VectorMA(f, nx * tanf(DEG2RAD(rd->fov_x) * 0.5f), r, dir);
+    VectorMA(dir, ny * tanf(DEG2RAD(rd->fov_y) * 0.5f), u, dir);
+    VectorNormalize(dir);
+    return true;
+}
+
+// how far a point is from the line of sight; -1 behind the camera
+static float ray_distance(const vec3_t dir, const vec3_t pos)
+{
+    vec3_t d, closest;
+    float along;
+
+    VectorSubtract(pos, cl.refdef.vieworg, d);
+    along = DotProduct(d, dir);
+    if (along < 16)
+        return -1;
+    VectorScale(dir, along, closest);
+    return Distance(d, closest);
+}
+
+// player under the mouse (entity number), 0 = none
+static int player_at(int x, int y)
+{
+    vec3_t dir, pos;
+    float yaw, best = 40;
+    int found = 0;
+
+    if (!demo_view() || !screen_ray(x, y, dir))
+        return 0;
+
+    for (int num = 1; num <= cl.maxclients && num <= MAX_CLIENTS; num++) {
+        float d;
+
+        if (eyes_active() && num == fc.target)
+            continue;
+        if (!player_position(num, pos, &yaw))
+            continue;
+        if (Distance(pos, cl.refdef.vieworg) < 48)
+            continue;   // the camera is on them
+        pos[2] += 8;    // the middle of the body
+        d = ray_distance(dir, pos);
+        if (d >= 0 && d < best) {
+            best = d;
+            found = num;
+        }
+    }
+    return found;
+}
+
+// left click on the image in editor mode: follow what is under the mouse
+void CL_EditorClickView(int x, int y)
+{
+    vec3_t dir;
+    int num, id;
+
+    if (demo_view() && screen_ray(x, y, dir) && (id = CL_ProjAtRay(dir)) >= 0) {
+        CL_FreecamFollowProj(id);
+        return;
+    }
+
+    num = player_at(x, y);
+    if (num)
+        Cbuf_InsertText(&cmd_buffer, va("chase_player %d\n", num));
+}
+
+// editor tip line when the mouse is on the image
+const char *CL_EditorViewTip(void)
+{
+    static char buf[96];
+    int num = player_at(CL_EditorMouseX(), CL_EditorMouseY());
+    vec3_t dir;
+    int id;
+
+    if (demo_view() && screen_ray(CL_EditorMouseX(), CL_EditorMouseY(), dir) &&
+        (id = CL_ProjAtRay(dir)) >= 0) {
+        Q_snprintf(buf, sizeof(buf), "Clic: seguir esta %s", CL_ProjName(id));
+        if (!strcmp(CL_ProjName(id), "cohete") || !strcmp(CL_ProjName(id), "cuchillo"))
+            Q_snprintf(buf, sizeof(buf), "Clic: seguir este %s", CL_ProjName(id));
+        return buf;
+    }
+
+    if (num) {
+        Q_snprintf(buf, sizeof(buf), "Clic: seguir a %s", cl.clientinfo[num - 1].name);
+        return buf;
+    }
+    if (CL_FreecamProj() >= 0)
+        return "Clic derecho mantenido: girar la camara alrededor del proyectil.  Tab: ocultar el editor";
+    return "Clic en un jugador o un proyectil: seguirlo.  Clic derecho mantenido: mover la camara";
+}
+
+// a seek: paused on a moment the camera points cover, show their view
+void CL_FreecamSeeked(void)
+{
+    fc.preview = true;
 }
 
 // the camera points move the view right now (for the timeline)
 bool CL_FreecamKeysDriving(void)
 {
-    return keys_driving && cls.demo.playback && cls.state == ca_active;
+    return keys_driving && demo_view();
 }
 
 static const cmdreg_t c_freecam[] = {
@@ -952,8 +1293,16 @@ static const cmdreg_t c_freecam[] = {
     { "camera_reset", Camera_Reset_f },
     { "camera_speed", Camera_Speed_f },
     { "camera_view", Camera_View_f },
+    { "chase_player", Chase_Player_f },
+    { "follow", Follow_f },
+    { "follow_angle", Follow_Angle_f },
     { NULL }
 };
+
+static void freecam_fov_changed(cvar_t *self)
+{
+    fc.fov = 0;     // a zoom set by hand wins over the one of a camera point
+}
 
 void CL_InitFreecam(void)
 {
@@ -962,9 +1311,13 @@ void CL_InitFreecam(void)
     freecam_smooth = Cvar_Get("freecam_smooth", "0.15", CVAR_ARCHIVE);
     freecam_hud = Cvar_Get("freecam_hud", "0", CVAR_ARCHIVE);
     freecam_fov = Cvar_Get("freecam_fov", "90", CVAR_ARCHIVE);
+    freecam_fov->changed = freecam_fov_changed;
     chase_dist = Cvar_Get("chase_dist", "110", CVAR_ARCHIVE);
     chase_height = Cvar_Get("chase_height", "28", CVAR_ARCHIVE);
     chase_auto = Cvar_Get("chase_auto", "0.6", CVAR_ARCHIVE);
+    follow_dist = Cvar_Get("follow_dist", "90", CVAR_ARCHIVE);
+    follow_pitch = Cvar_Get("follow_pitch", "15", CVAR_ARCHIVE);
+    follow_hold = Cvar_Get("follow_hold", "1.5", CVAR_ARCHIVE);
 
     Cmd_Register(c_freecam);
 }

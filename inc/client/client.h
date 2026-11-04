@@ -68,6 +68,7 @@ void CL_Shutdown(void);
 unsigned CL_Frame(unsigned msec);
 bool CL_CaptureActive(void);
 unsigned CL_CaptureFrameMsec(void);
+float CL_PlaySpeed(void);
 void CL_RestartFilesystem(bool total);
 void CL_Activate(active_t active);
 void CL_EditorMouseMove(int x, int y);
@@ -134,6 +135,13 @@ void CL_FeedIndexBegin(void);
 void CL_FeedIndexEnd(void);
 void CL_FeedIndexPlayers(const configstring_t *skins, int maxclients);
 void CL_FeedIndexPrint(int level, const char *s, int frame, float pos);
+
+// projectile flights: a demo read ahead (DM2 by the client, MVD by the
+// local MVD player)
+void CL_ProjIndexBegin(void);
+void CL_ProjIndexEntity(int number, int modelindex, const char *model, const vec3_t origin);
+void CL_ProjIndexFrame(int frame, int seek_frame, float pos);
+void CL_ProjIndexEnd(void);
 
 #else // USE_CLIENT
 

@@ -1211,6 +1211,8 @@ static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
         if (parse_demo_message(true))
             goto done;
         CL_EmitDemoSnapshot();
+        if (demo_indexing)
+            CL_ProjIndexDm2Frame();
     }
 
     Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
@@ -1275,6 +1277,7 @@ static void CL_Seek_f(void)
 #if USE_MVD_CLIENT
     if (sv_running->integer == ss_broadcast) {
         Cbuf_InsertText(&cmd_buffer, va("mvdseek \"%s\" @@\n", Cmd_Argv(1)));
+        CL_FreecamSeeked();
         return;
     }
 #endif
@@ -1332,6 +1335,7 @@ static void CL_Seek_f(void)
     }
 
     seek_demo(dest, byte_seek, back_seek);
+    CL_FreecamSeeked();
 }
 
 /*
@@ -1395,9 +1399,11 @@ static void CL_DemoIndex_f(void)
     index_stop = next_map_offset();
 
     CL_FeedIndexBegin();
+    CL_ProjIndexBegin();
     demo_indexing = true;
     seek_demo(INT64_MAX, false, false);
     demo_indexing = false;
+    CL_ProjIndexEnd();
     CL_FeedIndexEnd();
 
     if (cls.demo.playback && cls.state == ca_active)

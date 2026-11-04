@@ -161,7 +161,7 @@ unsigned CL_CaptureFrameMsec(void)
 
     // slow motion / fast forward: the video keeps its frame rate, the game
     // advances by a scaled amount
-    cap.game_frac += msec * CL_DemoSpeed();
+    cap.game_frac += msec * CL_PlaySpeed();
     scaled = floorf(cap.game_frac);
     cap.game_frac -= scaled;
 
@@ -692,10 +692,15 @@ static bool capture_start(const char *name)
     // the device gets nothing while we mix for the file
     S_StopAllSounds();
 
-    // make sure the demo runs: sv_paused is what holds the demo, and it only
-    // follows cl_paused when the pause state is checked again
-    Cvar_Set("cl_paused", "0");
-    CL_CheckForPause();
+    // make sure the demo runs: sv_paused is what holds a DM2, and it only
+    // follows cl_paused when the pause state is checked again; a MVD file
+    // has its own pause
+    if (CL_DemoView())
+        CL_DemoSetPaused(false);
+    else {
+        Cvar_Set("cl_paused", "0");
+        CL_CheckForPause();
+    }
 
     // clear the screen before each frame: where the camera sees nothing
     // (outside the map, inside a wall) the last frame would stay, with the
@@ -812,8 +817,7 @@ void CL_CaptureFrame(void)
             capture_stop();
             // a manual pause ("1" is the automatic one, which lets go by itself),
             // applied to the demo right away
-            Cvar_Set("cl_paused", "2");
-            CL_CheckForPause();
+            CL_DemoSetPaused(true);
         }
     }
 }
@@ -1022,10 +1026,7 @@ static void Clip_Stop_f(void)
         return;
     }
     capture_stop();
-    if (cls.demo.playback) {
-        Cvar_Set("cl_paused", "2");
-        CL_CheckForPause();
-    }
+    CL_DemoSetPaused(true);
 }
 
 static void Capture_Start_f(void)

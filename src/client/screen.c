@@ -2439,6 +2439,8 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
         Q_strlcat(mid, "PAUSA   ", mid_size);
     if (CL_DemoSpeed() != 1.0f)
         Q_strlcat(mid, va("x%g   ", CL_DemoSpeed()), mid_size);
+    if (CL_KeyCamSpeed() != 1.0f)
+        Q_strlcat(mid, va("TRAMO x%.2g   ", CL_KeyCamSpeed()), mid_size);
     if (CL_CamPathRecording())
         Q_strlcat(mid, "GRABANDO CAMARA   ", mid_size);
     if (Cvar_VariableInteger("xray"))
@@ -2446,9 +2448,11 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
     if (CL_KeyCamStatus())
         Q_strlcat(mid, va("%s   ", CL_KeyCamStatus()), mid_size);
     if (CL_FreecamKeysDriving())
-        Q_strlcat(mid, "PUNTOS DE CAMARA", mid_size);
+        Q_strlcat(mid, CL_KeyCamStatus() ? "" : "PUNTOS DE CAMARA", mid_size);
     else if (CL_FreecamFlying())
         Q_strlcat(mid, va("CAMARA LIBRE (vel. %g)", CL_FreecamSpeed()), mid_size);
+    else if (CL_FreecamProj() >= 0)
+        Q_strlcat(mid, va("SIGUIENDO: %s", CL_ProjName(CL_FreecamProj())), mid_size);
     else if (CL_FreecamActive() && !CL_ChaseTargetName())
         Q_strlcat(mid, "RECORRIDO GRABADO", mid_size);
     else if (CL_ChaseFirstPerson())
@@ -2592,7 +2596,7 @@ static const helpline_t visor_help[] = {
     { "Retroceso",  "Velocidad normal" },
     { "F1",         "Tabla de puntos" },
     { "N / B",      "Frag/muerte sig. / ant." },
-    { "K / J",      "Kill feed / chat" },
+    { "K / J",      "Muertes/chat pantalla" },
     { ", / .",      "Volumen - / +" },
     { "",           NULL },
     { NULL,         "Camara" },
@@ -2603,10 +2607,13 @@ static const helpline_t visor_help[] = {
     { "Rueda",      "Velocidad / distancia" },
     { "E / Q",      "Seguir jugador" },
     { "F",          "1a / 3a persona" },
+    { "5",          "Seguir proyectil" },
+    { "6",          "Estelas" },
     { "R",          "Vista de quien grabo" },
     { "C",          "Grabar recorrido" },
     { "V",          "Usar recorrido/puntos" },
     { "T",          "Siluetas (x-ray)" },
+    { "Y",          "Nombres jugadores" },
     { "",           NULL },
     { NULL,         "Puntos de camara" },
     { "P",          "Poner punto aqui" },
@@ -2614,6 +2621,7 @@ static const helpline_t visor_help[] = {
     { "M",          "Curva / recta" },
     { "U",          "Borrar punto" },
     { "1 / 2",      "Punto ant. / sig." },
+    { "3 / 4",      "Tramo lento / rapido" },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },
@@ -2642,6 +2650,8 @@ static const settingline_t visor_settings[] = {
     { "visor_editor",    "editor con mouse, Tab" },
     { "visor_editor_size", "letra del editor" },
     { "visor_name",      "nick arriba" },
+    { "visor_names",     "nombres, Y" },
+    { "visor_trails",    "estelas 0/1/2, 6" },
     { "s_volume",        "volumen, teclas , ." },
     { "",                NULL },
     { NULL,              "En el video" },
@@ -2649,6 +2659,8 @@ static const settingline_t visor_settings[] = {
     { "clip_chat",       "0 no, 1 si, 2 +avisos" },
     { "clip_hud",        "HUD del juego" },
     { "clip_name",       "nick del jugador" },
+    { "clip_names",      "nombres jugadores" },
+    { "clip_trails",     "estelas 0/1/2" },
     { "clip_size",       "resolucion" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
@@ -2866,6 +2878,9 @@ static void SCR_DrawActive(void)
 
     // draw 3D game view
     V_RenderView();
+
+    // nicks above the players (in the clip too if wanted)
+    CL_DrawNames(scr.font_pic);
 
     // draw all 2D elements
     SCR_Draw2D();
