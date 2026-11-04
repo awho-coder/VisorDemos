@@ -33,6 +33,35 @@ Qué puedes hacer:
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
 
+### Novedades de la versión 0.6
+
+- **Saltar a un punto de cámara muestra su vista**: con **1 / 2** o un clic
+  en la barra, la cámara queda exactamente donde la guardaste, con su zoom,
+  lista para corregirla.
+- **Editor con pestañas** (CAMARA, PUNTOS, VER, VIDEO, AJUSTES), una lista
+  de puntos o de jugadores a la izquierda y los ajustes del punto a la
+  derecha. Casi todo se maneja con el mouse, también los números (**−** /
+  **+**). Un clic sobre un jugador o una granada en la imagen lo sigue. Ver
+  [Modo editor](#modo-editor-con-mouse).
+- **Nombres sobre los jugadores** (**Y**), también detrás de las paredes.
+  Ver [Nombres](#nombres-sobre-los-jugadores).
+- **Cámara lenta por tramo** (efecto Matrix, **3 / 4**). Ver
+  [Cámara lenta](#cámara-lenta-por-tramo-efecto-matrix).
+- **Seguir granadas, cohetes, cuchillos y bombas** (**5**, clic, o
+  **< Proyectil >**), en vivo o desde un punto de cámara. Ver
+  [Seguir proyectiles](#seguir-granadas-cohetes-y-cuchillos).
+- **Estelas tipo láser** detrás de los proyectiles (**6**). Ver
+  [Estelas](#estelas).
+- Los puntos de cámara pueden **seguir a un jugador** desde atrás (**L**
+  dos veces), y **Ver recorrido** dibuja en el mapa por dónde pasa la cámara.
+- **Los `.mvd2` tienen todo**: puntos de cámara, recorrido, cámara lenta,
+  proyectiles, estelas y nombres, con todos los jugadores de la partida.
+- Arreglos: grabar un clip de un `.mvd2` que estaba en pausa ya no deja la
+  imagen congelada.
+
+Al actualizar, copia también `baseq2\visor.cfg` del `.zip`: ahí vienen las
+teclas nuevas (**3**, **4**, **5**, **6** e **Y**).
+
 ---
 
 ## 1. Instalación
@@ -556,6 +585,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `keycam_aim_height` | `12` | Altura sobre el jugador a la que miran los puntos con **L** |
 | `keycam_show` | `0` | `1` = dibujar en el mapa el recorrido de los puntos (**Ver recorrido**) |
 | `chase_height` | `28` | Altura de la cámara al seguir a un jugador en tercera persona |
+| `chase_auto` | `0.6` | Siguiendo a un jugador en tercera persona, cuánto tarda la cámara en volver sola a su espalda (segundos; `0` = no vuelve) |
 | `visor_names` | `1` | Nombres sobre los jugadores en pantalla (también con **Y**) |
 | `clip_names` | `0` | `1` = nombres sobre los jugadores en el video |
 | `names_min` / `names_max` | `12` / `24` | Tamaño de los nombres lejos / cerca (alto de la letra en píxeles, en una imagen de 1080 líneas) |

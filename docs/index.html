@@ -22,6 +22,10 @@
   a.card span { color:var(--muted); }
   a.card.primary { background:var(--accent); border-color:var(--accent); color:var(--bg); }
   a.card.primary span { color:var(--bg); opacity:.85; }
+  .news { margin-top:32px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 22px; }
+  .news h2 { margin:0 0 8px; font-size:20px; }
+  .news ul { margin:0; padding-left:20px; display:grid; gap:6px; }
+  .news a { color:var(--accent); }
   footer { margin-top:40px; color:var(--muted); font-size:14px; }
   footer a { color:var(--muted); }
 </style>
@@ -30,9 +34,10 @@
 <main>
   <div class="tag">Quake 2 · D-Day: Normandy</div>
   <h1>VisorDemos</h1>
-  <p class="lead">Visor de demos de Quake 2 para hacer videos: cámara libre, seguir jugadores,
-  puntos de cámara como en Keygrip, un modo editor que se usa con el mouse y clips MP4
-  a 1080p y 60 fps, listos para tu editor.</p>
+  <p class="lead">Visor de demos de Quake 2 para hacer videos: cámara libre, seguir jugadores
+  y granadas, puntos de cámara como en Keygrip con cámara lenta por tramo, nombres sobre los
+  jugadores, estelas tipo láser, un modo editor que se usa con el mouse y clips MP4 a 1080p y
+  60 fps, listos para tu editor. Funciona con demos <code>.dm2</code> y <code>.mvd2</code>.</p>
   <div class="cards">
     <a class="card primary" href="https://github.com/awho-coder/VisorDemos/releases/latest">
       <strong>Descargar para Windows</strong>
@@ -42,11 +47,24 @@
       <span>Dónde copiar los archivos y cómo abrir los demos con doble clic</span></a>
     <a class="card" href="guia-de-uso.html">
       <strong>2. Guía de uso</strong>
-      <span>Teclas, cámaras, cómo sacar clips y llevarlos al editor</span></a>
+      <span>Todos los botones, teclas, comandos y ajustes; cámaras, proyectiles y cómo sacar clips</span></a>
     <a class="card" href="tutorial-tomas.html">
       <strong>3. Tutorial: tomas con movimiento</strong>
-      <span>Con el mouse: puntos de cámara, seguir a un jugador y grabar el clip o el demo completo</span></a>
+      <span>Con el mouse: puntos de cámara, seguir a un jugador, cámara lenta, seguir una granada y grabar el clip</span></a>
   </div>
+  <section class="news">
+    <h2>Novedades de la versión 0.6</h2>
+    <ul>
+      <li>Saltar a un punto de cámara muestra su vista guardada, lista para corregirla.</li>
+      <li>Editor con pestañas, lista de puntos y jugadores, y ajustes del punto con el mouse
+      (<a href="guia-de-uso.html#editor-mouse">ver</a>).</li>
+      <li>Nombres sobre los jugadores, tecla <strong>Y</strong> (<a href="guia-de-uso.html#nombres">ver</a>).</li>
+      <li>Cámara lenta por tramo, efecto Matrix, teclas <strong>3 / 4</strong> (<a href="guia-de-uso.html#lenta">ver</a>).</li>
+      <li>Seguir granadas, cohetes, cuchillos y bombas, tecla <strong>5</strong> (<a href="guia-de-uso.html#proyectiles">ver</a>).</li>
+      <li>Estelas tipo láser detrás de los proyectiles, tecla <strong>6</strong> (<a href="guia-de-uso.html#estelas">ver</a>).</li>
+      <li>Los <code>.mvd2</code> tienen todas las herramientas de cámara.</li>
+    </ul>
+  </section>
   <footer>Código fuente y versión para Linux en
   <a href="https://github.com/awho-coder/VisorDemos">github.com/awho-coder/VisorDemos</a>.
   Basado en q2pro, licencia GNU GPL.</footer>
