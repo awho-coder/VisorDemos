@@ -340,7 +340,7 @@ bool CL_EditorKeyEvent(unsigned key, bool down)
             return true;
         ed.flying = true;
         // following a projectile the mouse turns around it; otherwise fly
-        if (cls.demo.playback && !CL_FreecamFlying() && CL_FreecamProj() < 0)
+        if (CL_DemoView() && !CL_FreecamFlying() && CL_FreecamProj() < 0)
             run("freecam 1");
         IN_Activate();      // grab the mouse to look around
         return true;
@@ -599,7 +599,7 @@ static void tab_points(bool mvd)
         group("ESTE PUNTO");
         point_buttons(mvd, here, line);
     } else if (mvd) {
-        add_item(IT_TEXT, "Los puntos de camara funcionan con demos .dm2", NULL, NULL);
+        add_item(IT_TEXT, "Los puntos de camara funcionan al ver un demo (no en vivo)", NULL, NULL);
     } else {
         add_item(IT_TEXT, "Lista de puntos a la izquierda, ajustes del punto a la derecha", NULL, NULL);
     }
@@ -724,7 +724,7 @@ static void build_panel(void)
         return;
     }
 
-    bool mvd = !cls.demo.playback;
+    bool mvd = !CL_DemoView();     // a live MVD stream: no camera tools
     int tab = Q_clip(visor_editor_tab->integer, 0, NUM_TABS - 1);
     int body_y;
 
@@ -810,8 +810,8 @@ static void points_list(int max_rows)
     keyinfo_t k;
     char t[16];
 
-    if (!cls.demo.playback) {
-        list_row(IT_TEXT, "Solo con demos .dm2", NULL, NULL, 0);
+    if (!CL_DemoView()) {
+        list_row(IT_TEXT, "Solo al ver un demo", NULL, NULL, 0);
         return;
     }
     if (!n) {
@@ -972,13 +972,13 @@ static void build_right(int bottom)
     int first = ed.num_items, here = CL_KeyCamIndex(), dy;
 
     side_begin(x, 0, chars);
-    if (cls.demo.playback && here >= 0)
+    if (CL_DemoView() && here >= 0)
         point_settings(here, CL_KeyCamCount());
     else if (CL_FreecamProj() >= 0)
         proj_settings(CL_FreecamProj());
     else if (CL_ChaseTarget())
         follow_settings(CL_ChaseTarget());
-    else if (cls.demo.playback)
+    else if (CL_DemoView())
         no_point_settings();
     new_row();
 

@@ -172,6 +172,7 @@ static void MVD_ParseMulticast(mvd_t *mvd, multicast_t to, int extrabits)
 
         if (to) {
             VectorScale(client->ps.pmove.origin, 0.125f, org);
+            MVD_ViewerOrigin(cl, org);  // VisorDemos: the viewer's camera
             leaf2 = CM_PointLeaf(&mvd->cm, org);
             if (!CM_AreasConnected(&mvd->cm, leaf1->area, leaf2->area))
                 continue;
@@ -515,6 +516,7 @@ static void MVD_ParseSound(mvd_t *mvd, int extrabits)
         // PHS cull this sound
         if (!(extrabits & 1)) {
             VectorScale(client->ps.pmove.origin, 0.125f, org);
+            MVD_ViewerOrigin(cl, org);  // VisorDemos: the viewer's camera
             leaf2 = CM_PointLeaf(&mvd->cm, org);
             if (!CM_AreasConnected(&mvd->cm, leaf1->area, leaf2->area))
                 continue;

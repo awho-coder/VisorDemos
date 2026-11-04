@@ -1212,7 +1212,7 @@ static void seek_demo(int64_t dest, bool byte_seek, bool back_seek)
             goto done;
         CL_EmitDemoSnapshot();
         if (demo_indexing)
-            CL_ProjIndexFrame();
+            CL_ProjIndexDm2Frame();
     }
 
     Com_DPrintf("[%d] after skip %d\n", cls.demo.frames_read, cl.frame.number);
@@ -1277,6 +1277,7 @@ static void CL_Seek_f(void)
 #if USE_MVD_CLIENT
     if (sv_running->integer == ss_broadcast) {
         Cbuf_InsertText(&cmd_buffer, va("mvdseek \"%s\" @@\n", Cmd_Argv(1)));
+        CL_FreecamSeeked();
         return;
     }
 #endif

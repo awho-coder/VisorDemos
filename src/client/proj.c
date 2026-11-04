@@ -33,6 +33,7 @@ typedef enum {
     PT_ROCKET,
     PT_GRENADE,
     PT_KNIFE,
+    PT_BOMB,        // D-Day air strike: rocket model falling straight down
     PT_NONE = -1,
     PT_UNKNOWN = -2
 } projtype_t;
@@ -43,7 +44,8 @@ typedef struct {
     int         first, last;    // server frames it is in the demo
     int         demo_frame;     // cls.demo.frames_read at the throw, to seek
     float       pos;            // demo file position at the throw (timeline)
-    int         start;          // first position in pj.pts
+    vec3_t      *pts;           // one position per frame, first to last
+    int         alloc;
     float       top_speed;      // units per frame
     bool        open;           // still flying while indexing
 } track_t;
@@ -55,10 +57,10 @@ typedef struct {
 static struct {
     track_t     *tracks;
     int         num, alloc;
-    vec3_t      *pts;
-    int         npts, apts;
+    int         total_pts;
     char        demo[MAX_QPATH];
     bool        indexing;
+    int         last_frame;     // last frame indexed
     signed char model_type[MAX_MODELS];
 } pj;
 
@@ -69,12 +71,11 @@ static cvar_t   *trail_time;
 static cvar_t   *trail_width;
 static cvar_t   *trail_color;
 
-static const char *const type_names[] = { "cohete", "granada", "cuchillo" };
+static const char *const type_names[] = { "cohete", "granada", "cuchillo", "bomba" };
 
 static bool have_tracks(void)
 {
-    return cls.demo.playback && cls.state == ca_active && pj.num &&
-           !strcmp(pj.demo, cls.servername);
+    return CL_DemoView() && pj.num && !strcmp(pj.demo, CL_DemoName());
 }
 
 /*
@@ -90,9 +91,8 @@ static void clear_types(void)
     memset(pj.model_type, PT_UNKNOWN, sizeof(pj.model_type));
 }
 
-static projtype_t model_type(int index)
+static projtype_t model_type(int index, const char *name)
 {
-    const char *name;
     char words[MAX_STRING_CHARS], *w, *s;
 
     if (index <= 0 || index >= MAX_MODELS)
@@ -101,8 +101,7 @@ static projtype_t model_type(int index)
         return pj.model_type[index];
 
     pj.model_type[index] = PT_NONE;
-    name = cl.configstrings[cl.csr.models + index];
-    if (!*name || *name == '*')
+    if (!name || !*name || *name == '*')
         return PT_NONE;
 
     // the words of proj_models found in the model's path
@@ -128,14 +127,16 @@ static projtype_t model_type(int index)
     return pj.model_type[index];
 }
 
-static void add_point(const vec3_t p)
+// one more position at the end of a flight (several fly at once, so each
+// one keeps its own list)
+static void add_point(track_t *t, int count, const vec3_t p)
 {
-    if (pj.npts == pj.apts) {
-        pj.apts = max(pj.apts * 2, 4096);
-        pj.pts = Z_Realloc(pj.pts, pj.apts * sizeof(pj.pts[0]));
+    if (count == t->alloc) {
+        t->alloc = max(t->alloc * 2, 64);
+        t->pts = Z_Realloc(t->pts, t->alloc * sizeof(t->pts[0]));
     }
-    VectorCopy(p, pj.pts[pj.npts]);
-    pj.npts++;
+    VectorCopy(p, t->pts[count]);
+    pj.total_pts++;
 }
 
 static track_t *new_track(void)
@@ -149,50 +150,83 @@ static track_t *new_track(void)
 
 static void free_all(void)
 {
+    for (int i = 0; i < pj.num; i++)
+        Z_Freep(&pj.tracks[i].pts);
     Z_Freep(&pj.tracks);
-    Z_Freep(&pj.pts);
-    pj.num = pj.alloc = pj.npts = pj.apts = 0;
+    pj.num = pj.alloc = pj.total_pts = 0;
     pj.demo[0] = 0;
 }
+
+// the entities of the frame being indexed
+static struct {
+    int         number;
+    projtype_t  type;
+    vec3_t      origin;
+} seen[MAX_EDICTS];
+static int num_seen;
 
 void CL_ProjIndexBegin(void)
 {
     free_all();
     clear_types();
-    Q_strlcpy(pj.demo, cls.servername, sizeof(pj.demo));
+    Q_strlcpy(pj.demo, CL_DemoName(), sizeof(pj.demo));
     pj.indexing = true;
+    pj.last_frame = INT_MIN;
+    num_seen = 0;
+}
+
+// an entity of the frame being read ahead (called before CL_ProjIndexFrame)
+void CL_ProjIndexEntity(int number, int modelindex, const char *model, const vec3_t origin)
+{
+    projtype_t type;
+
+    if (!pj.indexing || num_seen == MAX_EDICTS)
+        return;
+    type = model_type(modelindex, model);
+    if (type == PT_NONE)
+        return;
+    seen[num_seen].number = number;
+    seen[num_seen].type = type;
+    VectorCopy(origin, seen[num_seen].origin);
+    num_seen++;
 }
 
 // a flight that ended: keep it only if it really flew
 static void close_track(track_t *t)
 {
     t->open = false;
-    if (t->top_speed >= FLY_SPEED)
+    if (t->top_speed >= FLY_SPEED) {
+        // a "rocket" that only falls is a bomb of an air strike
+        if (t->type == PT_ROCKET && t->last > t->first) {
+            const float *a = t->pts[0], *b = t->pts[t->last - t->first];
+            float drop = a[2] - b[2], side = sqrtf((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]));
+            if (drop > 64 && drop > side * 3)
+                t->type = PT_BOMB;
+        }
         return;
-
-    // dropped weapon: forget it (its points are the last ones when it is
-    // the last track; otherwise they stay unused)
-    if (t == &pj.tracks[pj.num - 1]) {
-        pj.npts = t->start;
-        pj.num--;
-    } else {
-        t->last = t->first - 1;     // empty
     }
+
+    // dropped weapon: forget it (CL_ProjIndexEnd drops the empty ones)
+    Z_Freep(&t->pts);
+    t->alloc = 0;
+    t->last = t->first - 1;
 }
 
 static void extend(track_t *t, int frame, const vec3_t p)
 {
-    const float *prev = pj.pts[t->start + t->last - t->first];
-    int gap = frame - t->last;
-    float speed = Distance(prev, p) / gap;
-    vec3_t mid;
+    int count = t->last - t->first + 1, gap = frame - t->last;
+    vec3_t prev, mid;
+    float speed;
+
+    VectorCopy(t->pts[count - 1], prev);
+    speed = Distance(prev, p) / gap;
 
     // fill frames it was out of the demo with a straight line
     for (int i = 1; i < gap; i++) {
         LerpVector(prev, p, (float)i / gap, mid);
-        add_point(mid);
+        add_point(t, count++, mid);
     }
-    add_point(p);
+    add_point(t, count, p);
     t->last = frame;
     t->top_speed = max(t->top_speed, speed);
 }
@@ -201,34 +235,33 @@ static void extend(track_t *t, int frame, const vec3_t p)
 ===============
 CL_ProjIndexFrame
 
-A frame was parsed while indexing (seek_demo reading ahead).
+The entities of a frame read ahead were given: continue the flights or
+start new ones. frame: demo frame (the clock of CL_DemoFrameNow);
+seek_frame: what seek takes to come back; pos: position in the file.
 ===============
 */
-void CL_ProjIndexFrame(void)
+void CL_ProjIndexFrame(int frame, int seek_frame, float pos)
 {
-    int frame = cl.frame.number;
-
-    if (!pj.indexing || !cl.frame.valid)
+    // a MVD message without a new frame repeats the last one: once is enough
+    if (!pj.indexing || frame <= pj.last_frame) {
+        num_seen = 0;
         return;
+    }
+    pj.last_frame = frame;
 
-    for (int i = 0; i < cl.frame.numEntities; i++) {
-        const centity_state_t *st = &cl.entityStates[(cl.frame.firstEntity + i) & PARSE_ENTITIES_MASK];
-        projtype_t type;
+    for (int i = 0; i < num_seen; i++) {
+        int number = seen[i].number;
+        projtype_t type = seen[i].type;
+        const float *origin = seen[i].origin;
         track_t *t = NULL;
-
-        if (st->number <= cl.maxclients)
-            continue;
-        type = model_type(st->modelindex);
-        if (type == PT_NONE)
-            continue;
 
         // continue its flight, or a new one
         for (int j = pj.num - 1; j >= 0; j--) {
             track_t *o = &pj.tracks[j];
-            if (o->open && o->number == st->number) {
-                const float *last = pj.pts[o->start + o->last - o->first];
+            if (o->open && o->number == number) {
+                const float *last = o->pts[o->last - o->first];
                 if (o->type == type && o->last < frame &&
-                    Distance(last, st->origin) < MAX_JUMP * (frame - o->last))
+                    Distance(last, origin) < MAX_JUMP * (frame - o->last))
                     t = o;
                 else
                     close_track(o);
@@ -237,26 +270,22 @@ void CL_ProjIndexFrame(void)
         }
 
         if (t) {
-            extend(t, frame, st->origin);
+            extend(t, frame, origin);
             continue;
         }
 
-        if (pj.npts > 4000000)
+        if (pj.total_pts > 4000000)
             continue;   // way too many, something is wrong
         t = new_track();
-        t->number = st->number;
+        t->number = number;
         t->type = type;
         t->first = t->last = frame;
-        t->demo_frame = cls.demo.frames_read;
-        t->pos = cls.demo.file_progress;
-        if (cls.demo.file_size) {
-            int64_t pos = FS_Tell(cls.demo.playback) - cls.demo.file_offset;
-            t->pos = Q_clipf((float)pos / cls.demo.file_size, 0, 1);
-        }
-        t->start = pj.npts;
+        t->demo_frame = seek_frame;
+        t->pos = pos;
         t->open = true;
-        add_point(st->origin);
+        add_point(t, 0, origin);
     }
+    num_seen = 0;
 
     // flights whose projectile is gone
     for (int j = 0; j < pj.num; j++) {
@@ -264,6 +293,30 @@ void CL_ProjIndexFrame(void)
         if (t->open && frame - t->last > MAX_GAP)
             close_track(t);
     }
+}
+
+// a DM2 frame parsed while indexing (seek_demo reading ahead)
+void CL_ProjIndexDm2Frame(void)
+{
+    float pos = cls.demo.file_progress;
+
+    if (!pj.indexing || !cl.frame.valid)
+        return;
+
+    for (int i = 0; i < cl.frame.numEntities; i++) {
+        const centity_state_t *st = &cl.entityStates[(cl.frame.firstEntity + i) & PARSE_ENTITIES_MASK];
+        int model = st->modelindex;
+
+        if (st->number <= cl.maxclients || model <= 0 || model >= MAX_MODELS)
+            continue;
+        CL_ProjIndexEntity(st->number, model, cl.configstrings[cl.csr.models + model], st->origin);
+    }
+
+    if (cls.demo.file_size) {
+        int64_t at = FS_Tell(cls.demo.playback) - cls.demo.file_offset;
+        pos = Q_clipf((float)at / cls.demo.file_size, 0, 1);
+    }
+    CL_ProjIndexFrame(cl.frame.number, cls.demo.frames_read, pos);
 }
 
 void CL_ProjIndexEnd(void)
@@ -297,9 +350,7 @@ between the previous frame and this one.
 
 float CL_ProjNow(void)
 {
-    if (!cl.oldframe.valid)
-        return cl.frame.number;
-    return cl.frame.number - 1 + cl.lerpfrac;
+    return CL_DemoFrameNow();
 }
 
 static const track_t *get(int id)
@@ -312,7 +363,7 @@ static const track_t *get(int id)
 static const float *point(const track_t *t, int frame)
 {
     frame = Q_clip(frame, t->first, t->last);
-    return pj.pts[t->start + frame - t->first];
+    return t->pts[frame - t->first];
 }
 
 // position at time T, clamped to the flight
@@ -529,6 +580,7 @@ static uint32_t trail_rgba(projtype_t type)
         MakeColor(255, 140,  40, 255),  // rocket
         MakeColor( 80, 255, 120, 255),  // grenade
         MakeColor(245, 245, 255, 255),  // knife
+        MakeColor(255, 210,  60, 255),  // bomb
     };
 
     for (int i = 0; i < q_countof(colors); i++)
@@ -601,7 +653,7 @@ void CL_ProjAddTrails(void)
         followed = CL_KeyCamProjNow();
 
     T = CL_ProjNow();
-    len = Cvar_ClampValue(trail_time, 0.1f, 30) * 1000 / CL_FRAMETIME;
+    len = Cvar_ClampValue(trail_time, 0.1f, 30) * 1000 / CL_DemoFrameMs();
 
     for (int i = 0; i < pj.num; i++) {
         const track_t *t = &pj.tracks[i];
@@ -637,10 +689,10 @@ COMMANDS
 // proj_next / proj_prev: jump to the next / previous throw and follow it
 static void jump(int dir)
 {
-    int now = cls.demo.frames_read, found = -1;
+    int now = CL_DemoSeekFrame(), found = -1;
 
-    if (!cls.demo.playback || cls.state != ca_active) {
-        Com_Printf("Los proyectiles se pueden seguir en demos .dm2.\n");
+    if (!CL_DemoView()) {
+        Com_Printf("Los proyectiles se pueden seguir al ver un demo.\n");
         return;
     }
     if (!have_tracks()) {
@@ -688,7 +740,7 @@ static void Proj_List_f(void)
         const track_t *t = &pj.tracks[i];
         int f = t->demo_frame;
         Com_Printf("%3d  %d:%02d.%d  %-8s  %.1f s\n", i + 1, f / 600, f / 10 % 60, f % 10,
-                   type_names[t->type], (t->last - t->first) * CL_FRAMETIME * 0.001f);
+                   type_names[t->type], (t->last - t->first) * CL_DemoFrameMs() * 0.001f);
     }
 }
 

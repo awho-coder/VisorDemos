@@ -887,3 +887,15 @@ trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 trace_t q_gameabi SV_Clip(const vec3_t start, const vec3_t mins,
                           const vec3_t maxs, const vec3_t end,
                           edict_t *clip, int contentmask);
+
+// VisorDemos: a demo file played on this machine, seen from the viewer's
+// own camera (src/server/mvd/client.c)
+#if USE_MVD_CLIENT && USE_CLIENT
+bool MVD_ViewerOrigin(const client_t *cl, vec3_t org);
+bool MVD_IsLocalViewer(const client_t *cl);
+void MVD_NoteClientFrame(const client_t *cl);
+#else
+#define MVD_ViewerOrigin(cl, org)   false
+#define MVD_IsLocalViewer(cl)       false
+#define MVD_NoteClientFrame(cl)     (void)0
+#endif

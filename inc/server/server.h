@@ -46,9 +46,15 @@ void SV_RestartFilesystem(void);
 #if USE_MVD_CLIENT && USE_CLIENT
 bool MVD_GetDemoStatus(float *progress, bool *paused, int *framenum);
 void MVD_IndexDemo(void);
+void MVD_SetViewerCamera(const vec3_t org);
+int MVD_ClientFrameToDemo(int clframe);
+const char *MVD_GetDemoName(void);
 #else
 #define MVD_GetDemoStatus(progress, paused, framenum)   false
 #define MVD_IndexDemo()                                 (void)0
+#define MVD_SetViewerCamera(org)                        (void)0
+#define MVD_ClientFrameToDemo(clframe)                  (-1)
+#define MVD_GetDemoName()                               NULL
 #endif
 
 #if USE_SAVEGAMES

@@ -456,6 +456,113 @@ static void demo_seek(mvd_t *mvd, int64_t dest, bool byte_seek, bool back_seek);
 
 /*
 ==============
+VisorDemos: the viewer's own camera
+
+When a demo file plays on this machine, the viewer can move its own camera
+anywhere (free camera, camera points, following a projectile). The local
+spectator still stands where the MVD put it, so what this server sends
+(entities in view, sounds, effects) is picked from the viewer's camera
+instead. Only for the client on this machine and a demo file, never for a
+live stream or other spectators.
+==============
+*/
+static struct {
+    bool    on;
+    vec3_t  org;
+    struct {
+        int clframe, mvdframe;
+    } frames[64];
+} viewer;
+
+void MVD_SetViewerCamera(const vec3_t org)
+{
+    viewer.on = org != NULL;
+    if (org)
+        VectorCopy(org, viewer.org);
+}
+
+static bool local_viewer(const client_t *cl, mvd_t **out)
+{
+    mvd_t *mvd = find_local_channel();
+
+    if (!mvd || !mvd->gtv || !mvd->gtv->demoplayback)
+        return false;
+    if (!NET_IsLocalAddress(&cl->netchan.remote_address))
+        return false;
+    if (out)
+        *out = mvd;
+    return true;
+}
+
+// where this client's view is, for picking what to send it
+bool MVD_ViewerOrigin(const client_t *cl, vec3_t org)
+{
+    if (!viewer.on || !local_viewer(cl, NULL))
+        return false;
+    VectorCopy(viewer.org, org);
+    return true;
+}
+
+// a demo file plays on this machine and this is its viewer
+bool MVD_IsLocalViewer(const client_t *cl)
+{
+    return local_viewer(cl, NULL);
+}
+
+// a frame is being built for the client: remember which demo frame it shows
+void MVD_NoteClientFrame(const client_t *cl)
+{
+    mvd_t *mvd;
+
+    if (!local_viewer(cl, &mvd))
+        return;
+    viewer.frames[cl->framenum & 63].clframe = cl->framenum;
+    viewer.frames[cl->framenum & 63].mvdframe = mvd->framenum;
+}
+
+// demo frame shown in client frame `clframe`, -1 if not known
+int MVD_ClientFrameToDemo(int clframe)
+{
+    if (viewer.frames[clframe & 63].clframe != clframe)
+        return -1;
+    return viewer.frames[clframe & 63].mvdframe;
+}
+
+// file of the demo playing here (for the camera points saved per demo)
+const char *MVD_GetDemoName(void)
+{
+    mvd_t *mvd = find_local_channel();
+
+    if (!mvd || !mvd->gtv || !mvd->gtv->demoplayback || !mvd->gtv->demoentry)
+        return NULL;
+    return mvd->gtv->demoentry->string;
+}
+
+// while indexing: every entity of this frame, for the projectile flights
+static void index_entities(mvd_t *mvd)
+{
+    gtv_t *gtv = mvd->gtv;
+    float pos = 0;
+
+    if (gtv && gtv->demoplayback && gtv->demosize) {
+        int64_t at = FS_Tell(gtv->demoplayback);
+        if (at > gtv->demoofs)
+            pos = Q_clipf((float)(at - gtv->demoofs) / gtv->demosize, 0, 1);
+    }
+
+    for (int i = mvd->maxclients + 1; i < mvd->csr->max_edicts; i++) {
+        const edict_t *ent = &mvd->edicts[i];
+        int model = ent->s.modelindex;
+
+        if (!ent->inuse || model <= 0 || model >= mvd->csr->max_models)
+            continue;
+        CL_ProjIndexEntity(i, model, mvd->configstrings[mvd->csr->models + model], ent->s.origin);
+    }
+    CL_ProjIndexFrame(mvd->framenum, mvd->framenum, pos);
+}
+
+/*
+==============
 MVD_IndexDemo
 
 Reads the rest of the local MVD demo (this map) the way a seek does, so the
@@ -484,15 +591,18 @@ void MVD_IndexDemo(void)
     if (setjmp(mvd_jmpbuf)) {
         // the channel is gone
         CL_FeedIndexPlayers(NULL, 0);
+        CL_ProjIndexEnd();
         CL_FeedIndexEnd();
         return;
     }
 
     CL_FeedIndexBegin();
     CL_FeedIndexPlayers(mvd->configstrings + mvd->csr->playerskins, mvd->maxclients);
+    CL_ProjIndexBegin();
     mvd->demoindexing = true;
     demo_seek(mvd, INT64_MAX, false, false);
     mvd->demoindexing = false;
+    CL_ProjIndexEnd();
     CL_FeedIndexEnd();
     CL_FeedIndexPlayers(NULL, 0);
 
@@ -2526,6 +2636,11 @@ static void demo_seek(mvd_t *mvd, int64_t dest, bool byte_seek, bool back_seek)
         gamestate = MVD_ParseMessage(mvd);
 
         demo_emit_snapshot(mvd);
+
+#if USE_CLIENT
+        if (mvd->demoindexing && !gamestate)
+            index_entities(mvd);
+#endif
 
         if (gamestate) {
             // got a gamestate, abort seek
