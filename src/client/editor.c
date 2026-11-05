@@ -515,6 +515,10 @@ static void overlay_buttons(bool clip)
            clip ? "HUD del juego (vida, municion) en los videos"
                 : "HUD del juego en pantalla con la camara libre o siguiendo a alguien",
            on_if(Cvar_VariableInteger(clip ? "clip_hud" : "freecam_hud")));
+    button("Hitmarker", clip ? "toggle clip_hitmark" : "toggle visor_hitmark",
+           clip ? "X del hitmarker en los videos, aunque el HUD este apagado (server con hitmarkers 2)"
+                : "X del hitmarker en pantalla cuando se ve el HUD (server con hitmarkers 2)",
+           on_if(Cvar_VariableInteger(clip ? "clip_hitmark" : "visor_hitmark")));
     button("Nick arriba", clip ? "toggle clip_name" : "toggle visor_name",
            clip ? "Nick del jugador que ves, arriba, en los videos"
                 : "Nick del jugador que ves, arriba en la pantalla",
