@@ -81,6 +81,8 @@ static cvar_t   *visor_name;
 static cvar_t   *visor_help_pos;
 static cvar_t   *visor_help_size;
 static cvar_t   *clip_name;
+static cvar_t   *visor_hitmark;
+static cvar_t   *clip_hitmark;
 static cvar_t   *scr_font;
 static cvar_t   *scr_scale;
 
@@ -1416,6 +1418,8 @@ void SCR_Init(void)
     visor_help_pos = Cvar_Get("visor_help_pos", "right", CVAR_ARCHIVE);
     visor_help_size = Cvar_Get("visor_help_size", "0.8", CVAR_ARCHIVE);
     clip_name = Cvar_Get("clip_name", "0", CVAR_ARCHIVE);
+    visor_hitmark = Cvar_Get("visor_hitmark", "1", CVAR_ARCHIVE);
+    clip_hitmark = Cvar_Get("clip_hitmark", "1", CVAR_ARCHIVE);
     scr_font = Cvar_Get("scr_font", "conchars", 0);
     scr_font->changed = scr_font_changed;
     scr_scale = Cvar_Get("scr_scale", "0", 0);
@@ -1775,7 +1779,29 @@ static void SCR_DrawHealthBar(int x, int y, int value)
 static int scr_hide_stat = -1;
 
 // video clip without HUD: run the status bar only for the sniper scope
+// (and the hitmarker X)
 static bool scr_scope_only;
+
+// the X of the D-Day hitmarkers (server cvar hitmarkers 2): a status bar pic
+// in the same stat as the scopes
+static bool is_hitmark_pic(const char *name)
+{
+    return !strcmp(name, "hitmark") || !strcmp(name, "hitkill");
+}
+
+// visor_hitmark on screen, clip_hitmark in the videos (even without HUD)
+static bool hitmark_on(void)
+{
+    return (CL_CaptureActive() ? clip_hitmark : visor_hitmark)->integer;
+}
+
+// pics the status bar may draw now
+static bool layout_pic_allowed(const char *name)
+{
+    if (is_hitmark_pic(name))
+        return hitmark_on();
+    return !scr_scope_only || strstr(name, "scope");
+}
 
 // arguments of the layout commands that draw something
 static int SCR_LayoutArgs(const char *token)
@@ -1893,7 +1919,7 @@ static void SCR_ExecuteLayoutString(const char *s)
                 Com_Error(ERR_DROP, "%s: invalid pic index", __func__);
             }
             token = cl.configstrings[cl.csr.images + value];
-            if (token[0] && (!scr_scope_only || strstr(token, "scope"))) {
+            if (token[0] && layout_pic_allowed(token)) {
                 qhandle_t pic = cl.image_precache[value];
                 // hack for action mod scope scaling
                 if (x == scr.hud_width  / 2 - 160 &&
@@ -2333,8 +2359,8 @@ static void SCR_Draw2D(void)
         return;
 
     if (CL_CaptureHideHud()) {
-        // clean video clip, but the sniper scope (a status bar pic in D-Day)
-        // is part of what the player saw
+        // clean video clip, but the sniper scope and the hitmarker X (status
+        // bar pics in D-Day) are part of what the player saw
         SCR_DrawScopeOnly();
         return;
     }
@@ -2652,6 +2678,7 @@ static const settingline_t visor_settings[] = {
     { "visor_name",      "nick arriba" },
     { "visor_names",     "nombres, Y" },
     { "visor_trails",    "estelas 0/1/2, 6" },
+    { "visor_hitmark",   "X del hitmarker" },
     { "s_volume",        "volumen, teclas , ." },
     { "",                NULL },
     { NULL,              "En el video" },
@@ -2661,6 +2688,7 @@ static const settingline_t visor_settings[] = {
     { "clip_name",       "nick del jugador" },
     { "clip_names",      "nombres jugadores" },
     { "clip_trails",     "estelas 0/1/2" },
+    { "clip_hitmark",    "X del hitmarker" },
     { "clip_size",       "resolucion" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
