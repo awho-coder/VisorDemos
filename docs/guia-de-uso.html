@@ -271,11 +271,12 @@
       <tr><td>VER</td><td><strong>Chat</strong></td><td>Chat <strong>en pantalla</strong>: sí / con avisos del servidor (dice "Chat + avisos") / no</td><td>J</td></tr>
       <tr><td>VER</td><td><strong>HUD</strong></td><td>HUD del juego en pantalla con la cámara libre o siguiendo a alguien</td><td>—</td></tr>
       <tr><td>VER</td><td><strong>Nick arriba</strong></td><td>Nick del jugador que ves, arriba al centro</td><td>—</td></tr>
+      <tr><td>VER</td><td><strong>Hitmarker</strong></td><td>La X del hitmarker en el centro cuando el jugador le pega a alguien (servidor con <code>hitmarkers 2</code>)</td><td>—</td></tr>
       <tr><td>VIDEO</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
       <tr><td>VIDEO</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
       <tr><td>VIDEO</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
       <tr><td>VIDEO</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
-      <tr><td>VIDEO</td><td><strong>Estelas</strong>, <strong>Nombres</strong>, <strong>Muertes</strong>, <strong>Chat</strong>, <strong>HUD</strong>, <strong>Nick arriba</strong></td><td>Lo mismo que en VER, pero <strong>en los videos</strong> (no cambian la pantalla)</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>Estelas</strong>, <strong>Nombres</strong>, <strong>Muertes</strong>, <strong>Chat</strong>, <strong>HUD</strong>, <strong>Nick arriba</strong>, <strong>Hitmarker</strong></td><td>Lo mismo que en VER, pero <strong>en los videos</strong> (no cambian la pantalla). La X del hitmarker sale aunque el HUD esté apagado</td><td>—</td></tr>
       <tr><td>VIDEO</td><td><strong>CALIDAD</strong> − +</td><td>Calidad del video (alta / media / baja; más alta = archivo más grande)</td><td>—</td></tr>
       <tr><td>VIDEO</td><td><strong>FPS</strong> − +</td><td>Cuadros por segundo del video</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>PANEL</strong> / <strong>KILL FEED</strong> − +</td><td>Tamaño de la letra del editor / del kill feed y el chat</td><td>—</td></tr>
@@ -597,6 +598,7 @@
       <tr><td><code>clip_format</code></td><td>mp4</td><td><code>mov</code> = ProRes, calidad de edición profesional (archivos muy grandes)</td></tr>
       <tr><td><code>clip_quality</code></td><td>16</td><td>Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien)</td></tr>
       <tr><td><code>clip_hud</code></td><td>0</td><td><code>1</code> = incluir el HUD del juego en el video</td></tr>
+      <tr><td><code>clip_hitmark</code></td><td>1</td><td>La X del hitmarker en el video, aunque el HUD esté apagado (<code>0</code> = no)</td></tr>
       <tr><td><code>clip_name</code></td><td>0</td><td><code>1</code> = el nick del jugador que se ve o se sigue sale en el video</td></tr>
       <tr><td><code>visor_name</code></td><td>1</td><td>Muestra arriba el nick del jugador que ves o sigues (<code>0</code> = no)</td></tr>
       <tr><td><code>visor_killfeed</code></td><td>1</td><td>Quién mató a quién, arriba a la derecha. <code>2</code> = solo el jugador que ves, <code>0</code> = no</td></tr>
@@ -630,6 +632,7 @@
       <tr><td><code>chase_auto</code></td><td>0.6</td><td>Siguiendo a un jugador en tercera persona, cuánto tarda la cámara en volver sola a su espalda (segundos; <code>0</code> = no vuelve)</td></tr>
       <tr><td><code>visor_names</code></td><td><code>1</code></td><td>Nombres sobre los jugadores en pantalla (también con <strong>Y</strong>)</td></tr>
       <tr><td><code>clip_names</code></td><td><code>0</code></td><td><code>1</code> = nombres sobre los jugadores en el video</td></tr>
+      <tr><td><code>visor_hitmark</code></td><td><code>1</code></td><td>La X del hitmarker en pantalla, con el HUD (<code>0</code> = no)</td></tr>
       <tr><td><code>names_min</code> / <code>names_max</code></td><td><code>12</code> / <code>24</code></td><td>Tamaño de los nombres lejos / cerca (alto de la letra en píxeles, en una imagen de 1080 líneas)</td></tr>
       <tr><td><code>names_dist</code></td><td><code>400</code></td><td>Hasta esta distancia los nombres se ven del tamaño máximo</td></tr>
       <tr><td><code>visor_trails</code></td><td><code>1</code></td><td>Estelas de los proyectiles en pantalla: <code>1</code> todos, <code>2</code> solo el que sigues, <code>0</code> no (también con <strong>6</strong>)</td></tr>

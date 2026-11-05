@@ -213,11 +213,12 @@ imagen:
 | VER | **Chat** | Chat **en pantalla**: sí / con avisos del servidor (dice "Chat + avisos") / no | J |
 | VER | **HUD** | HUD del juego en pantalla con la cámara libre o siguiendo a alguien | — |
 | VER | **Nick arriba** | Nick del jugador que ves, arriba al centro | — |
+| VER | **Hitmarker** | La X del hitmarker en el centro cuando el jugador le pega a alguien (servidor con `hitmarkers 2`) | — |
 | VIDEO | **Inicio** / **Fin** | Marcar el inicio / fin del clip aquí | I / O |
 | VIDEO | **Borrar marcas** | Borrar las marcas de inicio y fin | Supr |
 | VIDEO | **GRABAR CLIP** | Grabar a video de la marca de inicio a la de fin | G |
 | VIDEO | **DEMO COMPLETO** | Grabar todo el demo a video, sin marcar inicio ni fin | — |
-| VIDEO | **Estelas**, **Nombres**, **Muertes**, **Chat**, **HUD**, **Nick arriba** | Lo mismo que en VER, pero **en los videos** (no cambian la pantalla) | — |
+| VIDEO | **Estelas**, **Nombres**, **Muertes**, **Chat**, **HUD**, **Nick arriba**, **Hitmarker** | Lo mismo que en VER, pero **en los videos** (no cambian la pantalla). La X del hitmarker sale aunque el HUD esté apagado | — |
 | VIDEO | **CALIDAD** − + | Calidad del video (alta / media / baja; más alta = archivo más grande) | — |
 | VIDEO | **FPS** − + | Cuadros por segundo del video | — |
 | AJUSTES | **PANEL** / **KILL FEED** − + | Tamaño de la letra del editor / del kill feed y el chat | — |
@@ -564,6 +565,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `clip_format` | `mp4` | `mp4` (H.264+AAC) o `mov` (ProRes+PCM) |
 | `clip_quality` | `16` | Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien) |
 | `clip_hud` | `0` | `1` = incluir el HUD del juego en el video |
+| `clip_hitmark` | `1` | La X del hitmarker en el video, aunque el HUD esté apagado (`0` = no) |
 | `clip_name` | `0` | `1` = el nick del jugador que se ve o se sigue sale en el video |
 | `visor_name` | `1` | Muestra arriba el nick del jugador que ves o sigues (`0` = no) |
 | `visor_killfeed` | `1` | Quién mató a quién, arriba a la derecha. `2` = solo el jugador que ves, `0` = no |
@@ -588,6 +590,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `chase_auto` | `0.6` | Siguiendo a un jugador en tercera persona, cuánto tarda la cámara en volver sola a su espalda (segundos; `0` = no vuelve) |
 | `visor_names` | `1` | Nombres sobre los jugadores en pantalla (también con **Y**) |
 | `clip_names` | `0` | `1` = nombres sobre los jugadores en el video |
+| `visor_hitmark` | `1` | La X del hitmarker en pantalla, con el HUD (`0` = no) |
 | `names_min` / `names_max` | `12` / `24` | Tamaño de los nombres lejos / cerca (alto de la letra en píxeles, en una imagen de 1080 líneas) |
 | `names_dist` | `400` | Hasta esta distancia los nombres se ven del tamaño máximo |
 | `visor_trails` | `1` | Estelas de los proyectiles en pantalla: `1` todos, `2` solo el que sigues, `0` no (también con **6**) |
