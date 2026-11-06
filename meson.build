@@ -312,6 +312,7 @@ endif
 # VisorDemos web: descargas HTTP con fetch() del navegador en vez de libcurl
 if web
   client_src += 'src/client/http_web.c'
+  client_src += 'src/client/web_bridge.c'
   config.set10('USE_WEBDL', true)
 endif
 
@@ -459,7 +460,7 @@ if web
     '-sMIN_WEBGL_VERSION=2', '-sMAX_WEBGL_VERSION=2', '-sFULL_ES3=1',
     '-sGL_ENABLE_GET_PROC_ADDRESS=1',
     '-sALLOW_MEMORY_GROWTH=1', '-sINITIAL_MEMORY=268435456', '-sSTACK_SIZE=4194304',
-    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain,UTF8ToString', '-sEXPORTED_FUNCTIONS=_main,_web_write_config',
+    '-sFORCE_FILESYSTEM=1', '-sEXPORTED_RUNTIME_METHODS=FS,callMain,UTF8ToString,ccall,cwrap', '-sEXPORTED_FUNCTIONS=_main,_web_write_config,_visor_cmd,_visor_state',
     '-sENVIRONMENT=web',
   ] + get_option('web-link-args')
 endif
