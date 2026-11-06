@@ -83,7 +83,14 @@ static sndinitstat_t Init(void)
     desired.samples = 512;
     desired.channels = 2;
     desired.callback = Filler;
+#ifdef __EMSCRIPTEN__
+    // el navegador trabaja en float de 32 bits: sin 'obtained', SDL convierte solo
+    // a 16 bits, que es lo que mezcla Q2PRO
+    ret = SDL_OpenAudio(&desired, NULL);
+    obtained = desired;
+#else
     ret = SDL_OpenAudio(&desired, &obtained);
+#endif
     if (ret == -1) {
         Com_EPrintf("Couldn't open SDL audio: %s\n", SDL_GetError());
         goto fail1;
