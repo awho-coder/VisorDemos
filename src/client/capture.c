@@ -700,7 +700,11 @@ static void make_filename(const char *name, const char *ext)
         if (start < 0 && !CL_DemoPosition(&start, NULL, NULL))
             start = 0;
 
-        Q_strlcpy(base, cls.servername[0] ? cls.servername : "clip", sizeof(base));
+        // a .mvd2 plays through the local server ("localhost"): use the map instead
+        if (cls.servername[0] && Q_stricmp(cls.servername, "localhost"))
+            Q_strlcpy(base, cls.servername, sizeof(base));
+        else
+            Q_strlcpy(base, cl.mapname[0] ? cl.mapname : "clip", sizeof(base));
         p = strrchr(base, '.');
         if (p)
             *p = 0;
@@ -930,8 +934,14 @@ static void capture_stop(void)
         return;
     }
 
+#ifdef __EMSCRIPTEN__
+    // in the browser nothing is written to disk: the page offers to save or share it
+    Com_Printf("Clip listo (%.1f s): %s\n", seconds, COM_SkipPath(cap.filename));
+    SCR_CenterPrint("Clip listo", false);
+#else
     Com_Printf("Clip guardado (%.1f s): %s\n", seconds, cap.filename);
     SCR_CenterPrint(va("Clip guardado: %s", COM_SkipPath(cap.filename)), false);
+#endif
 }
 
 static void capture_fail(void)
