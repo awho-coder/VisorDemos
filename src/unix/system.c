@@ -428,6 +428,21 @@ void Sys_ListFiles_r(listfiles_t *list, const char *path, int depth)
     closedir(dir);
 }
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+// el navegador llama esto una vez por cuadro (no se puede tener un while (1))
+static void web_frame(void)
+{
+    if (terminate) {
+        emscripten_cancel_main_loop();
+        Com_Quit(NULL, ERR_DISCONNECT);
+        return;
+    }
+    Qcommon_Frame();
+}
+#endif
+
 /*
 =================
 main
@@ -446,17 +461,24 @@ int main(int argc, char **argv)
         }
     }
 
+#ifndef __EMSCRIPTEN__
     if (!getuid() || !geteuid()) {
         fprintf(stderr, "You can not run " PRODUCT " as superuser "
                 "for security reasons!\n");
         return EXIT_FAILURE;
     }
+#endif
 
 #if USE_CLIENT
     main_thread = pthread_self();
 #endif
 
     Qcommon_Init(argc, argv);
+
+#ifdef __EMSCRIPTEN__
+    // 0 fps = al ritmo de la pantalla (requestAnimationFrame); no vuelve
+    emscripten_set_main_loop(web_frame, 0, 1);
+#endif
 
     while (!terminate) {
         if (flush_logs) {

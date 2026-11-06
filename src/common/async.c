@@ -63,6 +63,13 @@ static void *work_func(void *arg)
 
 void Com_QueueAsyncWork(asyncwork_t *work)
 {
+#ifdef __EMSCRIPTEN__
+    // en el navegador no hay hilos: se hace el trabajo al tiro
+    work->work_cb(work->cb_arg);
+    if (work->done_cb)
+        work->done_cb(work->cb_arg);
+    return;
+#endif
     if (!work_initialized) {
         pthread_mutex_init(&work_lock, NULL);
         pthread_cond_init(&work_cond, NULL);

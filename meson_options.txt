@@ -190,3 +190,7 @@ option('zlib',
   type: 'feature',
   value: 'auto',
   description: 'zlib support')
+option('web-link-args',
+  type: 'array',
+  value: [],
+  description: 'Extra link arguments for the Emscripten (web) build, e.g. --preload-file')

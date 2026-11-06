@@ -102,6 +102,7 @@ static void path_save(void)
         if (FS_OpenFile(file, &f, FS_MODE_WRITE | FS_FLAG_TEXT) >= 0) {
             FS_FPrintf(f, "VISORCAM 1\n");
             FS_CloseFile(f);
+            CL_WebSaved();
         }
         return;
     }
@@ -120,6 +121,7 @@ static void path_save(void)
                    p->ang[0], p->ang[1], p->ang[2]);
     }
     FS_CloseFile(f);
+    CL_WebSaved();
 }
 
 static void path_load(void)

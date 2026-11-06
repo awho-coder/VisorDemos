@@ -2160,6 +2160,32 @@ void IMG_FreeUnused(void)
         Com_DPrintf("%s: %i images freed\n", __func__, count);
 }
 
+#ifdef __EMSCRIPTEN__
+/*
+===============
+R_ForgetMissingImages
+
+Browser build: files can arrive during the game (downloaded on demand).
+Images that weren't found keep an empty slot so they aren't searched for
+every frame; forget those so the next registration looks again.
+===============
+*/
+void R_ForgetMissingImages(void)
+{
+    image_t *image;
+    int i;
+
+    for (i = R_NUM_AUTO_IMG, image = r_images + i; i < r_numImages; i++, image++) {
+        if (!image->name[0] || image->upload_width || image->upload_height)
+            continue;
+        if (image->flags & (IF_PERMANENT | IF_SCRAP))
+            continue;
+        List_Remove(&image->entry);
+        memset(image, 0, sizeof(*image));
+    }
+}
+#endif
+
 void IMG_FreeAll(void)
 {
     image_t *image;

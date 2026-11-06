@@ -770,6 +770,7 @@ int  CL_CaptureAudioSamples(void);
 void CL_CaptureAudio(const float *samples, int count);
 void CL_CaptureFrame(void);
 bool CL_CaptureStatus(char *buf, size_t size);
+float CL_CaptureProgress(void);
 int  CL_ClipMarkIn(void);
 int  CL_ClipMarkOut(void);
 float CL_ClipMarkPos(bool out);
@@ -853,8 +854,24 @@ void CL_InitFeed(void);
 void CL_FeedClear(void);
 void CL_FeedPrint(int level, const char *s);
 bool CL_FeedIndexed(void);
+int64_t CL_FeedDemoTime(void);
+int64_t CL_FeedLength(void);
 bool CL_FeedWantsIndex(void);
 int  CL_FeedMarks(bool deaths, float *pos, int max);
+#ifdef __EMSCRIPTEN__
+typedef struct {
+    double      time;           // seconds, demo clock
+    const char  *killer, *victim, *weapon, *kteam, *vteam;
+    bool        headshot, teamkill;
+} feedkill_t;
+int  CL_FeedNumKills(void);
+bool CL_FeedGetKill(int i, feedkill_t *out);
+const char *CL_FeedPlayerTeam(const char *name);
+void CL_FeedCounts(const char *name, int *frags, int *deaths);
+void CL_WebSaved(void);     // web_bridge.c: a path file was written
+#else
+#define CL_WebSaved()       ((void)0)
+#endif
 bool CL_FeedKillsOn(void);
 bool CL_FeedChatOn(void);
 bool CL_FeedHidesNotify(void);
@@ -1234,13 +1251,17 @@ void CL_InitAscii(void);
 
 
 //
-// http.c
+// http.c (http_web.c in the browser build)
 //
-#if USE_CURL
+#if USE_CURL || USE_WEBDL
 void HTTP_Init(void);
 void HTTP_Shutdown(void);
 void HTTP_SetServer(const char *url);
 int HTTP_QueueDownload(const char *path, dltype_t type);
+#if USE_WEBDL
+void CL_CheckPlayerDownloads(const char *name);
+void CL_WebCheckPlayers(void);
+#endif
 void HTTP_RunDownloads(void);
 void HTTP_CleanupDownloads(void);
 #else

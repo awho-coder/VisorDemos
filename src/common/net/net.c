@@ -643,6 +643,8 @@ static void NET_ErrorEvent(qsocket_t sock, const netadr_t *from,
 // include our wrappers to hide platfrom-specific details
 #ifdef _WIN32
 #include "win.h"
+#elif defined __EMSCRIPTEN__
+#include "web.h"     // browser: UDP through a WebSocket relay
 #else
 #include "unix.h"
 #endif

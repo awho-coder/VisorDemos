@@ -255,8 +255,12 @@ static void shutdown(void)
 
 static bool create_window_and_context(const vrect_t *rc)
 {
-    sdl.window = SDL_CreateWindow(WINDOW_TITLE, rc->x, rc->y, rc->width, rc->height,
-                                  SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI);
+    Uint32 wflags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
+#ifndef __EMSCRIPTEN__
+    // in the browser a phone with pixel ratio 3 would draw 9x the pixels: 1x there
+    wflags |= SDL_WINDOW_ALLOW_HIGHDPI;
+#endif
+    sdl.window = SDL_CreateWindow(WINDOW_TITLE, rc->x, rc->y, rc->width, rc->height, wflags);
     if (!sdl.window) {
         Com_EPrintf("Couldn't create SDL window: %s\n", SDL_GetError());
         return false;
