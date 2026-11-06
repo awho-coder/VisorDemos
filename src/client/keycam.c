@@ -134,6 +134,7 @@ static void keys_save(void)
                    k->follow, k->proj_ent, k->proj_first);
     }
     FS_CloseFile(f);
+    CL_WebSaved();
 }
 
 static void keys_load(void)
