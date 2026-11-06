@@ -65,6 +65,8 @@ EMSCRIPTEN_KEEPALIVE const char *visor_state(void)
     bool paused = false;
     double t, len;
     const char *name;
+    viewkind_t kind;
+    bool first;
 
     if (!CL_DemoPosition(&frame, &progress, &paused)) {
         strcpy(buf, "{\"ready\":false}");
@@ -74,7 +76,11 @@ EMSCRIPTEN_KEEPALIVE const char *visor_state(void)
     t = frame * (double)CL_DemoFrameMs() / 1000.0;
     len = progress > 0.001f ? t / progress : 0;
 
-    name = CL_ChaseTargetName();
+    // CL_ViewedPlayer (not CL_ChaseTargetName) because in a MVD the followed
+    // player comes through the local MVD server, not through our chase camera
+    name = CL_ViewedPlayer(&kind);
+    first = kind == VIEW_FOLLOW ? CL_ChaseFirstPerson()
+          : name && !CL_MvdThirdPerson();
     if (name) {
         follow[0] = '"';
         size_t n = json_escape(follow + 1, sizeof(follow) - 2, name);
@@ -90,7 +96,7 @@ EMSCRIPTEN_KEEPALIVE const char *visor_state(void)
              "\"names\":%s,\"xray\":%s,\"killfeed\":%d}",
              t, len, progress,
              CL_DemoPaused() ? "true" : "false", CL_DemoSpeed(), follow,
-             CL_ChaseFirstPerson() ? "true" : "false",
+             first ? "true" : "false",
              Cvar_VariableInteger("visor_names") ? "true" : "false",
              Cvar_VariableInteger("xray") ? "true" : "false",
              Cvar_VariableInteger("visor_killfeed"));
