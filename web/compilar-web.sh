@@ -1,6 +1,7 @@
 #!/bin/sh
 # Compila VisorDemos para el navegador (WebAssembly + WebGL2) con Emscripten y deja
-# el sitio en build-web/sitio/: visor.html, manifiesto.mjs, q2pro.js/.wasm/.data.
+# el sitio en build-web/sitio/: visor.html, manifiesto.mjs, q2pro.js/.wasm/.data,
+# y el cliente para jugar online en build-web/jugar/ (jugar.html, jugar.cfg).
 #
 # Requiere emsdk (https://emscripten.org): por defecto en ~/emsdk.
 # Los archivos del juego NO van aquí: el visor los baja de ?datos= (ver q2web.py).
@@ -34,5 +35,12 @@ mkdir -p "$SITIO"
 cp build-web/q2pro.js build-web/q2pro.wasm build-web/q2pro.data "$SITIO/"
 cp web/visor.html "$SITIO/index.html"
 cp web/manifiesto.mjs "$SITIO/"
+
+# cliente para jugar online (mismo motor, otra página): build-web/jugar/
+JUGAR="build-web/jugar"
+mkdir -p "$JUGAR"
+cp build-web/q2pro.js build-web/q2pro.wasm build-web/q2pro.data "$JUGAR/"
+cp web/jugar.html "$JUGAR/index.html"
+cp web/jugar.cfg web/manifiesto.mjs "$JUGAR/"
 echo
-echo "Listo: $SITIO ($(du -sh "$SITIO" | cut -f1))"
+echo "Listo: $SITIO ($(du -sh "$SITIO" | cut -f1)) y $JUGAR"
