@@ -288,7 +288,9 @@
       <tr><td>AJUSTES</td><td><strong>Paneles a los lados</strong></td><td>Mostrar / ocultar los paneles izquierdo y derecho</td><td>—</td></tr>
       <tr><td>Panel izquierdo</td><td><strong>PUNTOS</strong> / <strong>JUGADORES</strong></td><td>Lista de puntos (clic: ir al punto) o de jugadores (clic: seguirlo)</td><td>—</td></tr>
       <tr><td>Panel derecho</td><td><strong>Movimiento: Curva / Recta</strong></td><td>Del punto al siguiente: curva suave o línea recta</td><td>M</td></tr>
-      <tr><td>Panel derecho</td><td><strong>Objetivo: Nada / Mira a / Sigue a</strong></td><td>Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás hasta el punto siguiente, o nada</td><td>L</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Objetivo: Nada / Mira a / Sigue a</strong></td><td>Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás, seguirlo en sus ojos (hasta el punto siguiente), o nada</td><td>L</td></tr>
+      <tr><td>Panel derecho</td><td><strong>Vista: 1a / 3a persona</strong></td><td>Del punto al siguiente, seguir al jugador en primera o tercera persona (sin jugador: el que ves)</td><td>7</td></tr>
+      <tr><td>Panel derecho (siguiendo en 3a persona)</td><td><strong>Distancia</strong>, <strong>Angulo</strong>, <strong>Altura</strong> − + / <strong>Camara normal</strong></td><td>Dónde va la cámara alrededor del jugador en ese punto: lejos o cerca, girada (0 = detrás, 90 = al costado, 180 = de frente), más arriba o más abajo / volver a lo de siempre</td><td>P (siguiéndolo con E)</td></tr>
       <tr><td>Panel derecho</td><td><strong>Seguir proyectil</strong></td><td>Del punto al siguiente, seguir la granada, cohete o cuchillo que sigues o del centro de la pantalla</td><td>—</td></tr>
       <tr><td>Panel derecho</td><td><strong>Velocidad</strong> − +</td><td>Cámara lenta de este punto al siguiente (efecto Matrix), x0.05 a x4</td><td>3 / 4</td></tr>
       <tr><td>Panel derecho</td><td><strong>FOV</strong> − +</td><td>Campo de visión del punto (menos = más zoom)</td><td>—</td></tr>
@@ -345,7 +347,8 @@
       <h3>Puntos de cámara</h3>
       <table>
         <tr><td><kbd>P</kbd></td><td>Poner un punto aquí (o actualizarlo)</td></tr>
-        <tr><td><kbd>L</kbd></td><td>Objetivo: mirar al jugador del centro → seguirlo → nada</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Objetivo: mirar al jugador del centro → seguirlo → en sus ojos → nada</td></tr>
+        <tr><td><kbd>7</kbd></td><td>El punto sigue al jugador en primera / tercera persona</td></tr>
         <tr><td><kbd>M</kbd></td><td>Hasta el siguiente punto: curva o recta</td></tr>
         <tr><td><kbd>U</kbd></td><td>Borrar el punto</td></tr>
         <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Ir al punto anterior / siguiente (queda en su vista)</td></tr>
@@ -507,7 +510,19 @@
     (que quede al centro de la pantalla) y presiona <kbd>L</kbd>. Desde ese punto la cámara
     gira sola para mirarlo mientras viaja. Si dos puntos miran a jugadores distintos, la
     cámara pasa de uno a otro. <kbd>L</kbd> otra vez hace que lo <strong>siga</strong> desde atrás
-    hasta el punto siguiente; una tercera vez vuelve a la mirada libre.</li>
+    hasta el punto siguiente, otra vez lo sigue <strong>en sus ojos</strong> y una cuarta vez vuelve a la
+    mirada libre.</li>
+    <li><strong>Primera o tercera persona:</strong> <kbd>7</kbd> (o <strong>Vista</strong> en el panel
+    derecho) hace que el punto siga al jugador en primera o en tercera persona. Si el punto no tiene
+    jugador usa el que estás viendo: viendo el demo normal es quien lo grabó, y el tramo se ve como el
+    demo (con el arma y el HUD). De un punto en primera a otro en tercera del mismo jugador, la cámara
+    sale de sus ojos en los últimos 2 segundos antes del punto siguiente (y entra al revés), siempre
+    mirándolo. Con otros jugadores la primera persona es aproximada y sin arma: el demo no la trae.</li>
+    <li><strong>Distancia y ángulo en tercera persona:</strong> cada punto que sigue a un jugador desde
+    atrás tiene su <strong>Distancia</strong>, <strong>Angulo</strong> (0 = detrás, 90 = al costado,
+    180 = de frente) y <strong>Altura</strong> en el panel derecho. También: ve al punto, síguelo con
+    <kbd>E</kbd>, gira con el mouse, aleja con la rueda y presiona <kbd>P</kbd>. Si dos puntos seguidos lo
+    siguen con ángulos distintos, la cámara da la vuelta a su alrededor de uno a otro.</li>
     <li><strong>Corregir un punto:</strong> <kbd>1</kbd> / <kbd>2</kbd> (o un clic en la lista o en su
     cuadradito) saltan al punto, pausan y dejan la cámara <strong>exactamente en la vista guardada</strong>.
     Muévela desde ahí y presiona <kbd>P</kbd>: se actualiza. <kbd>U</kbd> lo borra.</li>
@@ -620,6 +635,7 @@
       <tr><td><code>visor_editor</code></td><td>0</td><td><code>1</code> = modo editor con mouse (también con <kbd>Tab</kbd>)</td></tr>
       <tr><td><code>visor_editor_size</code></td><td>1</td><td>Tamaño de la letra del panel del editor (0.5 a 3)</td></tr>
       <tr><td><code>keycam_aim_height</code></td><td>12</td><td>Altura sobre el jugador a la que miran los puntos de cámara con <kbd>L</kbd></td></tr>
+      <tr><td><code>keycam_blend</code></td><td>2</td><td>Segundos que tarda la cámara en pasar de primera a tercera persona (o de un ángulo a otro) antes del punto siguiente</td></tr>
       <tr><td><code>visor_bar</code></td><td>1</td><td><code>0</code> = ocultar la barra de tiempo</td></tr>
       <tr><td><code>visor_help_pos</code></td><td>right</td><td>Lado del panel de ayuda (<kbd>H</kbd>): <code>right</code> o <code>left</code></td></tr>
       <tr><td><code>visor_help_size</code></td><td>0.8</td><td>Tamaño de la letra de la ayuda (0.5 a 1.5)</td></tr>
@@ -672,7 +688,9 @@
       <tr><td><code>campath_play</code></td><td>V</td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
       <tr><td><code>campath_clear</code></td><td>—</td><td>Borrar el recorrido grabado de este demo</td></tr>
       <tr><td><code>keycam_add</code></td><td>P</td><td>Poner un punto de cámara aquí (o actualizar el de aquí)</td></tr>
-      <tr><td><code>keycam_target</code></td><td>L</td><td>Objetivo del punto: mirar al jugador del centro → seguirlo → nada</td></tr>
+      <tr><td><code>keycam_target</code></td><td>L</td><td>Objetivo del punto: mirar al jugador del centro → seguirlo → en sus ojos → nada</td></tr>
+      <tr><td><code>keycam_view</code> [1 | 3]</td><td>7</td><td>El punto sigue al jugador en primera / tercera persona</td></tr>
+      <tr><td><code>keycam_chase dist</code> | <code>yaw</code> | <code>pitch</code> &lt;cambio&gt;</td><td>—</td><td>Distancia, ángulo y altura de la cámara del punto en tercera persona (<code>keycam_chase reset</code>: lo de siempre)</td></tr>
       <tr><td><code>keycam_mode</code></td><td>M</td><td>Del punto al siguiente: curva / recta</td></tr>
       <tr><td><code>keycam_delete</code></td><td>U</td><td>Borrar el punto de aquí</td></tr>
       <tr><td><code>keycam_prev</code> / <code>keycam_next</code></td><td>1 / 2</td><td>Ir al punto anterior / siguiente</td></tr>

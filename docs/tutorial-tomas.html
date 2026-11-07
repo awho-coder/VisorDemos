@@ -272,7 +272,12 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
     <p>Desde ese punto la cámara gira sola para no perderlo mientras viaja. Si un punto mira a un
     jugador y el siguiente a otro, la cámara pasa de uno al otro. Un segundo clic cambia a
     <span class="btn on">Sigue a</span>: hasta el punto siguiente la cámara va <strong>detrás</strong> del
-    jugador, entrando y saliendo de a poco. Un tercer clic vuelve a <span class="btn">Nada</span>.</p>
+    jugador, entrando y saliendo de a poco. Un tercer clic lo sigue <strong>en sus ojos</strong> (primera
+    persona) y un cuarto vuelve a <span class="btn">Nada</span>.</p>
+    <p>Con <span class="btn">Vista</span> (o <kbd>7</kbd>) cambias entre primera y tercera persona. Si un punto
+    está en primera y el siguiente en tercera, la cámara sale de sus ojos al llegar al punto siguiente,
+    sin perderlo de vista. En tercera persona, <em>Distancia</em>, <em>Angulo</em> y <em>Altura</em> ponen
+    la cámara donde quieras alrededor del jugador: por ejemplo, ángulo 90 para verlo de costado.</p>
   </section>
 
   <section>
@@ -318,7 +323,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
       <table>
         <tr><td class="grp" colspan="2">Puntos de cámara</td></tr>
         <tr><td><kbd>P</kbd></td><td>Poner un punto aquí (o actualizar el de aquí)</td></tr>
-        <tr><td><kbd>L</kbd></td><td>Objetivo del punto: mira al jugador del centro → lo sigue → nada</td></tr>
+        <tr><td><kbd>L</kbd></td><td>Objetivo del punto: mira al jugador del centro → lo sigue → en sus ojos → nada</td></tr>
+        <tr><td><kbd>7</kbd></td><td>El punto sigue al jugador en primera / tercera persona</td></tr>
         <tr><td><kbd>M</kbd></td><td>Del punto al siguiente: curva o recta</td></tr>
         <tr><td><kbd>U</kbd></td><td>Borrar el punto</td></tr>
         <tr><td><kbd>1</kbd> <kbd>2</kbd></td><td>Ir al punto anterior / siguiente (queda en su vista)</td></tr>
