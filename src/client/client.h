@@ -794,7 +794,8 @@ void CL_CamPathClear(void);
 // keycam.c
 //
 void CL_InitKeyCam(void);
-bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
+bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov, bool *own);
+int  CL_KeyCamHideBody(void);
 bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov);
 typedef struct {
     int         frame;          // demo frame, for its time
@@ -803,9 +804,20 @@ typedef struct {
     const char  *target_name;
     float       fov;
     float       speed;          // slow motion to the next point
-    int         follow;         // 0 no, 1 follows target, 2 follows a projectile
+    int         follow;         // 0 no, 1 follows target, 2 follows a projectile,
+                                // 3 follows target in first person
+    float       chase_dist;     // follow in third person: distance (0 = the
+    float       chase_yaw;      // usual), turn from behind the player and
+    float       chase_pitch;    // how much it looks down
 } keyinfo_t;
-bool CL_ChasePose(int num, vec3_t org, vec3_t ang);
+bool CL_ChasePose(int num, float dist, float yaw, float pitch, vec3_t org, vec3_t ang);
+bool CL_ChaseToEyes(int num, float dist, float yaw, float pitch,
+                    const vec3_t eye_org, const vec3_t eye_ang, float f,
+                    vec3_t org, vec3_t ang);
+bool CL_ChaseOrbit(int num, const vec3_t cam, float *dist, float *yaw, float *pitch);
+float CL_ChaseDefaultDist(void);
+bool CL_EyesPose(int num, vec3_t org, vec3_t ang, bool *own);
+int  CL_FreecamViewedPlayer(void);
 float CL_KeyCamSpeed(void);
 
 bool CL_KeyCamGet(int i, keyinfo_t *out);

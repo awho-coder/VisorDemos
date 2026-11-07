@@ -68,6 +68,8 @@ static cvar_t   *follow_hold;
 
 static bool     path_driving;   // a recorded camera path moves the view
 static bool     keys_driving;   // the camera points move the view
+static bool     keys_own;       // ... and show the demo's own first person view
+static vec3_t   own_org, own_ang;   // the demo's own view this frame
 
 static bool mvd_playing(void);
 static float angle_delta(float to, float from);
@@ -86,9 +88,12 @@ static bool live_active(void)
     return fc.mode != CAM_OFF && demo_view();
 }
 
-// any detached camera: live, or played back from a recorded path
+// any detached camera: live, or played back from a recorded path. Not when
+// the camera points show the demo's own first person (gun, HUD and all)
 bool CL_FreecamActive(void)
 {
+    if (keys_driving && keys_own && demo_view())
+        return false;
     return live_active() || ((path_driving || keys_driving) && demo_view());
 }
 
@@ -213,6 +218,10 @@ int CL_ChasedBodyToHide(void)
     const centity_t *e;
     vec3_t org;
     int n;
+
+    // camera points in someone's eyes: theirs (they pick it)
+    if (keys_driving && demo_view())
+        return CL_KeyCamHideBody();
 
     // our first person camera sits inside the followed player
     if (eyes_active())
@@ -509,38 +518,135 @@ static bool player_position(int num, vec3_t out, float *yaw)
 ===============
 CL_ChasePose
 
-Camera behind player `num` now, like the chase camera in third person but
-without the mouse (for camera points that follow a player). The player's
-turns are smoothed so the camera doesn't shake.
+Camera around player `num` now, like the chase camera in third person but
+without the mouse (for camera points that follow a player): `dist` away
+(0 = chase_dist), turned `yaw` degrees from straight behind them, looking
+`pitch` degrees down. The player's turns are smoothed so the camera
+doesn't shake.
 ===============
 */
-bool CL_ChasePose(int num, vec3_t org, vec3_t ang)
+static float    chase_yaw_s[MAX_CLIENTS + 1];
+static unsigned chase_last[MAX_CLIENTS + 1];
+static int      chase_demo_ms[MAX_CLIENTS + 1];
+
+// where the chase camera looks at (above the player) and where they face,
+// smoothed
+static bool chase_focus(int num, vec3_t focus, float *yaw_s)
+{
+    float yaw, dt;
+    int ms = CL_DemoTimeMs();
+    bool jumped;
+
+    if (num < 1 || num > MAX_CLIENTS || !player_position(num, focus, &yaw))
+        return false;
+
+    dt = (cls.realtime - chase_last[num]) * 0.001f;
+    chase_last[num] = cls.realtime;
+    jumped = abs(ms - chase_demo_ms[num]) > 500;    // a seek: no easing
+    chase_demo_ms[num] = ms;
+    if (dt > 0.5f || jumped || chase_auto->value <= 0)
+        chase_yaw_s[num] = yaw;
+    else if (dt > 0)
+        chase_yaw_s[num] += angle_delta(yaw, chase_yaw_s[num]) * (1.0f - expf(-dt / chase_auto->value));
+
+    focus[2] += chase_height->value;
+    *yaw_s = chase_yaw_s[num];
+    return true;
+}
+
+bool CL_ChasePose(int num, float dist, float yaw, float pitch, vec3_t org, vec3_t ang)
 {
     static const vec3_t mins = { -4, -4, -4 };
     static const vec3_t maxs = {  4,  4,  4 };
-    static float yaw_s[MAX_CLIENTS + 1];
-    static unsigned last[MAX_CLIENTS + 1];
     vec3_t pos, fwd, wanted;
     trace_t tr;
-    float yaw, dt;
+    float yaw_s;
 
-    if (num < 1 || num > MAX_CLIENTS || !player_position(num, pos, &yaw))
+    if (!chase_focus(num, pos, &yaw_s))
         return false;
 
-    dt = (cls.realtime - last[num]) * 0.001f;
-    last[num] = cls.realtime;
-    if (dt > 0.5f || chase_auto->value <= 0)
-        yaw_s[num] = yaw;
-    else
-        yaw_s[num] += angle_delta(yaw, yaw_s[num]) * (1.0f - expf(-dt / chase_auto->value));
-
-    pos[2] += chase_height->value;
-    VectorSet(ang, 15, yaw_s[num], 0);
+    if (dist <= 0)
+        dist = chase_dist->value;
+    VectorSet(ang, Q_clipf(pitch, -80, 85), yaw_s + yaw, 0);
     AngleVectors(ang, fwd, NULL, NULL);
-    VectorMA(pos, -Cvar_ClampValue(chase_dist, 16, 1000), fwd, wanted);
+    VectorMA(pos, -Q_clipf(dist, 16, 1000), fwd, wanted);
     CL_Trace(&tr, pos, wanted, mins, maxs, CONTENTS_SOLID);
     VectorCopy(tr.endpos, org);
     return true;
+}
+
+/*
+===============
+CL_ChaseToEyes
+
+Between third person around player `num` (f = 0, like CL_ChasePose) and
+the view `eye_org` / `eye_ang` in their eyes (f = 1): the camera comes in
+along its line of sight, always looking at them, instead of cutting
+straight across and losing them behind a wall.
+===============
+*/
+bool CL_ChaseToEyes(int num, float dist, float yaw, float pitch,
+                    const vec3_t eye_org, const vec3_t eye_ang, float f,
+                    vec3_t org, vec3_t ang)
+{
+    static const vec3_t mins = { -4, -4, -4 };
+    static const vec3_t maxs = {  4,  4,  4 };
+    vec3_t focus, fwd, wanted;
+    trace_t tr;
+    float yaw_s;
+
+    if (!chase_focus(num, focus, &yaw_s))
+        return false;
+
+    if (dist <= 0)
+        dist = chase_dist->value;
+    dist = Q_clipf(dist, 16, 1000) * (1 - f);
+    VectorSet(ang, Q_clipf(pitch, -80, 85), yaw_s + yaw, 0);
+    for (int j = 0; j < 3; j++)
+        ang[j] += f * angle_delta(eye_ang[j], ang[j]);
+    LerpVector(focus, eye_org, f, focus);
+
+    AngleVectors(ang, fwd, NULL, NULL);
+    VectorMA(focus, -dist, fwd, wanted);
+    CL_Trace(&tr, focus, wanted, mins, maxs, CONTENTS_SOLID);
+    VectorCopy(tr.endpos, org);
+    return true;
+}
+
+/*
+===============
+CL_ChaseOrbit
+
+The other way round: distance and angle around player `num` of a camera at
+`cam` (what CL_ChasePose would need to put it there). For updating a camera
+point from what is seen: the chase camera turned with the mouse, or the
+free camera placed behind them.
+===============
+*/
+bool CL_ChaseOrbit(int num, const vec3_t cam, float *dist, float *yaw, float *pitch)
+{
+    vec3_t focus, dir, ang;
+    float yaw_s;
+
+    if (!chase_focus(num, focus, &yaw_s))
+        return false;
+
+    VectorSubtract(focus, cam, dir);
+    *dist = VectorLength(dir);
+    if (*dist < 16)
+        return false;   // in their eyes
+    vectoangles2(dir, ang);
+    if (ang[PITCH] < -180)
+        ang[PITCH] += 360;
+    *pitch = Q_clipf(ang[PITCH], -80, 85);
+    *yaw = angle_delta(ang[YAW], yaw_s);
+    *dist = Q_clipf(*dist, 16, 1000);
+    return true;
+}
+
+float CL_ChaseDefaultDist(void)
+{
+    return Cvar_ClampValue(chase_dist, 16, 1000);
 }
 
 // for the camera points: where a player is now (their origin)
@@ -962,6 +1068,84 @@ static void eyes_view(void)
     fc.origin[2] += fc.eye_height;
 }
 
+// player whose eyes the demo's own view is in: the recorder playing, or the
+// player a spectator recorder watched from up close; 0 = nobody
+static int own_eyes_player(void)
+{
+    vec3_t org;
+    int n;
+
+    if (recorder_playing())
+        return cl.frame.clientNum + 1;
+    if (cl.frame.ps.pmove.pm_type != PM_FREEZE || (n = spectator_target()) < 0)
+        return 0;
+    if (!player_position(n + 1, org, &(float){ 0 }))
+        return 0;
+    // in their eyes, not a chase camera behind them (a frame behind: ~40 units)
+    return Distance(own_org, org) < 80 ? n + 1 : 0;
+}
+
+/*
+===============
+CL_EyesPose
+
+Camera in player `num`'s eyes now, for camera points in first person. The
+recorder (or the player a MVD shows) gets the demo's own view, with the
+real view angles: *own is then true. Others like eyes_view.
+===============
+*/
+bool CL_EyesPose(int num, vec3_t org, vec3_t ang, bool *own)
+{
+    static float height[MAX_CLIENTS + 1];
+    static unsigned last[MAX_CLIENTS + 1];
+    const centity_t *ent;
+    float yaw, pitch, dt;
+
+    *own = false;
+    if (num < 1 || num > MAX_CLIENTS)
+        return false;
+
+    if (num == own_eyes_player()) {
+        VectorCopy(own_org, org);
+        VectorCopy(own_ang, ang);
+        if (ang[PITCH] > 180)
+            ang[PITCH] -= 360;
+        *own = true;
+        return true;
+    }
+
+    if (!player_position(num, org, &yaw))
+        return false;
+
+    ent = &cl_entities[num];
+    pitch = LerpAngle(ent->prev.angles[PITCH], ent->current.angles[PITCH], cl.lerpfrac);
+    if (pitch > 180)
+        pitch -= 360;
+    VectorSet(ang, Q_clipf(pitch * 3, -89, 89), yaw, 0);
+
+    // crouching / standing up: ease the height like the game does
+    dt = (cls.realtime - last[num]) * 0.001f;
+    last[num] = cls.realtime;
+    if (dt > 0.5f)
+        height[num] = player_eye_height(num, 20);
+    else
+        height[num] += (player_eye_height(num, height[num]) - height[num]) *
+                       (1.0f - expf(-dt / 0.1f));
+    org[2] += height[num];
+    return true;
+}
+
+// player whose eyes the view is in now (entity number): the one followed,
+// else the recorder; 0 = nobody (a spectator demo, or the recorder's free flying)
+int CL_FreecamViewedPlayer(void)
+{
+    int n = current_player();
+
+    if (!n && recorder_playing())
+        n = cl.frame.clientNum + 1;
+    return n;
+}
+
 // shown on the timeline
 bool CL_ChaseFirstPerson(void)
 {
@@ -1044,9 +1228,13 @@ void CL_FreecamView(void)
 {
     vec3_t org, ang;
     float fov = 0;
-    bool paused;
+    bool paused, own;
 
-    path_driving = keys_driving = false;
+    path_driving = keys_driving = keys_own = false;
+
+    // the view worked out from the demo, before any camera of ours
+    VectorCopy(cl.refdef.vieworg, own_org);
+    VectorCopy(cl.refdef.viewangles, own_ang);
 
     if (!demo_view()) {
         if (mvd_playing())
@@ -1071,12 +1259,14 @@ void CL_FreecamView(void)
         fc.preview = false;
     }
 
-    if (CL_KeyCamView(org, ang, &fov) && (!live_active() || !paused || fc.preview)) {
+    if (CL_KeyCamView(org, ang, &fov, &own) && (!live_active() || !paused || fc.preview)) {
         // camera points cover this moment. They win over the live camera
         // while the demo runs; paused, until the camera is moved (then it is
         // free to set up a point). The free camera rides along, so pausing
-        // doesn't jump.
+        // doesn't jump. In the recorder's eyes the demo's own view stays,
+        // with the gun and the zoom.
         keys_driving = true;
+        keys_own = own;
         if (!paused)
             fc.preview = true;
         VectorCopy(org, cl.refdef.vieworg);
