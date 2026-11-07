@@ -33,6 +33,23 @@ Qué puedes hacer:
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
 
+### Novedades de la versión 0.7
+
+- **Puntos de cámara en primera persona**: un punto puede seguir al jugador
+  en sus ojos (**7**, o **Vista** en el panel derecho). Con quien grabó el
+  demo se ve igual que el demo, con el arma y el HUD.
+- **Transición entre primera y tercera persona**: de un punto en primera a
+  otro en tercera (o al revés), la cámara sale de los ojos del jugador o
+  entra en ellos sin perderlo de vista.
+- **Distancia y ángulo en tercera persona** por punto (**Distancia**,
+  **Angulo**, **Altura**), y la cámara da la vuelta alrededor del jugador
+  de un punto a otro. Ver [Puntos de cámara](#puntos-de-cámara-como-en-keygrip).
+- Arreglo: al grabar un clip de un `.mvd2`, el archivo lleva el nombre del
+  mapa.
+
+Al actualizar, copia también `baseq2\visor.cfg` del `.zip`: ahí viene la
+tecla nueva **7**.
+
 ### Novedades de la versión 0.6
 
 - **Saltar a un punto de cámara muestra su vista**: con **1 / 2** o un clic
@@ -230,7 +247,9 @@ imagen:
 | AJUSTES | **Paneles a los lados** | Mostrar / ocultar los paneles izquierdo y derecho | — |
 | Panel izquierdo | **PUNTOS** / **JUGADORES** | Lista de puntos (clic: ir al punto) o de jugadores (clic: seguirlo) | — |
 | Panel derecho | **Movimiento: Curva / Recta** | Del punto al siguiente: curva suave o línea recta | M |
-| Panel derecho | **Objetivo: Nada / Mira a / Sigue a** | Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás hasta el punto siguiente, o nada | L |
+| Panel derecho | **Objetivo: Nada / Mira a / Sigue a** | Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás, seguirlo en sus ojos (hasta el punto siguiente), o nada | L |
+| Panel derecho | **Vista: 1a / 3a persona** | Del punto al siguiente, seguir al jugador en primera o tercera persona (sin jugador: el que ves) | 7 |
+| Panel derecho (siguiendo en 3a persona) | **Distancia**, **Angulo**, **Altura** − + / **Camara normal** | Dónde va la cámara alrededor del jugador en ese punto: lejos o cerca, girada (0 = detrás, 90 = al costado, 180 = de frente), más arriba o más abajo / volver a lo de siempre | P (siguiéndolo con E) |
 | Panel derecho | **Seguir proyectil** | Del punto al siguiente, seguir la granada, cohete o cuchillo que sigues o del centro de la pantalla | — |
 | Panel derecho | **Velocidad** − + | Cámara lenta de este punto al siguiente (efecto Matrix), x0.05 a x4 | 3 / 4 |
 | Panel derecho | **FOV** − + | Campo de visión del punto (menos = más zoom) | — |
@@ -279,7 +298,8 @@ Quake 2 normal.
 | **C** | Grabar recorrido de cámara / terminar |
 | **V** | Usar el recorrido grabado y los puntos de cámara sí / no |
 | **P** | Poner un punto de cámara aquí (o actualizarlo) |
-| **L** | Objetivo del punto: mirar al jugador del centro de la pantalla → seguirlo → nada |
+| **L** | Objetivo del punto: mirar al jugador del centro de la pantalla → seguirlo → en sus ojos → nada |
+| **7** | El punto sigue al jugador en primera / tercera persona |
 | **M** | Del punto al siguiente: curva suave / recta |
 | **U** | Borrar el punto de cámara |
 | **1 / 2** | Ir al punto de cámara anterior / siguiente (la cámara queda en la vista del punto) |
@@ -393,7 +413,22 @@ en algunos momentos y él la mueve sola entre esos puntos, en una curva suave.
   sola para mirarlo mientras viaja. Si dos puntos miran a jugadores
   distintos, la cámara pasa de uno a otro. **L** otra vez hace que lo
   **siga** desde atrás hasta el punto siguiente (la cámara entra y sale de
-  a poco). **L** una tercera vez vuelve a la mirada libre.
+  a poco), otra vez lo sigue **en sus ojos** y una cuarta vez vuelve a la
+  mirada libre.
+- **Primera o tercera persona**: **7** (o **Vista** en el panel derecho)
+  hace que el punto siga al jugador en primera o en tercera persona. Si el
+  punto no tiene jugador usa el que estás viendo: viendo el demo normal, es
+  quien lo grabó, y el tramo se ve como el demo (con el arma y el HUD). De un
+  punto en primera a otro en tercera del mismo jugador, la cámara sale de
+  sus ojos en los últimos 2 segundos antes del punto siguiente (y entra al
+  revés), siempre mirándolo. Con otros jugadores la primera persona es
+  aproximada y sin arma: el demo no la trae.
+- **Distancia y ángulo en tercera persona**: cada punto que sigue a un
+  jugador desde atrás tiene su **Distancia**, **Angulo** (0 = detrás, 90 =
+  al costado, 180 = de frente) y **Altura** en el panel derecho. También:
+  ve al punto, síguelo con **E**, gira con el mouse, aleja con la rueda y
+  presiona **P**. Si dos puntos seguidos lo siguen con ángulos distintos, la
+  cámara da la vuelta a su alrededor de uno a otro.
 - **Corregir un punto**: **1 / 2** (o un clic en la lista o en su
   cuadradito) saltan al punto, pausan y dejan la cámara **exactamente en la
   vista guardada**. Muévela desde ahí y presiona **P**: se actualiza. **U**
@@ -585,6 +620,7 @@ Abre la consola con la tecla **`** (al lado del 1) y escribe, por ejemplo,
 | `chase_dist` | `110` | Distancia al jugador que sigues (también con la rueda del mouse) |
 | `campath_smooth` | `0.25` | Suavizado del recorrido de cámara (segundos) |
 | `keycam_aim_height` | `12` | Altura sobre el jugador a la que miran los puntos con **L** |
+| `keycam_blend` | `2` | Segundos que tarda la cámara en pasar de primera a tercera persona (o de un ángulo a otro) antes del punto siguiente |
 | `keycam_show` | `0` | `1` = dibujar en el mapa el recorrido de los puntos (**Ver recorrido**) |
 | `chase_height` | `28` | Altura de la cámara al seguir a un jugador en tercera persona |
 | `chase_auto` | `0.6` | Siguiendo a un jugador en tercera persona, cuánto tarda la cámara en volver sola a su espalda (segundos; `0` = no vuelve) |

@@ -6,3 +6,4 @@ builddir/
 build-win64/
 VisorDemos-windows-*.zip
 .claude/
+build-web/

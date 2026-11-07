@@ -78,6 +78,7 @@ static int      num_chats, max_chats;
 static bool     indexing;       // the demo is being read ahead
 static bool     indexed;        // ...and finished: the lists are complete
 static bool     index_asked;    // reading an MVD ahead was asked for already
+static int64_t  index_len;      // demo time of the last frame read, ms
 
 // players of an MVD being read ahead (the server's copy, not the client's)
 static const configstring_t *index_skins;
@@ -169,6 +170,7 @@ void CL_FeedClear(void)
     num_kills = max_kills = 0;
     num_chats = max_chats = 0;
     indexing = indexed = index_asked = false;
+    index_len = 0;
     index_skins = NULL;
     acc.count = 0;
 }
@@ -180,7 +182,11 @@ void CL_FeedIndexBegin(void)
 
 void CL_FeedIndexEnd(void)
 {
+    stamp_t end;
+
     flush_pieces();
+    print_stamp(&end);
+    index_len = end.time;
     indexing = false;
     indexed = true;
     Com_DPrintf("Feed index: %d deaths, %d chat lines\n", num_kills, num_chats);
@@ -189,6 +195,18 @@ void CL_FeedIndexEnd(void)
 bool CL_FeedIndexed(void)
 {
     return indexed;
+}
+
+// demo time on the same clock as the kills, ms
+int64_t CL_FeedDemoTime(void)
+{
+    return demo_time();
+}
+
+// length of the demo in ms once it's been read ahead, else 0
+int64_t CL_FeedLength(void)
+{
+    return indexed ? index_len : 0;
 }
 
 // true once per map while the demo hasn't been read ahead (MVD)
@@ -706,6 +724,55 @@ int CL_FeedMarks(bool deaths, float *pos, int max)
     }
     return n;
 }
+
+#ifdef __EMSCRIPTEN__
+// The page's lists (web_bridge.c): read-only view of the index.
+static const char *team_word(team_t t)
+{
+    return t == TEAM_ALLIES ? "allies" : t == TEAM_AXIS ? "axis" : "";
+}
+
+int CL_FeedNumKills(void)
+{
+    return indexed ? num_kills : 0;
+}
+
+bool CL_FeedGetKill(int i, feedkill_t *out)
+{
+    const kill_t *k;
+
+    if (!indexed || i < 0 || i >= num_kills)
+        return false;
+    k = &kills[i];
+    out->time = k->time / 1000.0;
+    out->killer = k->killer;
+    out->victim = k->victim;
+    out->weapon = k->label;
+    out->kteam = team_word(k->kteam);
+    out->vteam = team_word(k->vteam);
+    out->headshot = k->headshot;
+    out->teamkill = k->teamkill;
+    return true;
+}
+
+// "allies", "axis" or "" (spectator / unknown) for a player's nick
+const char *CL_FeedPlayerTeam(const char *name)
+{
+    return team_word(player_team(name));
+}
+
+// frags (not team kills) and deaths of a player in the index
+void CL_FeedCounts(const char *name, int *frags, int *deaths)
+{
+    *frags = *deaths = 0;
+    for (int i = 0; indexed && i < num_kills; i++) {
+        if (is_frag(&kills[i], name))
+            ++*frags;
+        if (!strcmp(kills[i].victim, name))
+            ++*deaths;
+    }
+}
+#endif
 
 // frag_next / frag_prev: jump to just before the next / previous frag or
 // death of the watched player (the yellow and red marks on the timeline).

@@ -469,6 +469,9 @@ void CL_UpdateConfigstring(int index)
     }
 
     if (index >= cl.csr.playerskins && index < cl.csr.playerskins + MAX_CLIENTS) {
+#if USE_WEBDL
+        CL_CheckPlayerDownloads(s);     // browser: download a new team/class now
+#endif
         CL_LoadClientinfo(&cl.clientinfo[index - cl.csr.playerskins], s);
         return;
     }

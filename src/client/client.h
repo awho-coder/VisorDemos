@@ -770,6 +770,7 @@ int  CL_CaptureAudioSamples(void);
 void CL_CaptureAudio(const float *samples, int count);
 void CL_CaptureFrame(void);
 bool CL_CaptureStatus(char *buf, size_t size);
+float CL_CaptureProgress(void);
 int  CL_ClipMarkIn(void);
 int  CL_ClipMarkOut(void);
 float CL_ClipMarkPos(bool out);
@@ -793,7 +794,8 @@ void CL_CamPathClear(void);
 // keycam.c
 //
 void CL_InitKeyCam(void);
-bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov);
+bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov, bool *own);
+int  CL_KeyCamHideBody(void);
 bool CL_KeyCamPendingView(vec3_t org, vec3_t ang, float *fov);
 typedef struct {
     int         frame;          // demo frame, for its time
@@ -802,9 +804,20 @@ typedef struct {
     const char  *target_name;
     float       fov;
     float       speed;          // slow motion to the next point
-    int         follow;         // 0 no, 1 follows target, 2 follows a projectile
+    int         follow;         // 0 no, 1 follows target, 2 follows a projectile,
+                                // 3 follows target in first person
+    float       chase_dist;     // follow in third person: distance (0 = the
+    float       chase_yaw;      // usual), turn from behind the player and
+    float       chase_pitch;    // how much it looks down
 } keyinfo_t;
-bool CL_ChasePose(int num, vec3_t org, vec3_t ang);
+bool CL_ChasePose(int num, float dist, float yaw, float pitch, vec3_t org, vec3_t ang);
+bool CL_ChaseToEyes(int num, float dist, float yaw, float pitch,
+                    const vec3_t eye_org, const vec3_t eye_ang, float f,
+                    vec3_t org, vec3_t ang);
+bool CL_ChaseOrbit(int num, const vec3_t cam, float *dist, float *yaw, float *pitch);
+float CL_ChaseDefaultDist(void);
+bool CL_EyesPose(int num, vec3_t org, vec3_t ang, bool *own);
+int  CL_FreecamViewedPlayer(void);
 float CL_KeyCamSpeed(void);
 
 bool CL_KeyCamGet(int i, keyinfo_t *out);
@@ -853,8 +866,24 @@ void CL_InitFeed(void);
 void CL_FeedClear(void);
 void CL_FeedPrint(int level, const char *s);
 bool CL_FeedIndexed(void);
+int64_t CL_FeedDemoTime(void);
+int64_t CL_FeedLength(void);
 bool CL_FeedWantsIndex(void);
 int  CL_FeedMarks(bool deaths, float *pos, int max);
+#ifdef __EMSCRIPTEN__
+typedef struct {
+    double      time;           // seconds, demo clock
+    const char  *killer, *victim, *weapon, *kteam, *vteam;
+    bool        headshot, teamkill;
+} feedkill_t;
+int  CL_FeedNumKills(void);
+bool CL_FeedGetKill(int i, feedkill_t *out);
+const char *CL_FeedPlayerTeam(const char *name);
+void CL_FeedCounts(const char *name, int *frags, int *deaths);
+void CL_WebSaved(void);     // web_bridge.c: a path file was written
+#else
+#define CL_WebSaved()       ((void)0)
+#endif
 bool CL_FeedKillsOn(void);
 bool CL_FeedChatOn(void);
 bool CL_FeedHidesNotify(void);
@@ -1234,13 +1263,17 @@ void CL_InitAscii(void);
 
 
 //
-// http.c
+// http.c (http_web.c in the browser build)
 //
-#if USE_CURL
+#if USE_CURL || USE_WEBDL
 void HTTP_Init(void);
 void HTTP_Shutdown(void);
 void HTTP_SetServer(const char *url);
 int HTTP_QueueDownload(const char *path, dltype_t type);
+#if USE_WEBDL
+void CL_CheckPlayerDownloads(const char *name);
+void CL_WebCheckPlayers(void);
+#endif
 void HTTP_RunDownloads(void);
 void HTTP_CleanupDownloads(void);
 #else

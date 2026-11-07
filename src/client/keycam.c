@@ -18,8 +18,12 @@ GNU General Public License for more details.
 // angles, field of view). While the demo runs, the camera travels between
 // them on a smooth curve, timed by the demo clock, so clip_export renders
 // moving shots without having to fly them live. A point can also aim at a
-// player: the camera then keeps turning to look at them. Points are saved
-// per demo in campaths/<demo>.keys and loaded again automatically.
+// player: the camera then keeps turning to look at them, or follow them up
+// to the next point, from behind or through their eyes. Between a point in
+// first person and the next one in third (same player) the camera pulls out
+// of their eyes in the last moments before the next point (keycam_blend
+// seconds), and back in the other way round. Points are
+// saved per demo in campaths/<demo>.keys and loaded again automatically.
 
 #include "client.h"
 
@@ -32,7 +36,8 @@ GNU General Public License for more details.
 typedef enum {
     FOLLOW_NONE,
     FOLLOW_PLAYER,  // behind `target`, like the chase camera
-    FOLLOW_PROJ     // behind a projectile (proj.c)
+    FOLLOW_PROJ,    // behind a projectile (proj.c)
+    FOLLOW_EYES     // through `target`'s eyes (the recorder: the demo's view)
 } follow_t;
 
 typedef enum {
@@ -52,18 +57,28 @@ typedef struct {
     follow_t    follow;     // from this point to the next the camera follows
     int         proj_ent;   // FOLLOW_PROJ: entity number and server frame
     int         proj_first; // of the throw
+    float       cdist;      // FOLLOW_PLAYER: distance (0 = chase_dist), turn
+    float       cyaw;       // from straight behind the player and how much
+    float       cpitch;     // it looks down
 } keyframe_t;
+
+#define CHASE_PITCH     15      // the chase camera's usual look down
+#define SCOPE_FOV       60      // narrower than this: looking through a scope
 
 static keyframe_t   keys[MAX_KEYS];
 static int          num_keys;
 static bool         playing = true;
 static char         loaded_for[MAX_QPATH];
 static int          pending_view = -1;  // jumped to this point: show its view
+static bool         cam_own;            // the camera is the demo's own view now
+static int          cam_hide;           // player the camera is inside, 0 none
 
 static cvar_t       *keycam_aim_height;
+static cvar_t       *keycam_blend;
 static cvar_t       *keycam_show;
 
 static int key_here(void);
+static float angle_delta(float to, float from);
 
 // same clock as campath.c: stays put across seeks
 static int demo_time(void)
@@ -127,13 +142,15 @@ static void keys_save(void)
     FS_FPrintf(f, "VISORKEYS 1\n");
     for (int i = 0; i < num_keys; i++) {
         const keyframe_t *k = &keys[i];
-        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f %g %d %d %d\n",
+        FS_FPrintf(f, "%d %d %.5f %d %d %.2f %.2f %.2f %.3f %.3f %.3f %.2f %g %d %d %d %g %g %g\n",
                    k->time, k->frame, k->pos, k->mode, k->target,
                    k->org[0], k->org[1], k->org[2],
                    k->ang[0], k->ang[1], k->ang[2], k->fov, k->speed,
-                   k->follow, k->proj_ent, k->proj_first);
+                   k->follow, k->proj_ent, k->proj_first,
+                   k->cdist, k->cyaw, k->cpitch);
     }
     FS_CloseFile(f);
+    CL_WebSaved();
 }
 
 static void keys_load(void)
@@ -167,14 +184,21 @@ static void keys_load(void)
         Q_strlcpy(one, line, min(end ? end - line + 1 : (int)sizeof(one), (int)sizeof(one)));
         memset(&k, 0, sizeof(k));
         k.speed = 1;
+        k.cpitch = CHASE_PITCH;
         follow = 0;
-        if (sscanf(one, "%d %d %f %d %d %f %f %f %f %f %f %f %f %d %d %d",
+        // (files from before have no camera distance and angle at the end)
+        if (sscanf(one, "%d %d %f %d %d %f %f %f %f %f %f %f %f %d %d %d %f %f %f",
                    &k.time, &k.frame, &k.pos, &mode, &k.target,
                    &k.org[0], &k.org[1], &k.org[2],
                    &k.ang[0], &k.ang[1], &k.ang[2], &k.fov, &k.speed,
-                   &follow, &k.proj_ent, &k.proj_first) < 12)
+                   &follow, &k.proj_ent, &k.proj_first,
+                   &k.cdist, &k.cyaw, &k.cpitch) < 12)
             continue;
+        k.cdist = k.cdist > 0 ? Q_clipf(k.cdist, 16, 1000) : 0;
+        k.cyaw = angle_delta(k.cyaw, 0);
+        k.cpitch = Q_clipf(k.cpitch, -80, 85);
         k.follow = follow == FOLLOW_PLAYER && k.target ? FOLLOW_PLAYER :
+                   follow == FOLLOW_EYES && k.target ? FOLLOW_EYES :
                    follow == FOLLOW_PROJ ? FOLLOW_PROJ : FOLLOW_NONE;
         k.speed = Q_clipf(k.speed, MIN_SPEED, MAX_SPEED);
         if (num_keys && k.time <= keys[num_keys - 1].time)
@@ -284,12 +308,15 @@ static void look_angles(const vec3_t from, const vec3_t to, vec3_t ang)
     ang[ROLL] = 0;
 }
 
-// camera between points a and a + 1 at time t
-// where the camera is when the point follows something now
-static bool follow_pose(const keyframe_t *k, vec3_t org, vec3_t ang)
+// where the camera is when the point follows something now; *own: it is
+// the demo's own view (the recorder's eyes)
+static bool follow_pose(const keyframe_t *k, vec3_t org, vec3_t ang, bool *own)
 {
+    *own = false;
     if (k->follow == FOLLOW_PLAYER)
-        return CL_ChasePose(k->target, org, ang);
+        return CL_ChasePose(k->target, k->cdist, k->cyaw, k->cpitch, org, ang);
+    if (k->follow == FOLLOW_EYES)
+        return CL_EyesPose(k->target, org, ang, own);
     if (k->follow == FOLLOW_PROJ) {
         int id = CL_ProjFind(k->proj_ent, k->proj_first);
         return id >= 0 && CL_ProjFollowPose(id, NULL, -1, org, ang);
@@ -297,6 +324,27 @@ static bool follow_pose(const keyframe_t *k, vec3_t org, vec3_t ang)
     return false;
 }
 
+// both points follow the same player (from behind or through the eyes) or
+// the same projectile: the camera goes on from one to the other without
+// coming back to the points' path in between
+static bool same_subject(const keyframe_t *a, const keyframe_t *b)
+{
+    if (!a->follow || !b->follow)
+        return false;
+    if (a->follow == FOLLOW_PROJ || b->follow == FOLLOW_PROJ)
+        return a->follow == b->follow && a->proj_ent == b->proj_ent &&
+               a->proj_first == b->proj_first;
+    return a->target == b->target;
+}
+
+static void blend_pose(vec3_t org, vec3_t ang, const vec3_t to_org, const vec3_t to_ang, float w)
+{
+    LerpVector(org, to_org, w, org);
+    for (int j = 0; j < 3; j++)
+        ang[j] += w * angle_delta(to_ang[j], ang[j]);
+}
+
+// camera between points a and a + 1 at time t
 // now: t is the moment shown (the followed things are where they are now)
 static void sample_segment(int a, int t, vec3_t org, vec3_t ang, float *fov, bool now)
 {
@@ -368,17 +416,74 @@ static void sample_segment(int a, int t, vec3_t org, vec3_t ang, float *fov, boo
     }
 
     // following a player or a projectile from this point to the next: the
-    // camera eases from the point's view to behind it and back at the end
+    // camera eases from the point's view to behind it (or into their eyes)
+    // and back at the end. Not where the point before or after follows the
+    // same one: each point keeps its view (first or third person, distance
+    // and angle) and in the last keycam_blend seconds before the next point
+    // the camera changes to the next one's.
     if (now && ka->follow) {
-        vec3_t fo, fa;
-        float ramp = min(400.0f, h / 3), w;
+        vec3_t fo, fa, bo, ba;
+        bool own_a, own_b = false;
+        bool keep_in = a > 0 && same_subject(&keys[a - 1], ka);
+        bool keep_out = same_subject(ka, kb);
+        float ramp = min(400.0f, h / 3), w = 1, f = 0;
+        float win = min(Cvar_ClampValue(keycam_blend, 0.1f, 60) * 1000, h);
+        float change = smoothstep(Q_clipf((t - (kb->time - win)) / win, 0, 1));
 
-        if (follow_pose(ka, fo, fa)) {
-            w = smoothstep(Q_clipf((t - ka->time) / ramp, 0, 1)) *
-                smoothstep(Q_clipf((kb->time - t) / ramp, 0, 1));
-            LerpVector(org, fo, w, org);
-            for (int j = 0; j < 3; j++)
-                ang[j] += w * angle_delta(fa[j], ang[j]);
+        if (follow_pose(ka, fo, fa, &own_a)) {
+            vec3_t eyes_a, eyes_b = { 0 };
+
+            VectorCopy(fo, eyes_a);
+            if (!keep_out || change <= 0) {
+                // this point's view
+            } else if (ka->follow == FOLLOW_PLAYER && kb->follow == FOLLOW_PLAYER) {
+                // behind the same player at another distance or angle: the
+                // camera goes round them from one to the other
+                float da = ka->cdist > 0 ? ka->cdist : CL_ChaseDefaultDist();
+                float db = kb->cdist > 0 ? kb->cdist : CL_ChaseDefaultDist();
+
+                CL_ChasePose(ka->target, da + (db - da) * change,
+                             ka->cyaw + angle_delta(kb->cyaw, ka->cyaw) * change,
+                             ka->cpitch + (kb->cpitch - ka->cpitch) * change, fo, fa);
+            } else if (ka->follow == FOLLOW_PLAYER && kb->follow == FOLLOW_EYES &&
+                       follow_pose(kb, bo, ba, &own_b)) {
+                // into their eyes: in along the line of sight, looking at them
+                VectorCopy(bo, eyes_b);
+                f = change;
+                CL_ChaseToEyes(ka->target, ka->cdist, ka->cyaw, ka->cpitch, bo, ba, f, fo, fa);
+            } else if (ka->follow == FOLLOW_EYES && kb->follow == FOLLOW_PLAYER) {
+                // out of their eyes, the same way back
+                vec3_t eyes_ang;
+
+                VectorCopy(fa, eyes_ang);
+                f = change;
+                CL_ChaseToEyes(kb->target, kb->cdist, kb->cyaw, kb->cpitch,
+                               eyes_a, eyes_ang, 1 - f, fo, fa);
+            } else if (kb->follow != ka->follow && follow_pose(kb, bo, ba, &own_b)) {
+                VectorCopy(bo, eyes_b);
+                f = change;
+                blend_pose(fo, fa, bo, ba, f);
+            }
+            if (!keep_in)
+                w *= smoothstep(Q_clipf((t - ka->time) / ramp, 0, 1));
+            if (!keep_out)
+                w *= smoothstep(Q_clipf((kb->time - t) / ramp, 0, 1));
+            blend_pose(org, ang, fo, fa, w);
+
+            // the demo's own view: its field of view too, and while fully
+            // in it, the demo's view as it is (gun, HUD, the scope's zoom).
+            // A scope's zoom isn't blended in: it would close in on nothing
+            if (own_a && cl.fov_x > SCOPE_FOV)
+                *fov += (cl.fov_x - *fov) * w * (1 - f);
+            if (own_b && cl.fov_x > SCOPE_FOV)
+                *fov += (cl.fov_x - *fov) * w * f;
+            cam_own = own_a && w == 1 && f == 0;
+
+            // inside someone: don't draw their body on the camera
+            if (ka->follow == FOLLOW_EYES && Distance(org, eyes_a) < 40)
+                cam_hide = ka->target;
+            else if (f > 0 && kb->follow == FOLLOW_EYES && Distance(org, eyes_b) < 40)
+                cam_hide = kb->target;
         }
     }
 }
@@ -391,9 +496,12 @@ Camera from the points for the current demo time. False when the points
 are off or don't cover this moment (before the first or after the last).
 ===============
 */
-bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov)
+bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov, bool *own)
 {
     int t, a;
+
+    *own = cam_own = false;
+    cam_hide = 0;
 
     if (!watching_dm2())
         return false;
@@ -410,7 +518,14 @@ bool CL_KeyCamView(vec3_t org, vec3_t ang, float *fov)
     for (a = 0; a < num_keys - 2 && keys[a + 1].time <= t; a++)
         ;
     sample_segment(a, t, org, ang, fov, true);
+    *own = cam_own;
     return true;
+}
+
+// player whose body the camera of the points is inside now, 0 = none
+int CL_KeyCamHideBody(void)
+{
+    return cam_hide;
 }
 
 // the view saved in point i, looking at its player if it has one
@@ -419,9 +534,13 @@ static void point_view(int i, vec3_t org, vec3_t ang, float *fov)
     const keyframe_t *k = &keys[i];
     vec3_t aim;
 
+    bool own;
+
     VectorCopy(k->org, org);
     VectorCopy(k->ang, ang);
     *fov = k->fov;
+    if (k->follow && follow_pose(k, org, ang, &own))
+        return;     // what it follows, as the point shows it
     if (k->target && target_position(k->target, aim))
         look_angles(org, aim, ang);
 }
@@ -544,6 +663,7 @@ const char *CL_KeyCamStatus(void)
               keys[i].mode == SEG_LINE ? ", recta" : "",
               keys[i].speed != 1 && i < num_keys - 1 && CL_KeyCamSpeed() == 1 ? va(", x%g", keys[i].speed) : "",
               keys[i].follow == FOLLOW_PROJ ? ", sigue proyectil" :
+              keys[i].follow == FOLLOW_EYES ? va(", 1a persona de %s", player_name(keys[i].target)) :
               keys[i].follow ? va(", sigue a %s", player_name(keys[i].target)) :
               keys[i].target ? va(", mira a %s", player_name(keys[i].target)) : "");
 }
@@ -593,6 +713,7 @@ static void KeyCam_Add_f(void)
         k.ang[PITCH] -= 360;
     k.fov = Q_clipf(cl.fov_x, 10, 160);
     k.speed = 1;
+    k.cpitch = CHASE_PITCH;
 
     i = key_here();
     if (i >= 0) {
@@ -603,9 +724,26 @@ static void KeyCam_Add_f(void)
         k.follow = keys[i].follow;
         k.proj_ent = keys[i].proj_ent;
         k.proj_first = keys[i].proj_first;
+        k.cdist = keys[i].cdist;
+        k.cyaw = keys[i].cyaw;
+        k.cpitch = keys[i].cpitch;
+        // following them in third person: the distance and angle seen now
+        // (the chase camera turned with the mouse and the wheel, or the free
+        // camera put somewhere around them)
+        if (k.follow == FOLLOW_PLAYER) {
+            float d, y, p;
+            if (CL_ChaseOrbit(k.target, k.org, &d, &y, &p) && d <= 600) {
+                k.cdist = d;
+                k.cyaw = y;
+                k.cpitch = p;
+            }
+        }
         keys[i] = k;
         keys_save();
-        announce(va("Punto %d actualizado (total %d)", i + 1, num_keys));
+        announce(k.follow == FOLLOW_PLAYER
+                 ? va("Punto %d actualizado: distancia %.0f, angulo %.0f, altura %.0f", i + 1,
+                      k.cdist > 0 ? k.cdist : CL_ChaseDefaultDist(), k.cyaw, k.cpitch)
+                 : va("Punto %d actualizado (total %d)", i + 1, num_keys));
         return;
     }
 
@@ -728,7 +866,7 @@ static void KeyCam_Target_f(void)
         return;
     }
 
-    // nothing -> looks at a player -> follows them -> nothing
+    // nothing -> looks at a player -> follows them -> through their eyes -> nothing
     i = key_here();
     if (i < 0) {
         // no point yet: put one here, then aim it
@@ -739,6 +877,12 @@ static void KeyCam_Target_f(void)
         keys[i].follow = FOLLOW_PLAYER;
         keys_save();
         announce(va("Punto %d: sigue a %s hasta el punto siguiente", i + 1, player_name(keys[i].target)));
+        return;
+    } else if (keys[i].target && keys[i].follow == FOLLOW_PLAYER) {
+        keys[i].follow = FOLLOW_EYES;
+        keys_save();
+        announce(va("Punto %d: en primera persona de %s hasta el punto siguiente", i + 1,
+                    player_name(keys[i].target)));
         return;
     } else if (keys[i].target || keys[i].follow) {
         keys[i].target = 0;
@@ -757,6 +901,96 @@ static void KeyCam_Target_f(void)
     keys[i].target = num;
     keys_save();
     announce(va("Punto %d: mira a %s", i + 1, player_name(num)));
+}
+
+/*
+===============
+KeyCam_Chase_f
+
+keycam_chase dist | yaw | pitch <change>, keycam_chase reset: distance and
+angle of the camera of the point here when it follows a player in third
+person (the editor's buttons). The view shows the point again to see it.
+===============
+*/
+static void KeyCam_Chase_f(void)
+{
+    const char *what = Cmd_Argv(1);
+    float v = Q_atof(Cmd_Argv(2));
+    keyframe_t *k;
+    int i;
+
+    if (!can_edit())
+        return;
+    i = key_here();
+    if (i < 0 || keys[i].follow != FOLLOW_PLAYER) {
+        announce("El punto de aqui no sigue a un jugador en tercera persona (L o 7)");
+        return;
+    }
+    k = &keys[i];
+
+    if (!Q_stricmp(what, "dist")) {
+        k->cdist = Q_clipf((k->cdist > 0 ? k->cdist : CL_ChaseDefaultDist()) + v, 16, 1000);
+    } else if (!Q_stricmp(what, "yaw")) {
+        k->cyaw = angle_delta(k->cyaw + v, 0);
+    } else if (!Q_stricmp(what, "pitch")) {
+        k->cpitch = Q_clipf(k->cpitch + v, -80, 85);
+    } else if (!Q_stricmp(what, "reset")) {
+        k->cdist = k->cyaw = 0;
+        k->cpitch = CHASE_PITCH;
+    } else {
+        Com_Printf("Uso: %s dist | yaw | pitch <cambio>, o %s reset\n", Cmd_Argv(0), Cmd_Argv(0));
+        return;
+    }
+    keys_save();
+    CL_FreecamSeeked();     // paused: show the point's view, not the free camera
+    announce(va("Punto %d: distancia %.0f, angulo %.0f, altura %.0f", i + 1,
+                k->cdist > 0 ? k->cdist : CL_ChaseDefaultDist(), k->cyaw, k->cpitch));
+}
+
+/*
+===============
+KeyCam_View_f
+
+keycam_view [1 | 3]: from the point here to the next, follow its player
+through their eyes (1) or from behind (3); no number switches. A point that
+has no player takes the one whose view is shown (the one followed with
+E / Q, else the recorder: the demo's normal first person view).
+===============
+*/
+static void KeyCam_View_f(void)
+{
+    int i, num;
+    follow_t want;
+
+    if (!can_edit())
+        return;
+
+    i = key_here();
+    num = i >= 0 && keys[i].follow != FOLLOW_PROJ ? keys[i].target : 0;
+    if (!num)
+        num = CL_FreecamViewedPlayer();
+    if (!num) {
+        announce("Sigue a un jugador (E / Q) o apunta a uno con L, y vuelve a intentar");
+        return;
+    }
+
+    if (i < 0) {
+        KeyCam_Add_f();
+        if ((i = key_here()) < 0)
+            return;
+    }
+
+    if (Cmd_Argc() > 1)
+        want = Q_atoi(Cmd_Argv(1)) == 3 ? FOLLOW_PLAYER : FOLLOW_EYES;
+    else
+        want = keys[i].follow == FOLLOW_EYES ? FOLLOW_PLAYER : FOLLOW_EYES;
+
+    keys[i].target = num;
+    keys[i].follow = want;
+    keys_save();
+    announce(want == FOLLOW_EYES
+             ? va("Punto %d: primera persona de %s hasta el siguiente", i + 1, player_name(num))
+             : va("Punto %d: tercera persona de %s hasta el siguiente", i + 1, player_name(num)));
 }
 
 // projectile a camera point follows right now, -1 none (its trail stands out)
@@ -944,6 +1178,9 @@ bool CL_KeyCamGet(int i, keyinfo_t *out)
     out->target_name = k->target ? player_name(k->target) : NULL;
     out->speed = k->speed;
     out->follow = k->follow;
+    out->chase_dist = k->cdist > 0 ? k->cdist : CL_ChaseDefaultDist();
+    out->chase_yaw = k->cyaw;
+    out->chase_pitch = k->cpitch;
     if (k->follow == FOLLOW_PROJ) {
         int id = CL_ProjFind(k->proj_ent, k->proj_first);
         out->target_name = id >= 0 ? CL_ProjName(id) : "proyectil";
@@ -1114,6 +1351,8 @@ static const cmdreg_t c_keycam[] = {
     { "keycam_fov", KeyCam_Fov_f },
     { "keycam_speed", KeyCam_Speed_f },
     { "keycam_follow_proj", KeyCam_FollowProj_f },
+    { "keycam_view", KeyCam_View_f },
+    { "keycam_chase", KeyCam_Chase_f },
     { "keycam_clear", KeyCam_Clear_f },
     { "camera_clear", Camera_Clear_f },
     { NULL }
@@ -1122,6 +1361,7 @@ static const cmdreg_t c_keycam[] = {
 void CL_InitKeyCam(void)
 {
     keycam_aim_height = Cvar_Get("keycam_aim_height", "12", CVAR_ARCHIVE);
+    keycam_blend = Cvar_Get("keycam_blend", "2", CVAR_ARCHIVE);
     keycam_show = Cvar_Get("keycam_show", "0", CVAR_ARCHIVE);
     Cmd_Register(c_keycam);
 }

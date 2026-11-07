@@ -24,6 +24,12 @@ GNU General Public License for more details.
 // Clip workflow (DM2 demos): clip_in / clip_out mark a range, clip_export
 // seeks to the start, records until the end and pauses again.
 // capture_start / capture_stop record manually (also works for MVD playback).
+//
+// Web build: no FFmpeg. Everything above stays the same (marks, fixed time
+// step, crop to the clip's format, mixed audio) but each frame (RGBA, scaled
+// to clip_size) and the audio go to the page through Module.visorClip, which
+// encodes them in the browser (WebCodecs). While the page says busy() the
+// engine holds the clock: no time passes and no frame is taken.
 
 #include "client.h"
 #include "sound/sound.h"
@@ -43,13 +49,54 @@ static struct {
 
 static bool export_whole;       // clip_export_all is opening the file
 
-#if USE_AVCODEC
+#if USE_AVCODEC || defined(__EMSCRIPTEN__)
+#define CAPTURE_REAL    1
+#endif
 
+#if CAPTURE_REAL
+
+#if USE_AVCODEC
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
+#else
+#include <emscripten.h>
+
+#define WEB_MAX_CLIP    120     // seconds: longest clip in the browser
+
+EM_JS(int, web_clip_available, (void), {
+    var c = Module['visorClip'];
+    return c && c.begin ? 1 : 0;
+});
+
+EM_JS(int, web_clip_begin, (int w, int h, int fps, int rate, int channels, const char *name), {
+    try {
+        return Module['visorClip'].begin({ width: w, height: h, fps: fps, sampleRate: rate,
+                                           channels: channels, name: UTF8ToString(name) }) ? 1 : 0;
+    } catch (e) {
+        console.warn(e);
+        return 0;
+    }
+});
+
+EM_JS(void, web_clip_frame, (const void *ptr, int w, int h), {
+    try { Module['visorClip'].frame(ptr, w, h); } catch (e) { console.warn(e); }
+});
+
+EM_JS(void, web_clip_audio, (const void *ptr, int frames, int channels), {
+    try { Module['visorClip'].audio(ptr, frames, channels); } catch (e) { console.warn(e); }
+});
+
+EM_JS(int, web_clip_busy, (void), {
+    try { return Module['visorClip'].busy() ? 1 : 0; } catch (e) { return 0; }
+});
+
+EM_JS(void, web_clip_end, (int ok), {
+    try { Module['visorClip'].end(!!ok); } catch (e) { console.warn(e); }
+});
+#endif
 
 typedef enum {
     CAP_IDLE,
@@ -61,6 +108,8 @@ static struct {
     bool        exporting;      // stop automatically at marks.out
     bool        whole;          // the whole demo, start to end (clip_export_all)
     bool        failed;         // an encoding error stopped the recording
+    bool        cut;            // clip_stop before the end mark
+    int         start_frame;    // demo frame where the export began
     int         stop_frame;
 
     // fixed time step
@@ -72,12 +121,18 @@ static struct {
     float       game_frac;      // leftover game time when playing slow/fast
 
     // video
+#if USE_AVCODEC
     AVFormatContext     *oc;
     AVCodecContext      *venc, *aenc;
     AVStream            *vst, *ast;
     struct SwsContext   *sws;
     AVFrame             *vframe, *aframe;
     AVPacket            *pkt;
+#else
+    bool                skip;           // the page is busy: this tick doesn't count
+    byte                *out;           // frame handed to the page (width x height)
+    int                 *cols;          // scaling table: x0, x1, weight per column
+#endif
     byte                *rgba;
     int                 src_w, src_h;   // render size
     int                 crop_x, crop_y; // source region kept (top-left)
@@ -87,9 +142,13 @@ static struct {
 
     // audio
     int                 rate;
-    float               *abuf;          // interleaved stereo, int16 scale
+    float               *abuf;          // AV: interleaved stereo, int16 scale
+#if USE_AVCODEC
     int                 abuf_len, abuf_size;
     int64_t             apts;
+#else
+    int                 abuf_size;      // web: scratch for what goes to the page
+#endif
 
     float               saved_volume;
     char                saved_clear[16];    // gl_clear before recording
@@ -133,7 +192,11 @@ static void set_cvar_now(const char *name, float value)
 
 static bool audio_enabled(void)
 {
+#if USE_AVCODEC
     return s_started == SS_DMA && cap.aenc;
+#else
+    return s_started == SS_DMA && cap.rate;
+#endif
 }
 
 /*
@@ -150,6 +213,13 @@ unsigned CL_CaptureFrameMsec(void)
     int64_t next;
     unsigned msec;
     float scaled;
+
+#ifdef __EMSCRIPTEN__
+    // the page has too much queued: time stands still, nothing is captured
+    cap.skip = web_clip_busy();
+    if (cap.skip)
+        return 0;
+#endif
 
     cap.ticks++;
     next = cap.ticks * 1000 / cap.fps;
@@ -180,6 +250,8 @@ int CL_CaptureAudioSamples(void)
     int64_t n = cap.audio_target - cap.audio_painted;
     return n > 0 ? n : 0;
 }
+
+#if USE_AVCODEC
 
 /*
 ===============================================================================
@@ -502,6 +574,100 @@ static void free_encoder(void)
     cap.vst = cap.ast = NULL;
 }
 
+#else // !USE_AVCODEC: the page encodes
+
+/*
+===============
+CL_CaptureAudio
+
+Receives freshly mixed samples from the sound mixer; the page gets them as
+interleaved stereo float32 in -1..1.
+===============
+*/
+void CL_CaptureAudio(const float *samples, int count)
+{
+    if (!CL_CaptureActive())
+        return;
+
+    cap.audio_painted += count;
+
+    if (!audio_enabled() || count <= 0 || cap.skip)
+        return;
+
+    if (count * 2 > cap.abuf_size) {
+        cap.abuf_size = count * 2;
+        cap.abuf = Z_Realloc(cap.abuf, cap.abuf_size * sizeof(float));
+    }
+    for (int i = 0; i < count * 2; i++)
+        cap.abuf[i] = Q_clipf(samples[i] * (1.0f / 32768), -1, 1);
+    web_clip_audio(cap.abuf, count, 2);
+}
+
+static void free_encoder(void)
+{
+    Z_Freep(&cap.rgba);
+    Z_Freep(&cap.out);
+    Z_Freep(&cap.cols);
+    Z_Freep(&cap.abuf);
+}
+
+// the part of the window kept (cap.crop_*) to width x height, bilinear.
+// GL rows are bottom-up, the page wants top-down.
+static void scale_frame(void)
+{
+    const int w = cap.width, h = cap.height;
+    const int *cols = cap.cols;
+
+    for (int y = 0; y < h; y++) {
+        float fy = (y + 0.5f) * cap.crop_h / h - 0.5f;
+        int y0 = (int)floorf(fy), wy = (int)((fy - y0) * 256);
+        int y1 = Q_clip(y0 + 1, 0, cap.crop_h - 1);
+        y0 = Q_clip(y0, 0, cap.crop_h - 1);
+        const byte *r0 = cap.rgba + ((size_t)(cap.src_h - 1 - (cap.crop_y + y0)) * cap.src_w + cap.crop_x) * 4;
+        const byte *r1 = cap.rgba + ((size_t)(cap.src_h - 1 - (cap.crop_y + y1)) * cap.src_w + cap.crop_x) * 4;
+        byte *dst = cap.out + (size_t)y * w * 4;
+
+        for (int x = 0; x < w; x++, dst += 4) {
+            const int x0 = cols[x * 3] * 4, x1 = cols[x * 3 + 1] * 4, wx = cols[x * 3 + 2];
+            for (int c = 0; c < 3; c++) {
+                int top = r0[x0 + c] * (256 - wx) + r0[x1 + c] * wx;
+                int bot = r1[x0 + c] * (256 - wx) + r1[x1 + c] * wx;
+                dst[c] = (top * (256 - wy) + bot * wy) >> 16;
+            }
+            dst[3] = 255;
+        }
+    }
+}
+
+static bool open_web(const char *name)
+{
+    cap.rgba = Z_Malloc((size_t)cap.src_w * cap.src_h * 4);
+    cap.out = Z_Malloc((size_t)cap.width * cap.height * 4);
+    cap.cols = Z_Malloc((size_t)cap.width * 3 * sizeof(int));
+    for (int x = 0; x < cap.width; x++) {
+        float fx = (x + 0.5f) * cap.crop_w / cap.width - 0.5f;
+        int x0 = (int)floorf(fx);
+        cap.cols[x * 3 + 2] = (int)((fx - x0) * 256);
+        cap.cols[x * 3 + 1] = Q_clip(x0 + 1, 0, cap.crop_w - 1);
+        cap.cols[x * 3] = Q_clip(x0, 0, cap.crop_w - 1);
+    }
+
+    if (s_started == SS_DMA) {
+        cap.rate = S_GetSampleRate();
+    } else {
+        Com_WPrintf("Captura: sin sonido por software, el clip no tendra audio.\n");
+    }
+
+    if (!web_clip_begin(cap.width, cap.height, cap.fps, cap.rate, cap.rate ? 2 : 0,
+                        COM_SkipPath(cap.filename))) {
+        free_encoder();
+        return false;
+    }
+    return true;
+}
+
+#endif // USE_AVCODEC (encoders)
+
 // "1920x1080" -> 1920, 1080; empty means "same as the window"
 static bool parse_size(const char *s, int *w, int *h)
 {
@@ -534,7 +700,11 @@ static void make_filename(const char *name, const char *ext)
         if (start < 0 && !CL_DemoPosition(&start, NULL, NULL))
             start = 0;
 
-        Q_strlcpy(base, cls.servername[0] ? cls.servername : "clip", sizeof(base));
+        // a .mvd2 plays through the local server ("localhost"): use the map instead
+        if (cls.servername[0] && Q_stricmp(cls.servername, "localhost"))
+            Q_strlcpy(base, cls.servername, sizeof(base));
+        else
+            Q_strlcpy(base, cl.mapname[0] ? cl.mapname : "clip", sizeof(base));
         p = strrchr(base, '.');
         if (p)
             *p = 0;
@@ -566,7 +736,9 @@ static void make_filename(const char *name, const char *ext)
 static bool capture_open(const char *name)
 {
     bool mov = !Q_stricmp(clip_format->string, "mov");
+#if USE_AVCODEC
     int ret;
+#endif
 
     cap.fps = Cvar_ClampInteger(clip_fps, 10, 240);
     cap.src_w = r_config.width;
@@ -598,6 +770,9 @@ static bool capture_open(const char *name)
     make_filename(name, mov ? "mov" : "mp4");
     FS_CreatePath(cap.filename);
 
+#if !USE_AVCODEC
+    return open_web(name);
+#else
     ret = avformat_alloc_output_context2(&cap.oc, NULL, mov ? "mov" : "mp4", cap.filename);
     if (ret < 0 || !cap.oc) {
         log_averror("crear archivo", ret);
@@ -630,8 +805,16 @@ static bool capture_open(const char *name)
 fail:
     free_encoder();
     return false;
+#endif
 }
 
+#if !USE_AVCODEC
+static void capture_close(void)
+{
+    web_clip_end(!cap.failed && !cap.cut);
+    free_encoder();
+}
+#else
 static void capture_close(void)
 {
     int ret;
@@ -650,6 +833,7 @@ static void capture_close(void)
 
     free_encoder();
 }
+#endif
 
 /*
 ===============================================================================
@@ -733,8 +917,12 @@ static void capture_stop(void)
     if (cap.failed && !cap.vframes) {
         // nothing usable was written: don't leave an empty file behind
         remove(cap.filename);
+#if USE_AVCODEC
         Com_EPrintf("No se pudo grabar el clip (fallo el codificador de video). "
                     "Prueba con otro formato: clip_format mov\n");
+#else
+        Com_EPrintf("No se pudo grabar el clip.\n");
+#endif
         SCR_CenterPrint("No se pudo grabar el clip (ver consola)", false);
         return;
     }
@@ -746,8 +934,14 @@ static void capture_stop(void)
         return;
     }
 
+#ifdef __EMSCRIPTEN__
+    // in the browser nothing is written to disk: the page offers to save or share it
+    Com_Printf("Clip listo (%.1f s): %s\n", seconds, COM_SkipPath(cap.filename));
+    SCR_CenterPrint("Clip listo", false);
+#else
     Com_Printf("Clip guardado (%.1f s): %s\n", seconds, cap.filename);
     SCR_CenterPrint(va("Clip guardado: %s", COM_SkipPath(cap.filename)), false);
+#endif
 }
 
 static void capture_fail(void)
@@ -774,12 +968,20 @@ Called right after the 3D view and HUD are drawn, before menus and console.
 */
 void CL_CaptureFrame(void)
 {
+#if USE_AVCODEC
     const uint8_t *src[4];
     int stride[4];
     int ret;
+#endif
 
     if (!CL_CaptureActive())
         return;
+
+#if !USE_AVCODEC
+    // the page was busy this tick: the demo didn't move, nothing to take
+    if (cap.skip)
+        return;
+#endif
 
     if (r_config.width != cap.src_w || r_config.height != cap.src_h) {
         Com_EPrintf("Captura: cambio el tamano de la ventana, se detiene la grabacion.\n");
@@ -792,6 +994,11 @@ void CL_CaptureFrame(void)
         return;
     }
 
+#if !USE_AVCODEC
+    scale_frame();
+    web_clip_frame(cap.out, cap.width, cap.height);
+    cap.vframes++;
+#else
     // GL rows are bottom-up: start at the top row of the cropped region
     // and walk backwards
     src[0] = cap.rgba + (size_t)(cap.src_h - 1 - cap.crop_y) * cap.src_w * 4 + cap.crop_x * 4;
@@ -810,6 +1017,7 @@ void CL_CaptureFrame(void)
         capture_fail();
         return;
     }
+#endif
 
     if (cap.exporting) {
         int frame;
@@ -853,7 +1061,23 @@ bool CL_CaptureStatus(char *buf, size_t size)
     return true;
 }
 
-#else // USE_AVCODEC
+// how far along an export is, 0-1
+float CL_CaptureProgress(void)
+{
+    int frame = 0;
+    float p = 0;
+
+    if (!CL_CaptureActive() || !cap.exporting)
+        return 0;
+    CL_DemoPosition(&frame, &p, NULL);
+    if (cap.whole)
+        return p;
+    if (cap.stop_frame == INT_MAX || cap.stop_frame <= cap.start_frame)
+        return 0;
+    return Q_clipf((float)(frame - cap.start_frame) / (cap.stop_frame - cap.start_frame), 0, 1);
+}
+
+#else // CAPTURE_REAL
 
 bool CL_CaptureActive(void) { return false; }
 bool CL_CaptureHideHud(void) { return false; }
@@ -864,6 +1088,7 @@ void CL_CaptureAudio(const float *samples, int count) { }
 void CL_CaptureFrame(void) { }
 void CL_CaptureShutdown(void) { }
 bool CL_CaptureStatus(char *buf, size_t size) { return false; }
+float CL_CaptureProgress(void) { return 0; }
 
 static bool capture_start(const char *name)
 {
@@ -873,7 +1098,7 @@ static bool capture_start(const char *name)
 
 static void capture_stop(void) { }
 
-#endif // !USE_AVCODEC
+#endif // !CAPTURE_REAL
 
 /*
 ===============================================================================
@@ -947,9 +1172,35 @@ static void Clip_Clear_f(void)
     Com_Printf("Marcas de clip borradas.\n");
 }
 
+#ifdef __EMSCRIPTEN__
+// the browser holds a clip in memory: at most WEB_MAX_CLIP seconds (frames
+// are 1/10 s). Returns the frame to stop at.
+static int web_stop_frame(int start, int stop)
+{
+    int limit = start + WEB_MAX_CLIP * 10;
+
+    if (stop <= limit)
+        return stop;
+    Com_Printf("En el navegador un clip dura como maximo %d s: se recorta.\n", WEB_MAX_CLIP);
+    SCR_CenterPrint(va("El clip se recorta a %d s", WEB_MAX_CLIP), false);
+    return limit;
+}
+
+static bool web_can_record(void)
+{
+    if (web_clip_available())
+        return true;
+    Com_Printf("No se puede grabar clips en este navegador.\n");
+    SCR_CenterPrint("No se puede grabar clips en este navegador", false);
+    return false;
+}
+#else
+#define web_can_record()    true
+#endif
+
 static void Clip_Export_f(void)
 {
-#if USE_AVCODEC
+#if CAPTURE_REAL
     char name[MAX_QPATH];
     int start;
 
@@ -967,6 +1218,9 @@ static void Clip_Export_f(void)
 
     int now;
 
+    if (!web_can_record())
+        return;
+
     CL_DemoPosition(&now, NULL, NULL);
     start = marks.in >= 0 ? marks.in : now;
 
@@ -978,7 +1232,11 @@ static void Clip_Export_f(void)
         return;
 
     cap.exporting = true;
+    cap.start_frame = start;
     cap.stop_frame = marks.out > start ? marks.out : INT_MAX;
+#ifdef __EMSCRIPTEN__
+    cap.stop_frame = web_stop_frame(start, cap.stop_frame);
+#endif
 #else
     capture_start(NULL);
 #endif
@@ -988,11 +1246,11 @@ static void Clip_Export_f(void)
 // end, without clip marks
 static void Clip_Export_All_f(void)
 {
-#if USE_AVCODEC
+#if CAPTURE_REAL
     char name[MAX_QPATH];
     bool ok;
 
-    if (!need_demo())
+    if (!need_demo() || !web_can_record())
         return;
 
     Q_strlcpy(name, Cmd_Argv(1), sizeof(name));
@@ -1013,6 +1271,9 @@ static void Clip_Export_All_f(void)
     cap.exporting = true;
     cap.whole = true;
     cap.stop_frame = INT_MAX;   // until the demo ends
+#ifdef __EMSCRIPTEN__
+    cap.stop_frame = web_stop_frame(0, cap.stop_frame);
+#endif
 #else
     capture_start(NULL);
 #endif
@@ -1025,6 +1286,7 @@ static void Clip_Stop_f(void)
         Com_Printf("No se esta grabando ningun clip.\n");
         return;
     }
+    cap.cut = cap.exporting;
     capture_stop();
     CL_DemoSetPaused(true);
 }

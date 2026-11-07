@@ -2648,6 +2648,7 @@ static const helpline_t visor_help[] = {
     { "U",          "Borrar punto" },
     { "1 / 2",      "Punto ant. / sig." },
     { "3 / 4",      "Tramo lento / rapido" },
+    { "7",          "Punto en 1a / 3a pers." },
     { "",           NULL },
     { NULL,         "Clips de video" },
     { "I / O",      "Inicio / fin" },

@@ -837,7 +837,8 @@ static void points_list(int max_rows)
         list_row(i == here ? IT_ROW_ON : IT_ROW,
                  va("%2d %8s%s%s%s%s", i + 1, t, k.line ? " recta" : "",
                     k.speed != 1 && i < n - 1 ? va(" x%g", k.speed) : "",
-                    k.follow ? " sigue " : k.target ? " mira " : "", k.target_name ? k.target_name : ""),
+                    k.follow == 3 ? " 1a pers. " : k.follow ? " sigue " : k.target ? " mira " : "",
+                    k.target_name ? k.target_name : ""),
                  va("keycam_goto %d", i + 1), va("Ir al punto %d", i + 1), 0);
     }
     if (n > max_rows)
@@ -909,8 +910,30 @@ static void point_settings(int i, int n)
     button(k.follow == 2 ? va("Sigue: %s", k.target_name) :
            k.follow ? va("Sigue a %s", k.target_name) :
            k.target ? va("Mira a %s", k.target_name) : "Nada", "keycam_target",
-           "Nada / mirar al jugador del centro de la pantalla / seguirlo hasta el punto siguiente  [L]",
+           "Nada / mirar al jugador del centro de la pantalla / seguirlo / en sus ojos, hasta el punto siguiente  [L]",
            on_if(k.target || k.follow));
+    prop("Vista");
+    button(k.follow == 3 ? "1a persona" : k.follow == 1 ? "3a persona" : "Seguir: 1a / 3a",
+           "keycam_view",
+           "Seguir al jugador hasta el punto siguiente en primera o tercera persona (sin jugador: el que ves)."
+           " De un punto en 1a a otro en 3a la camara sale suave de sus ojos  [7]",
+           on_if(k.follow == 1 || k.follow == 3));
+    if (k.follow == 1) {
+        // camera around the player: also with the chase camera (E, mouse,
+        // wheel) and P
+        prop("Distancia");
+        value(NULL, va("%.0f", k.chase_dist), "keycam_chase dist -10", "keycam_chase dist 10",
+              "Distancia de la camara al jugador en este punto. Tambien: siguelo con E, rueda del mouse y P", IT_BUTTON);
+        prop("Angulo");
+        value(NULL, va("%.0f", k.chase_yaw), "keycam_chase yaw -15", "keycam_chase yaw 15",
+              "Giro alrededor del jugador: 0 = detras, 90 / -90 = al costado, 180 = de frente."
+              " Tambien: siguelo con E, gira con el mouse y P", IT_BUTTON);
+        prop("Altura");
+        value(NULL, va("%.0f", k.chase_pitch), "keycam_chase pitch -5", "keycam_chase pitch 5",
+              "Cuanto mira hacia abajo: mas = la camara mas arriba, menos = mas a ras del suelo", IT_BUTTON);
+        prop("");
+        button("Camara normal", "keycam_chase reset", "Distancia y angulo de siempre: detras del jugador", IT_BUTTON);
+    }
     prop("");
     button("Seguir proyectil", "keycam_follow_proj",
            "Del punto al siguiente, seguir la granada, cohete o cuchillo que sigues o del centro de la pantalla",
