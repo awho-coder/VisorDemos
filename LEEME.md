@@ -33,6 +33,23 @@ Qué puedes hacer:
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
 
+### Novedades de la versión 0.7
+
+- **Puntos de cámara en primera persona**: un punto puede seguir al jugador
+  en sus ojos (**7**, o **Vista** en el panel derecho). Con quien grabó el
+  demo se ve igual que el demo, con el arma y el HUD.
+- **Transición entre primera y tercera persona**: de un punto en primera a
+  otro en tercera (o al revés), la cámara sale de los ojos del jugador o
+  entra en ellos sin perderlo de vista.
+- **Distancia y ángulo en tercera persona** por punto (**Distancia**,
+  **Angulo**, **Altura**), y la cámara da la vuelta alrededor del jugador
+  de un punto a otro. Ver [Puntos de cámara](#puntos-de-cámara-como-en-keygrip).
+- Arreglo: al grabar un clip de un `.mvd2`, el archivo lleva el nombre del
+  mapa.
+
+Al actualizar, copia también `baseq2\visor.cfg` del `.zip`: ahí viene la
+tecla nueva **7**.
+
 ### Novedades de la versión 0.6
 
 - **Saltar a un punto de cámara muestra su vista**: con **1 / 2** o un clic
