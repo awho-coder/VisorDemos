@@ -33,6 +33,19 @@ Qué puedes hacer:
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
 
+### Novedades de la versión 0.7.1
+
+- **Kill feed con el killfeed gráfico de D-Day**: los jugadores que usan el
+  killfeed nuevo del server (`killfeed 1..6`) no reciben las muertes en texto,
+  así que esas demos quedaban sin kill feed ni marcas de frags. Ahora el
+  server deja cada muerte en un registro que el visor lee, y el kill feed sale
+  completo aunque todos lo usen.
+- Ya no sale **dos veces**: el killfeed gráfico grabado en la demo se oculta
+  cuando el visor muestra el suyo (con `visor_killfeed 0` vuelve a verse el
+  grabado). Las demos grabadas antes de este cambio lo siguen mostrando.
+- Arreglo: con el editor abierto, el kill feed ya no se monta sobre el
+  marcador de D-Day (kills y puntos, arriba a la derecha).
+
 ### Novedades de la versión 0.7
 
 - **Puntos de cámara en primera persona**: un punto puede seguir al jugador
