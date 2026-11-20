@@ -584,6 +584,9 @@ static void MVD_ParseConfigstring(mvd_t *mvd)
         MVD_Destroyf(mvd, "%s: index %d overflowed", __func__, index);
     }
 
+    if (mvd->demoindexing)
+        MVD_IndexConfigstring(mvd, index, s);
+
     if (mvd->demoseeking) {
         Q_SetBit(mvd->dcs, index);
         return;

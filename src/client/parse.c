@@ -451,6 +451,9 @@ static void CL_ParseConfigstring(int index)
             __func__, index, len, maxlen - 1);
     }
 
+    // the kill feed wants the death log of D-Day also while seeking
+    CL_FeedConfigstring(index, s);
+
     if (cls.demo.seeking) {
         Q_SetBit(cl.dcs, index);
         return;

@@ -865,6 +865,7 @@ float CL_XrayAlpha(void);
 void CL_InitFeed(void);
 void CL_FeedClear(void);
 void CL_FeedPrint(int level, const char *s);
+void CL_FeedConfigstring(int index, const char *s);
 bool CL_FeedIndexed(void);
 int64_t CL_FeedDemoTime(void);
 int64_t CL_FeedLength(void);
@@ -885,9 +886,10 @@ void CL_WebSaved(void);     // web_bridge.c: a path file was written
 #define CL_WebSaved()       ((void)0)
 #endif
 bool CL_FeedKillsOn(void);
+bool CL_FeedHidesServerFeed(void);
 bool CL_FeedChatOn(void);
 bool CL_FeedHidesNotify(void);
-void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows);
+void CL_FeedDraw(qhandle_t font, float scale, bool top_hud, bool bottom_hud, int bottom_rows);
 
 
 //

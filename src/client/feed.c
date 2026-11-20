@@ -31,6 +31,15 @@ GNU General Public License for more details.
 // D-Day sends an obituary in pieces: victim, " was sniped by ", killer, tail
 // ("'s rifle - ** HEADSHOT **\n"). Mods that send one whole line are parsed
 // by looking for the players' names in it.
+//
+// A D-Day server with the graphical killfeed doesn't print the obituary to
+// the players who use it, so a demo or an MVD where everybody does has no
+// obituaries. That server also writes every death to a configstring no HUD
+// draws (DDAY_KILL_LOG), which every demo keeps:
+// "K1|<seq>|<mod>|<flags>|<kslot>|<vslot>|<kteam><vteam>|<killer>|<victim>"
+// (flags: h headshot, t team kill, w credit from a wound, b/c bots). When a
+// demo has it, the deaths come from there and the obituary prints are not
+// used for deaths.
 
 #include "client.h"
 
@@ -58,6 +67,7 @@ typedef struct {
     team_t  kteam, vteam;
     bool    headshot;
     bool    teamkill;
+    char    log[MAX_QPATH];     // the death log line it came from, if any
 } kill_t;
 
 typedef struct {
@@ -79,6 +89,11 @@ static bool     indexing;       // the demo is being read ahead
 static bool     indexed;        // ...and finished: the lists are complete
 static bool     index_asked;    // reading an MVD ahead was asked for already
 static int64_t  index_len;      // demo time of the last frame read, ms
+
+// D-Day's death log
+static bool     have_log;       // the server writes it: deaths come from it
+static char     log_base[MAX_QPATH];    // its value when the demo (or the
+                                        // reading ahead) started: no new death
 
 // players of an MVD being read ahead (the server's copy, not the client's)
 static const configstring_t *index_skins;
@@ -173,6 +188,8 @@ void CL_FeedClear(void)
     index_len = 0;
     index_skins = NULL;
     acc.count = 0;
+    have_log = false;
+    log_base[0] = 0;
 }
 
 void CL_FeedIndexBegin(void)
@@ -445,6 +462,9 @@ static bool add_kill(const char *victim, const char *mid, const char *killer, co
         strncmp(tail, " - ", 3) && strncmp(tail, " (", 2) && *tail != ')')
         return false;
 
+    if (have_log)
+        return true;    // the death log has it
+
     tail_weapon(weapon, sizeof(weapon), tail);
 
     k = new_kill();
@@ -486,6 +506,9 @@ static bool add_death(const char *victim, const char *tail)
     if (!*v || !*t)
         return false;
 
+    if (have_log)
+        return true;    // the death log has it
+
     k = new_kill();
     Q_strlcpy(k->victim, v, sizeof(k->victim));
     k->vteam = player_team(v);
@@ -502,6 +525,167 @@ static bool add_death(const char *victim, const char *tail)
         Q_strlcpy(k->label, t, sizeof(k->label));
     }
     return true;
+}
+
+/*
+===============================================================================
+
+D-DAY'S DEATH LOG
+
+===============================================================================
+*/
+
+#define LOG_FIELDS  9
+
+static bool all_digits(const char *s)
+{
+    return *s && strspn(s, "0123456789") == strlen(s);
+}
+
+// buf is cut in its fields; false if it isn't a log line (version 1)
+static bool split_log(char *buf, char **f)
+{
+    char *p = buf;
+    int n = 0;
+
+    if (strncmp(buf, "K1|", 3))
+        return false;
+    f[n++] = p;
+    while ((p = strchr(p, '|'))) {
+        *p++ = 0;
+        if (n == LOG_FIELDS)
+            return false;
+        f[n++] = p;
+    }
+    return n == LOG_FIELDS && all_digits(f[1]) && *f[2] && *f[3] &&
+        (!strcmp(f[4], "-") || all_digits(f[4])) && all_digits(f[5]) &&
+        strlen(f[6]) == 2;
+}
+
+static bool is_log(const char *s)
+{
+    char buf[MAX_QPATH], *f[LOG_FIELDS];
+
+    Q_strlcpy(buf, s, sizeof(buf));
+    return split_log(buf, f);
+}
+
+// the verb of the feed, like make_label() makes it from the obituaries
+static const char *log_label(const char *mod, const char *flags, bool killer)
+{
+    static const struct {
+        const char *mod, *label;
+    } by[] = {
+        { "pistol", "capped" }, { "shotgun", "shotgunned" }, { "rifle", "shot down" },
+        { "lmg", "machinegunned" }, { "hmg", "heavy machine gun" }, { "smg", "gunned down" },
+        { "sniper", "sniped" }, { "grenade", "grenade" }, { "handgrenade", "grenade" },
+        { "held_grenade", "grenade" }, { "rocket", "rocket" }, { "airstrike", "airstrike" },
+        { "tnt", "TNT" }, { "held_tnt", "TNT" }, { "wound", "wounds" },
+        { "telefrag", "telefrag" }, { "fire", "flamed" }, { "knife", "knifed" },
+        { "fists", "knocked out" }, { "helmet", "helmeted" }, { "bayonet", "bayoneted" },
+        { "plonk", "flattened" }, { "molotov", "molotoved" }, { "tank", "blown up" },
+    }, alone[] = {
+        { "suicide", "suicide" }, { "falling", "fell" }, { "water", "drowned" },
+        { "slime", "melted" }, { "lava", "lava" }, { "crush", "squished" },
+        { "trigger_hurt", "wrong place" }, { "exit", "found a way out" },
+        { "laser", "saw the light" }, { "blaster", "blasted" },
+        { "spawncamp", "spawn camping" }, { "penalty", "penalized" },
+        { "rocket", "blew up" }, { "grenade", "blew up" }, { "handgrenade", "blew up" },
+        { "held_grenade", "blew up" }, { "tnt", "blew up" }, { "held_tnt", "blew up" },
+        { "explosive", "blew up" }, { "barrel", "blew up" }, { "bomb", "blew up" },
+        { "airstrike", "airstrike" }, { "fire", "burned" },
+    };
+    int i;
+
+    // "tripped on his own grenade (after being wounded by X)"
+    if (killer && strchr(flags, 'w'))
+        return "wounded";
+    if (killer) {
+        for (i = 0; i < q_countof(by); i++)
+            if (!strcmp(mod, by[i].mod))
+                return by[i].label;
+    } else {
+        for (i = 0; i < q_countof(alone); i++)
+            if (!strcmp(mod, alone[i].mod))
+                return alone[i].label;
+    }
+    return mod;
+}
+
+// the name in the log is cut (and has no '|' nor '"'): the one of the slot
+// is the same player when it starts like it
+static void log_name(char *dst, size_t size, const char *name, const char *slot)
+{
+    char raw[MAX_QPATH];
+    const char *s = player_string(atoi(slot));
+    size_t len = player_name_len(s), n = 0;
+
+    for (size_t i = 0; i < len && n + 1 < sizeof(raw); i++)
+        if ((unsigned char)s[i] >= 32 && s[i] != '|' && s[i] != '"')
+            raw[n++] = s[i];
+    raw[n] = 0;
+
+    if (*raw && !strncmp(raw, name, strlen(name)))
+        clean_copy(dst, size, s, len);
+    else
+        clean_copy(dst, size, name, SIZE_MAX);
+}
+
+static team_t log_team(char c, const char *name)
+{
+    if (c == '0')
+        return TEAM_ALLIES;
+    if (c == '1')
+        return TEAM_AXIS;
+    return player_team(name);   // free-for-all: by model, like the prints
+}
+
+// the value the log has when a demo or the reading ahead starts is a death
+// from before: it only says the server writes the log
+static void log_start(const char *s)
+{
+    if (!is_log(s))
+        return;
+    have_log = true;
+    Q_strlcpy(log_base, s, sizeof(log_base));
+}
+
+// a new value of the log: a death at cur
+static void add_log(const char *s)
+{
+    char buf[MAX_QPATH], *f[LOG_FIELDS];
+    bool killer;
+    kill_t *k;
+
+    Q_strlcpy(buf, s, sizeof(buf));
+    if (!split_log(buf, f))
+        return;
+    have_log = true;
+
+    if (!strcmp(s, log_base))
+        return;
+    // a team change is no death for the feed (its print isn't either)
+    if (!strcmp(f[2], "changeteam"))
+        return;
+    // seen already: a seek went over it again, a snapshot brought it back
+    for (int i = num_kills - 1; i >= 0; i--)
+        if (!strcmp(kills[i].log, s))
+            return;
+
+    killer = strcmp(f[4], "-");
+    k = new_kill();
+    Q_strlcpy(k->log, s, sizeof(k->log));
+    log_name(k->victim, sizeof(k->victim), f[8], f[5]);
+    if (killer)
+        log_name(k->killer, sizeof(k->killer), f[7], f[4]);
+    if (!*k->victim)
+        Q_strlcpy(k->victim, "?", sizeof(k->victim));
+    killer = killer && *k->killer;
+    Q_strlcpy(k->label, log_label(f[2], f[3], killer), sizeof(k->label));
+    k->vteam = log_team(f[6][1], k->victim);
+    k->kteam = killer ? log_team(f[6][0], k->killer) : TEAM_NONE;
+    k->headshot = killer && strchr(f[3], 'h');
+    k->teamkill = killer && strchr(f[3], 't');
 }
 
 // a whole obituary in one line: look for the two players' names in it
@@ -676,6 +860,58 @@ void CL_FeedIndexPrint(int level, const char *s, int frame, float pos)
         return;
 
     feed_print(level, s, &st);
+}
+
+/*
+===============
+CL_FeedConfigstring
+
+Every configstring of a demo goes through here, also the ones skipped over
+by a seek: D-Day's death log. What a gamestate brings is no new death.
+===============
+*/
+void CL_FeedConfigstring(int index, const char *s)
+{
+    stamp_t st;
+
+    if (index != cl.csr.general + DDAY_KILL_LOG)
+        return;
+
+    if (!watching_demo()) {
+        log_start(s);
+        return;
+    }
+
+    // the list is complete already
+    if (indexed && !indexing)
+        return;
+
+    print_stamp(&st);
+    cur = st;
+    add_log(s);
+}
+
+/*
+===============
+CL_FeedIndexConfigstring
+
+A configstring of an MVD being read ahead by the server's MVD player.
+index -1: the value of the death log when the reading starts.
+===============
+*/
+void CL_FeedIndexConfigstring(int index, const char *s, int log_index, int frame, float pos)
+{
+    stamp_t st = { (int64_t)frame * MVD_FRAMETIME, frame, pos };
+
+    if (index < 0) {
+        log_start(s);
+        return;
+    }
+    if (index != log_index || !indexing || !watching_demo())
+        return;
+
+    cur = st;
+    add_log(s);
 }
 
 /*
@@ -923,6 +1159,13 @@ bool CL_FeedKillsOn(void)
     return (CL_CaptureActive() ? clip_killfeed : visor_killfeed)->integer;
 }
 
+// a demo where our kill feed is shown: the one D-Day draws in the statusbar
+// (kf_begin .. kf_end) would be a second one
+bool CL_FeedHidesServerFeed(void)
+{
+    return watching_demo() && CL_FeedKillsOn();
+}
+
 bool CL_FeedChatOn(void)
 {
     return (CL_CaptureActive() ? clip_chat : visor_chat)->integer;
@@ -1079,7 +1322,7 @@ status bar is on screen, keep clear of it. bottom_rows: rows taken at the
 bottom by the viewer's timeline.
 ===============
 */
-void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows)
+void CL_FeedDraw(qhandle_t font, float scale, bool top_hud, bool bottom_hud, int bottom_rows)
 {
     int x = 0, y = 0, w = r_config.width, h = r_config.height;
     float size = Cvar_ClampValue(visor_feed_size, 0.5f, 3);
@@ -1093,8 +1336,8 @@ void CL_FeedDraw(qhandle_t font, float scale, bool game_hud, int bottom_rows)
 
     // D-Day keeps kills and points at the top right, the health at the
     // bottom left. These gaps are in HUD rows, the HUD doesn't change size.
-    top = game_hud ? 12 : 2;
-    bottom = (game_hud ? 10 : 3) + bottom_rows;
+    top = top_hud ? 12 : 2;
+    bottom = (bottom_hud ? 10 : 3) + bottom_rows;
 
     scale /= size;
     R_SetScale(scale);
