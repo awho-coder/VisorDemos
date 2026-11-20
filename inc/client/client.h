@@ -130,11 +130,17 @@ bool SCR_ParseColor(const char *s, color_t *color);
 
 float V_CalcFov(float fov_x, float width, float height);
 
+// D-Day's death log: configstring CS_PLAYERIDS - 4 of the game, that is
+// csr->general + 508 (old configstring layout, the one D-Day uses). See
+// CL_FeedConfigstring.
+#define DDAY_KILL_LOG       508
+
 // kill feed: an MVD read ahead by the local MVD player (server side)
 void CL_FeedIndexBegin(void);
 void CL_FeedIndexEnd(void);
 void CL_FeedIndexPlayers(const configstring_t *skins, int maxclients);
 void CL_FeedIndexPrint(int level, const char *s, int frame, float pos);
+void CL_FeedIndexConfigstring(int index, const char *s, int log_index, int frame, float pos);
 
 // projectile flights: a demo read ahead (DM2 by the client, MVD by the
 // local MVD player)

@@ -207,6 +207,7 @@ extern cvar_t    *mvd_shownet;
 q_noreturn q_printf(2, 3)
 void MVD_Destroyf(mvd_t *mvd, const char *fmt, ...);
 void MVD_IndexPrint(mvd_t *mvd, int player, int level, const char *s);
+void MVD_IndexConfigstring(mvd_t *mvd, int index, const char *s);
 void MVD_Shutdown(void);
 
 mvd_t *MVD_SetChannel(int arg);
