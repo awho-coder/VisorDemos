@@ -1901,6 +1901,16 @@ static void SCR_ExecuteLayoutString(const char *s)
             }
         }
 
+        // D-Day's graphical kill feed comes between kf_begin and kf_end
+        // (other clients skip those words): left out when the visor draws
+        // its own, so that it isn't there twice
+        if (!strcmp(token, "kf_begin")) {
+            if (CL_FeedHidesServerFeed())
+                while (s && strcmp(COM_Parse(&s), "kf_end"))
+                    ;
+            continue;
+        }
+
         if (scr_scope_only && strcmp(token, "pic") && strcmp(token, "if") && strcmp(token, "endif")) {
             for (int n = SCR_LayoutArgs(token); n > 0; n--)
                 COM_SkipToken(&s);
@@ -2869,10 +2879,11 @@ static void SCR_DrawFeed(void)
     if (!CL_CaptureActive() && CL_EditorPanelHeight()) {
         // above the editor panel
         int ch = max(Q_rint(CONCHAR_HEIGHT / scr.hud_scale), 1);
-        CL_FeedDraw(scr.font_pic, scr.hud_scale, false, (CL_EditorPanelHeight() + ch - 1) / ch);
+        // the game's HUD is still drawn at the top (D-Day: kills and points)
+        CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, false, (CL_EditorPanelHeight() + ch - 1) / ch);
         return;
     }
-    CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, bar ? 3 : 0);
+    CL_FeedDraw(scr.font_pic, scr.hud_scale, game_hud, game_hud, bar ? 3 : 0);
 }
 
 static void SCR_DrawActive(void)

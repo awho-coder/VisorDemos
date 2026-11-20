@@ -598,6 +598,8 @@ void MVD_IndexDemo(void)
 
     CL_FeedIndexBegin();
     CL_FeedIndexPlayers(mvd->configstrings + mvd->csr->playerskins, mvd->maxclients);
+    // the death log as it is now is no new death
+    CL_FeedIndexConfigstring(-1, mvd->configstrings[mvd->csr->general + DDAY_KILL_LOG], 0, mvd->framenum, 0);
     CL_ProjIndexBegin();
     mvd->demoindexing = true;
     demo_seek(mvd, INT64_MAX, false, false);
@@ -682,6 +684,23 @@ void MVD_IndexPrint(mvd_t *mvd, int player, int level, const char *s)
             pos = Q_clipf((float)(at - gtv->demoofs) / gtv->demosize, 0, 1);
     }
     CL_FeedIndexPrint(level, s, mvd->framenum, pos);
+#endif
+}
+
+// A configstring changed while indexing: D-Day's death log goes to the kill
+// feed (see CL_FeedConfigstring).
+void MVD_IndexConfigstring(mvd_t *mvd, int index, const char *s)
+{
+#if USE_CLIENT
+    gtv_t *gtv = mvd->gtv;
+    float pos = 0;
+
+    if (gtv && gtv->demoplayback && gtv->demosize) {
+        int64_t at = FS_Tell(gtv->demoplayback);
+        if (at > gtv->demoofs)
+            pos = Q_clipf((float)(at - gtv->demoofs) / gtv->demosize, 0, 1);
+    }
+    CL_FeedIndexConfigstring(index, s, mvd->csr->general + DDAY_KILL_LOG, mvd->framenum, pos);
 #endif
 }
 
