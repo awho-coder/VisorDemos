@@ -54,6 +54,10 @@ VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 - Los clips de kills se llaman con el nick del que mata
   (`<demo>_05m00s_kill_<nick>.mp4`) y la barra muestra cuánto dura el clip
   marcado.
+- Arreglos de los **nombres sobre los jugadores**: ahora quedan centrados
+  sobre la cabeza (antes empezaban en ella y salían corridos a la derecha), y
+  en primera persona ya no aparece el nick del jugador por cuyos ojos estás
+  mirando (al avanzar se veía el propio).
 
 ### Novedades de la versión 0.7.1
 
@@ -585,7 +589,9 @@ pestaña VIDEO.
 cabeza, con el color de su equipo, también detrás de las paredes. Los que
 están lejos se ven más chicos, sin bajar del tamaño mínimo ni pasar del
 máximo (**NOMBRES MIN / MAX** en AJUSTES). En los videos se activan aparte,
-con **Nombres** en la pestaña VIDEO (`clip_names 1`).
+con **Nombres** en la pestaña VIDEO (`clip_names 1`). El nick del jugador
+por cuyos ojos miras (quien grabó, o el que sigues en primera persona) no se
+dibuja.
 
 ### X-ray: por qué no es un wallhack
 
