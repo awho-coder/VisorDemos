@@ -33,7 +33,7 @@ Qué puedes hacer:
 VisorDemos **no toca tu configuración del juego**: guarda la suya aparte, en
 `visordemos.cfg`.
 
-### Novedades de la próxima versión
+### Novedades de la versión 0.8
 
 - **Clips de kills en un paso**, como en la versión web del celular: la tecla
   **8** graba la kill de ese momento (6 s antes y 2 s después, siguiendo al
