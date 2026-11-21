@@ -2500,10 +2500,13 @@ static void visor_texts(char *left, size_t left_size, char *mid, size_t mid_size
 
     format_demo_time(t_in, sizeof(t_in), CL_ClipMarkIn());
     format_demo_time(t_out, sizeof(t_out), CL_ClipMarkOut());
-    if (CL_EditorActive())
-        Q_snprintf(right, right_size, "INICIO %s  FIN %s", t_in, t_out);
+    if (CL_ClipMarkIn() >= 0 && CL_ClipMarkOut() > CL_ClipMarkIn())
+        Q_snprintf(right, right_size, "%sINICIO %s  FIN %s (%.1f s)", CL_ClipKill() >= 0 ? "KILL  " : "",
+                   t_in, t_out, (CL_ClipMarkOut() - CL_ClipMarkIn()) / 10.0f);
     else
-        Q_snprintf(right, right_size, "INICIO %s  FIN %s   Tab: editor  H: ayuda", t_in, t_out);
+        Q_snprintf(right, right_size, "INICIO %s  FIN %s", t_in, t_out);
+    if (!CL_EditorActive())
+        Q_strlcat(right, "   Tab: editor  H: ayuda", right_size);
 }
 
 static void SCR_DrawVisorBar(void)
@@ -2571,10 +2574,10 @@ static void SCR_DrawVisorBar(void)
     {
         // the watched player's frags as ticks above the track, deaths below
         static float marks[1024];
-        int n = CL_FeedMarks(false, marks, q_countof(marks));
+        int n = CL_FeedMarks(false, marks, NULL, q_countof(marks));
         for (int i = 0; i < n; i++)
             R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty - pad, 2, pad, VISOR_FRAG);
-        n = CL_FeedMarks(true, marks, q_countof(marks));
+        n = CL_FeedMarks(true, marks, NULL, q_countof(marks));
         for (int i = 0; i < n; i++)
             R_DrawFill32(tx0 + Q_rint(tw * marks[i]) - 1, ty + bar_h, 2, pad, VISOR_DEATH);
     }
@@ -2661,6 +2664,8 @@ static const helpline_t visor_help[] = {
     { "7",          "Punto en 1a / 3a pers." },
     { "",           NULL },
     { NULL,         "Clips de video" },
+    { "8",          "Grabar la kill de ahora" },
+    { "9",          "Grabar ultimos segundos" },
     { "I / O",      "Inicio / fin" },
     { "G",          "Grabar / detener" },
     { "Supr",       "Borrar marcas" },
@@ -2701,6 +2706,9 @@ static const settingline_t visor_settings[] = {
     { "clip_trails",     "estelas 0/1/2" },
     { "clip_hitmark",    "X del hitmarker" },
     { "clip_size",       "resolucion" },
+    { "clip_kill_before", "s antes de la kill, 8" },
+    { "clip_kill_after", "s despues de la kill" },
+    { "clip_last_time",  "segundos de la tecla 9" },
     { "clip_fps",        "cuadros por segundo" },
     { "clip_format",     "mp4 o mov" },
     { "clip_volume",     "auto = como el visor" },
@@ -2738,7 +2746,7 @@ static void help_box(int cols, int rows, bool left, float s, int *x, int *y)
 // Smaller text and see-through, so the demo stays visible.
 static void SCR_DrawVisorHelp(void)
 {
-    const int keycol = 11, namecol = 16, valcol = 10;
+    const int keycol = 11, namecol = 17, valcol = 10;
     int i, n, tw, x, y;
     bool keys_left;
     float s;
@@ -2841,10 +2849,13 @@ static void SCR_DrawViewedName(bool in_clip)
 
 static void SCR_DrawVisorOverlay(void)
 {
-    char buf[64];
+    char buf[192];
 
     if (cls.state != ca_active)
         return;
+
+    // what a clip of another shape keeps of the window
+    CL_EditorDrawClipFrame();
 
     SCR_DrawVisorBar();
 

@@ -775,6 +775,11 @@ int  CL_ClipMarkIn(void);
 int  CL_ClipMarkOut(void);
 float CL_ClipMarkPos(bool out);
 void CL_ClipClearMarks(void);
+int  CL_ClipKill(void);
+bool CL_ClipFrameRect(int *x, int *y, int *w, int *h);
+const char *CL_ClipSizeText(void);
+bool CL_ClipVertical(void);
+const char *CL_ClipLastFile(float *seconds);
 
 
 //
@@ -842,6 +847,7 @@ int  CL_EditorMouseY(void);
 void CL_EditorClickView(int x, int y);
 const char *CL_EditorViewTip(void);
 void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mid, const char *right);
+void CL_EditorDrawClipFrame(void);
 int  CL_KeyCamMarks(float *pos, int max, int *current);
 const char *CL_KeyCamStatus(void);
 
@@ -870,15 +876,20 @@ bool CL_FeedIndexed(void);
 int64_t CL_FeedDemoTime(void);
 int64_t CL_FeedLength(void);
 bool CL_FeedWantsIndex(void);
-int  CL_FeedMarks(bool deaths, float *pos, int max);
-#ifdef __EMSCRIPTEN__
+int  CL_FeedMarks(bool deaths, float *pos, int *index, int max);
 typedef struct {
     double      time;           // seconds, demo clock
+    int         frame;          // demo frame (1/10 s), for seeking and clip marks
+    float       pos;            // place on the timeline, 0-1
     const char  *killer, *victim, *weapon, *kteam, *vteam;
     bool        headshot, teamkill;
 } feedkill_t;
 int  CL_FeedNumKills(void);
 bool CL_FeedGetKill(int i, feedkill_t *out);
+int  CL_FeedListKills(bool all, int *index, int max, const char **who);
+int  CL_FeedPlayerSlot(const char *name);
+float CL_FeedFramePos(int frame);
+#ifdef __EMSCRIPTEN__
 const char *CL_FeedPlayerTeam(const char *name);
 void CL_FeedCounts(const char *name, int *frags, int *deaths);
 void CL_WebSaved(void);     // web_bridge.c: a path file was written

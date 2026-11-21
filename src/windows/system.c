@@ -861,6 +861,36 @@ bool Sys_IsMainThread(void)
     return GetCurrentThreadId() == main_thread_id;
 }
 
+/*
+=================
+Sys_OpenFolder
+
+In the Explorer. shell32 is loaded here, the only thing that needs it.
+=================
+*/
+bool Sys_OpenFolder(const char *path)
+{
+    typedef HINSTANCE (WINAPI *shellexecute_t)(HWND, LPCSTR, LPCSTR, LPCSTR, LPCSTR, INT);
+    static shellexecute_t shell_execute;
+    char full[MAX_OSPATH], *p;
+
+    if (!shell_execute) {
+        HMODULE lib = LoadLibraryA("shell32.dll");
+        if (lib)
+            shell_execute = (shellexecute_t)(void *)GetProcAddress(lib, "ShellExecuteA");
+        if (!shell_execute)
+            return false;
+    }
+
+    if (!_fullpath(full, path, sizeof(full)))
+        Q_strlcpy(full, path, sizeof(full));
+    for (p = full; *p; p++)
+        if (*p == '/')
+            *p = '\\';
+
+    return (INT_PTR)shell_execute(NULL, "open", full, NULL, NULL, SW_SHOWNORMAL) > 32;
+}
+
 unsigned Sys_Milliseconds(void)
 {
     LARGE_INTEGER tm;
