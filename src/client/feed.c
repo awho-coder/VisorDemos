@@ -942,10 +942,11 @@ CL_FeedMarks
 
 Timeline positions (0-1) of the watched player's frags, or of their deaths
 (killed by anyone, team kills and suicides too). Returns how many, none
-without a watched player.
+without a watched player. index (may be NULL): which death of the list
+each mark is, for CL_FeedGetKill.
 ===============
 */
-int CL_FeedMarks(bool deaths, float *pos, int max)
+int CL_FeedMarks(bool deaths, float *pos, int *index, int max)
 {
     const char *name = frag_player();
     int n = 0;
@@ -955,14 +956,26 @@ int CL_FeedMarks(bool deaths, float *pos, int max)
 
     for (int i = 0; i < num_kills && n < max; i++) {
         const kill_t *k = &kills[i];
-        if (deaths ? !strcmp(k->victim, name) : is_frag(k, name))
+        if (deaths ? !strcmp(k->victim, name) : is_frag(k, name)) {
+            if (index)
+                index[n] = i;
             pos[n++] = k->pos;
+        }
     }
     return n;
 }
 
-#ifdef __EMSCRIPTEN__
-// The page's lists (web_bridge.c): read-only view of the index.
+/*
+===============================================================================
+
+THE LIST OF DEATHS, READ ONLY
+
+For the editor's list of kills, the kill clips (capture.c) and the web
+page (web_bridge.c).
+
+===============================================================================
+*/
+
 static const char *team_word(team_t t)
 {
     return t == TEAM_ALLIES ? "allies" : t == TEAM_AXIS ? "axis" : "";
@@ -981,6 +994,8 @@ bool CL_FeedGetKill(int i, feedkill_t *out)
         return false;
     k = &kills[i];
     out->time = k->time / 1000.0;
+    out->frame = k->frame;
+    out->pos = k->pos;
     out->killer = k->killer;
     out->victim = k->victim;
     out->weapon = k->label;
@@ -991,6 +1006,78 @@ bool CL_FeedGetKill(int i, feedkill_t *out)
     return true;
 }
 
+/*
+===============
+CL_FeedListKills
+
+The kills a list shows, as indexes for CL_FeedGetKill, sorted by time.
+all: every death that has a killer (team kills too); otherwise the frags
+of the watched player, and every one when nobody is watched. who (may be
+NULL): the watched player whose frags these are, NULL for all of them.
+===============
+*/
+int CL_FeedListKills(bool all, int *index, int max, const char **who)
+{
+    const char *name = all ? NULL : frag_player();
+    int n = 0;
+
+    if (who)
+        *who = name;
+    if (!indexed || !watching_demo())
+        return 0;
+
+    for (int i = 0; i < num_kills && n < max; i++) {
+        const kill_t *k = &kills[i];
+        if (name ? is_frag(k, name) : *k->killer != 0)
+            index[n++] = i;
+    }
+    return n;
+}
+
+// client slot of a player by nick (as the kills write it), -1 if unknown
+int CL_FeedPlayerSlot(const char *name)
+{
+    return name && *name ? find_player(name) : -1;
+}
+
+/*
+===============
+CL_FeedFramePos
+
+Where a demo frame falls on the timeline (0-1), for clip marks set without
+going there: between the two nearest points whose place is known (every
+death of the list, where the demo is now, its start). Beyond the last one,
+at the demo's average pace. The marks get the exact place once played.
+===============
+*/
+float CL_FeedFramePos(int frame)
+{
+    int af = 0, bf = -1, now_f;
+    float ap = 0, bp = 0, now_p;
+
+#define CONSIDER(f, p)  do {                                    \
+        if ((f) <= frame && (f) >= af) { af = (f); ap = (p); }  \
+        if ((f) >= frame && (bf < 0 || (f) < bf)) { bf = (f); bp = (p); } \
+    } while (0)
+
+    if (CL_DemoPosition(&now_f, &now_p, NULL))
+        CONSIDER(now_f, now_p);
+    for (int i = 0; i < num_kills; i++)
+        CONSIDER(kills[i].frame, kills[i].pos);
+#undef CONSIDER
+
+    if (bf < 0) {
+        // nothing known after it: carry on at the pace from the start
+        if (af <= 0)
+            return 0;
+        return Q_clipf(ap + (frame - af) * ap / af, 0, 1);
+    }
+    if (bf == af)
+        return ap;
+    return Q_clipf(ap + (bp - ap) * (frame - af) / (bf - af), 0, 1);
+}
+
+#ifdef __EMSCRIPTEN__
 // "allies", "axis" or "" (spectator / unknown) for a player's nick
 const char *CL_FeedPlayerTeam(const char *name)
 {

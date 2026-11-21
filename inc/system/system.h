@@ -68,6 +68,9 @@ void    Sys_ListFiles_r(listfiles_t *list, const char *path, int depth);
 void    Sys_DebugBreak(void);
 bool    Sys_IsMainThread(void);
 
+// show a folder in the file manager; false if it couldn't be opened
+bool    Sys_OpenFolder(const char *path);
+
 #if USE_AC_CLIENT
 bool    Sys_GetAntiCheatAPI(void);
 #endif

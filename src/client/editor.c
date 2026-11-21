@@ -16,9 +16,10 @@ GNU General Public License for more details.
 //
 // Tab (visor_editor) swaps the keyboard timeline for a panel at the bottom:
 // the timeline, a fixed row with playback, and tabs (CAMARA, PUNTOS, VER,
-// VIDEO, AJUSTES) with the rest of the buttons. Two side panels sit on the
-// image: on the left a list of camera points or players, on the right the
-// settings of the point here (or of the player followed). The mouse cursor
+// CLIPS, VIDEO, AJUSTES) with the rest of the buttons. Two side panels sit on
+// the image: on the left a list of camera points, players or kills, on the
+// right the settings of the point here, of the kill marked for a clip (or of
+// the player followed). The mouse cursor
 // stays free: a click on a button runs the same command as its key, a click
 // or drag on the timeline seeks, a click on a camera point jumps to it.
 // Holding the right mouse button flies the camera (WASD + mouse) until it is
@@ -75,6 +76,11 @@ static struct {
     int         tl_x, tl_y, tl_w, tl_h;     // timeline track
     float       key_pos[256];
     int         num_keys;
+    float       frag_pos[512];      // frag / death ticks on the timeline...
+    int         frag_kill[512];     // ...and which kill each one is
+    int         num_frags, num_frag_ticks;  // the first num_frags are frags
+    int         kill_scroll;        // the kill list moved with the wheel
+    int         kill_scroll_sel;    // ...since this kill was marked
 
     // drawing
     qhandle_t   font;
@@ -88,7 +94,9 @@ static cvar_t   *visor_editor_tab;
 static cvar_t   *visor_editor_list;
 static cvar_t   *visor_editor_sides;
 
-enum { TAB_CAMERA, TAB_POINTS, TAB_VIEW, TAB_VIDEO, TAB_SETTINGS, NUM_TABS };
+enum { TAB_CAMERA, TAB_POINTS, TAB_VIEW, TAB_CLIPS, TAB_VIDEO, TAB_SETTINGS, NUM_TABS };
+
+enum { LIST_POINTS, LIST_PLAYERS, LIST_KILLS };
 
 #define COLOR_PANEL     MakeColor( 16,  17,  22, 215)
 #define COLOR_SIDE      MakeColor( 16,  17,  22, 200)
@@ -123,6 +131,8 @@ enum { TAB_CAMERA, TAB_POINTS, TAB_VIEW, TAB_VIDEO, TAB_SETTINGS, NUM_TABS };
 #define COLOR_PROJ      MakeColor(255, 122,  60, 255)
 #define COLOR_ALLIES    MakeColor( 90, 160, 255, 255)
 #define COLOR_AXIS      MakeColor(255,  90,  90, 255)
+#define COLOR_OUTSIDE   MakeColor(  0,   0,   0, 150)
+#define COLOR_FRAME     MakeColor(255, 170,   0, 200)
 
 /*
 ===============================================================================
@@ -131,6 +141,12 @@ STATE
 
 ===============================================================================
 */
+
+// the left panel shows the list of kills
+static bool kill_list_open(void)
+{
+    return visor_editor_sides->integer && visor_editor_list->integer == LIST_KILLS;
+}
 
 // the editor is on and there is a demo to edit
 bool CL_EditorActive(void)
@@ -212,6 +228,29 @@ static int key_at_mouse(void)
         return -1;
     for (int i = 0; i < ed.num_keys; i++) {
         int d = abs(ed.tl_x + Q_rint(ed.tl_w * ed.key_pos[i]) - ed.mx);
+        if (d < best_d) {
+            best_d = d;
+            best = i;
+        }
+    }
+    return best;
+}
+
+// frag or death tick under the mouse on the timeline (frags above the
+// track, deaths below): the kill it is, -1 if none
+static int frag_at_mouse(void)
+{
+    int best = -1, best_d = max(ed.cw / 2, 4) + 1, mid = ed.tl_y + ed.tl_h / 2;
+    int tick = max(ed.ch / 2, 3);
+
+    if (ed.tl_w <= 0 || ed.my < ed.tl_y - tick - 2 || ed.my > ed.tl_y + ed.tl_h + tick + 2)
+        return -1;
+    for (int i = 0; i < ed.num_frag_ticks; i++) {
+        bool frag = i < ed.num_frags;
+        int d;
+        if (frag ? ed.my > mid : ed.my < mid)
+            continue;
+        d = abs(ed.tl_x + Q_rint(ed.tl_w * ed.frag_pos[i]) - ed.mx);
         if (d < best_d) {
             best_d = d;
             best = i;
@@ -325,6 +364,8 @@ bool CL_EditorKeyEvent(unsigned key, bool down)
                 run(it->cmd);
             } else if ((k = key_at_mouse()) >= 0) {
                 run(va("keycam_goto %d", k + 1));
+            } else if ((k = frag_at_mouse()) >= 0) {
+                run(va("kill_select %d", ed.frag_kill[k] + 1));
             } else if (over_timeline(ed.ch / 2)) {
                 ed.dragging = true;
                 ed.drag_frac = timeline_frac(ed.mx);
@@ -347,6 +388,9 @@ bool CL_EditorKeyEvent(unsigned key, bool down)
 
     case K_MWHEELUP:
     case K_MWHEELDOWN:
+        // on the list of kills: move it
+        if (down && kill_list_open() && in_rect(&ed.side[0], ed.mx, ed.my))
+            ed.kill_scroll += key == K_MWHEELUP ? -3 : 3;
         return over_ui();   // on the 3D view: camera speed, as usual
 
     default:
@@ -624,22 +668,78 @@ static const char *quality_text(void)
     return va("%s %d", q <= 18 ? "alta" : q <= 26 ? "media" : "baja", q);
 }
 
-static void tab_video(void)
+static void tab_clips(void)
 {
-    group("CLIP");
+    int secs = Cvar_VariableInteger("clip_last_time");
+
+    group("RAPIDO");
+    button("Grabar la kill de ahora", "clip_kill",
+           "Video de la kill de este momento: unos segundos antes y despues, siguiendo al que mata  [8]", IT_RED);
+    button(va("Grabar los ultimos %d s", secs), "clip_last",
+           "Video de lo que acabas de ver: los ultimos segundos hasta aqui  [9]", IT_RED);
+    value(NULL, va("%d s", secs), "visor_step clip_last_time -5 5 120", "visor_step clip_last_time 5 5 120",
+          "Cuantos segundos graba \"los ultimos\"", IT_BUTTON);
+    button("Lista de kills", va("set visor_editor_list %d; set visor_editor_sides 1", LIST_KILLS),
+           "Ver las kills del demo a la izquierda: clic en una para verla y marcarla",
+           on_if(kill_list_open()));
+    new_row();
+
+    group("A MANO");
     button("Inicio", "clip_in", "Marcar el inicio del clip aqui  [I]", IT_BUTTON);
     button("Fin", "clip_out", "Marcar el fin del clip aqui  [O]", IT_BUTTON);
-    button("Borrar marcas", "clip_clear", "Borrar las marcas de inicio y fin  [Supr]", IT_BUTTON);
-    button("GRABAR CLIP", "clip_export", "Grabar el clip a video, de la marca de inicio a la de fin  [G]", IT_RED);
+    button("Borrar marcas", "clip_clear", "Borrar las marcas de inicio y fin  [Supr]",
+           CL_ClipMarkIn() >= 0 || CL_ClipMarkOut() >= 0 ? IT_BUTTON : IT_OFF);
+    button("GRABAR CLIP", "clip_export",
+           CL_ClipMarkIn() >= 0 ? "Grabar el clip a video, de la marca de inicio a la de fin  [G]"
+                                : "Sin marcas graba desde aqui hasta que lo detengas  [G]", IT_RED);
     button("DEMO COMPLETO", "clip_export_all",
            "Grabar todo el demo a video, del principio al final, sin marcar inicio ni fin", IT_RED);
+#ifndef __EMSCRIPTEN__
+    // in the browser the page shows each clip itself
+    float last_secs;
+    const char *last = CL_ClipLastFile(&last_secs);
+
+    group("");
+    button("Abrir carpeta de videos", "clip_folder",
+           last ? va("Ultimo clip (%.1f s): %s", last_secs, COM_SkipPath(last))
+                : "Abrir la carpeta donde se guardan los videos", IT_BUTTON);
+#endif
+}
+
+static void tab_video(void)
+{
+    int x, y, w, h;
+    bool vertical = CL_ClipVertical();
+
+    group("FORMATO");
+    button(vertical ? "Vertical 9:16" : "Horizontal 16:9", "clip_vertical",
+           vertical ? "Video vertical, para celulares (TikTok, Reels, Shorts). Clic: horizontal"
+                    : "Video horizontal, como la pantalla. Clic: vertical para celulares", on_if(vertical));
+    value("TAMANO", CL_ClipSizeText(), "clip_resolution down", "clip_resolution up",
+          va("Resolucion del video: %s (clip_size)", Cvar_VariableString("clip_size")), IT_BUTTON);
+    setting("FPS", "clip_fps", 10, 10, 240, NULL, "Cuadros por segundo del video");
+    value("CALIDAD", quality_text(), "visor_step clip_quality 2 0 51", "visor_step clip_quality -2 0 51",
+          "Calidad del video: mas alta = archivo mas grande (clip_quality, menos = mejor)", IT_BUTTON);
+
+    // the video is made from the middle of the window: say so when it gets
+    // blown up, and that the frame on the image is what goes in it
+    {
+        bool cropped = CL_ClipFrameRect(&x, &y, &w, &h);
+        int vw = 0, vh = 0;
+
+        if (!cropped) {
+            w = r_config.width;
+            h = r_config.height;
+        }
+        if (sscanf(Cvar_VariableString("clip_size"), "%dx%d", &vw, &vh) == 2 && vh > h * 5 / 4)
+            add_item(IT_TEXT, va("sale de %dx%d de la ventana: menos nitido", w, h), NULL, NULL);
+        else if (cropped)
+            add_item(IT_TEXT, "el marco naranjo es lo que sale", NULL, NULL);
+    }
     new_row();
 
     group("EN EL VIDEO");
     overlay_buttons(true);
-    value("CALIDAD", quality_text(), "visor_step clip_quality 2 0 51", "visor_step clip_quality -2 0 51",
-          "Calidad del video: mas alta = archivo mas grande (clip_quality, menos = mejor)", IT_BUTTON);
-    setting("FPS", "clip_fps", 10, 10, 240, NULL, "Cuadros por segundo del video");
 }
 
 static void tab_settings(void)
@@ -708,12 +808,13 @@ static void fixed_row(void)
     new_row();
 }
 
-static const char *const tab_names[NUM_TABS] = { "CAMARA", "PUNTOS", "VER", "VIDEO", "AJUSTES" };
+static const char *const tab_names[NUM_TABS] = { "CAMARA", "PUNTOS", "VER", "CLIPS", "VIDEO", "AJUSTES" };
 static const char *const tab_tips[NUM_TABS] = {
     "Modos de camara, seguir jugadores, distancia y zoom",
     "Puntos de camara y recorrido grabado",
     "Lo que sale en la pantalla: x-ray, kill feed, chat, HUD",
-    "Grabar clips y lo que sale en los videos",
+    "Grabar clips: una kill, los ultimos segundos, o de una marca a otra",
+    "Formato y tamano de los videos, y lo que sale en ellos",
     "Tamanos, mouse y colores",
 };
 
@@ -751,6 +852,7 @@ static void build_panel(void)
     case TAB_CAMERA:   tab_camera(mvd); break;
     case TAB_POINTS:   tab_points(mvd); break;
     case TAB_VIEW:     tab_view(); break;
+    case TAB_CLIPS:    tab_clips(); break;
     case TAB_VIDEO:    tab_video(); break;
     case TAB_SETTINGS: tab_settings(); break;
     }
@@ -871,26 +973,119 @@ static void players_list(int max_rows)
         list_row(IT_TEXT, "No hay jugadores", NULL, NULL, 0);
 }
 
+static uint32_t team_color(const char *team)
+{
+    if (!strcmp(team, "allies"))
+        return COLOR_ALLIES;
+    if (!strcmp(team, "axis"))
+        return COLOR_AXIS;
+    return 0;
+}
+
+// "1:02" for a demo frame
+static const char *short_time(int frame)
+{
+    return va("%d:%02d", frame / 600, frame / 10 % 60);
+}
+
+#define MAX_LISTED  4096
+
+static void kills_list(int max_rows)
+{
+    static int list[MAX_LISTED];
+    bool all = Cvar_VariableInteger("visor_kill_list") == 1;
+    int sel = CL_ClipKill(), center = 0, first, n, now = 0;
+    const char *who;
+    feedkill_t k;
+
+    button("Del que veo", "set visor_kill_list 0",
+           "Solo los frags del jugador que ves o sigues (E / Q cambian de jugador)", on_if(!all));
+    button("Todas", "set visor_kill_list 1", "Todas las kills del demo, de todos los jugadores", on_if(all));
+    new_row();
+
+    if (!CL_FeedIndexed()) {
+        list_row(IT_TEXT, "Leyendo el demo...", NULL, NULL, 0);
+        return;
+    }
+
+    n = CL_FeedListKills(all, list, MAX_LISTED, &who);
+    if (who)
+        list_row(IT_TEXT, va("Frags de %s: %d", who, n), NULL, NULL, 0);
+    else
+        list_row(IT_TEXT, va("Kills del demo: %d", n), NULL, NULL, 0);
+    if (!n) {
+        list_row(IT_TEXT, who ? "No tiene frags en este demo." : "Este demo no tiene kills.", NULL, NULL, 0);
+        if (who)
+            list_row(IT_TEXT, "Todas: las de todos.", NULL, NULL, 0);
+        return;
+    }
+
+    // a window of the list around the marked kill, else around this moment
+    CL_DemoPosition(&now, NULL, NULL);
+    for (int i = 0; i < n; i++) {
+        if (list[i] == sel) {
+            center = i;
+            break;
+        }
+        if (CL_FeedGetKill(list[i], &k) && k.frame <= now)
+            center = i;
+    }
+    if (sel != ed.kill_scroll_sel) {
+        ed.kill_scroll = 0;     // a kill was marked: show it
+        ed.kill_scroll_sel = sel;
+    }
+    max_rows = max(max_rows - 2, 2);
+    first = Q_clip(center - max_rows / 2, 0, max(n - max_rows, 0));
+    first = Q_clip(first + ed.kill_scroll, 0, max(n - max_rows, 0));
+    ed.kill_scroll = first - Q_clip(center - max_rows / 2, 0, max(n - max_rows, 0));
+
+    for (int i = first; i < n && i < first + max_rows; i++) {
+        char label[96];
+
+        if (!CL_FeedGetKill(list[i], &k))
+            break;
+        if (who)
+            Q_snprintf(label, sizeof(label), "%5s %s%s%s", short_time(k.frame), k.victim,
+                       k.headshot ? " HS" : "", k.weapon[0] ? va(" (%s)", k.weapon) : "");
+        else
+            Q_snprintf(label, sizeof(label), "%5s %s > %s%s%s", short_time(k.frame), k.killer, k.victim,
+                       k.headshot ? " HS" : "", k.teamkill ? " TK" : "");
+        list_row(list[i] == sel ? IT_ROW_ON : IT_ROW, label, va("kill_select %d", list[i] + 1),
+                 va("%s > %s%s: clic para verla y marcarla para el clip", k.killer, k.victim,
+                    k.weapon[0] ? va(" (%s)", k.weapon) : ""),
+                 team_color(who ? k.vteam : k.kteam));
+    }
+    if (n > max_rows)
+        list_row(IT_TEXT, va("%d-%d de %d (rueda: mas)", first + 1, min(first + max_rows, n), n), NULL, NULL, 0);
+}
+
 static void build_left(int top, int bottom)
 {
     int x = lay.gap * 4, first = ed.num_items, list = visor_editor_list->integer;
+    int chars = list == LIST_KILLS ? SIDE_CHARS + 12 : SIDE_CHARS;     // two nicks a line
     int max_rows;
 
-    side_begin(x, top, SIDE_CHARS);
-    button("PUNTOS", "set visor_editor_list 0", "Lista de puntos de camara: clic para ir a uno", on_if(!list));
-    button("JUGADORES", "set visor_editor_list 1", "Lista de jugadores: clic para seguirlo", on_if(list));
+    side_begin(x, top, chars);
+    button("PUNTOS", va("set visor_editor_list %d", LIST_POINTS),
+           "Lista de puntos de camara: clic para ir a uno", on_if(list == LIST_POINTS));
+    button("JUGADORES", va("set visor_editor_list %d", LIST_PLAYERS),
+           "Lista de jugadores: clic para seguirlo", on_if(list == LIST_PLAYERS));
+    button("KILLS", va("set visor_editor_list %d", LIST_KILLS),
+           "Lista de kills: clic en una para verla y grabarla como clip", on_if(list == LIST_KILLS));
     new_row();
     lay.y += lay.gap;
 
     max_rows = Q_clip((bottom - lay.y) / (lay.row_h + lay.gap) - 1, 3, 16);
-    if (list)
+    if (list == LIST_KILLS)
+        kills_list(max_rows);
+    else if (list == LIST_PLAYERS)
         players_list(max_rows);
     else
         points_list(max_rows);
 
     ed.side[0].x = x;
     ed.side[0].y = top;
-    ed.side[0].w = SIDE_CHARS * ed.cw;
+    ed.side[0].w = chars * ed.cw;
     ed.side[0].h = lay.y - top + lay.gap;
     if (ed.num_items == first)
         ed.side[0].w = 0;
@@ -979,6 +1174,56 @@ static void proj_settings(int id)
     button("Original", "camera_reset", "Volver a la vista de quien grabo el demo  [R]", IT_BUTTON);
 }
 
+// the kill marked for a clip (list of kills open)
+static void kill_settings(void)
+{
+    int kill = CL_ClipKill(), follow = Cvar_VariableInteger("clip_kill_follow");
+    float before = Cvar_VariableValue("clip_kill_before"), after = Cvar_VariableValue("clip_kill_after");
+    feedkill_t k;
+
+    if (kill < 0 || !CL_FeedGetKill(kill, &k)) {
+        add_item(IT_TITLE, "CLIP DE UNA KILL", NULL, NULL);
+        new_row();
+        add_item(IT_TEXT, "Clic en una kill de la lista:", NULL, NULL);
+        new_row();
+        add_item(IT_TEXT, va("se ve y se marca de %g s antes", before), NULL, NULL);
+        new_row();
+        add_item(IT_TEXT, va("a %g s despues. Luego GRABAR.", after), NULL, NULL);
+        new_row();
+        button("Kill de ahora", "kill_select", "Marcar y ver la kill de este momento", IT_BUTTON);
+        button("< Kill", "kill_select prev", "Marcar y ver la kill anterior de la lista", IT_BUTTON);
+        button("Kill >", "kill_select next", "Marcar y ver la kill siguiente de la lista", IT_BUTTON);
+        return;
+    }
+
+    add_item(IT_TITLE, va("KILL A LOS %s", short_time(k.frame)), NULL, NULL);
+    list_row(IT_TEXT, va("%s > %s", k.killer, k.victim), NULL, NULL, 0);
+    prop("Arma");
+    add_item(IT_TEXT, va("%s%s%s", k.weapon[0] ? k.weapon : "-", k.headshot ? "  HEADSHOT" : "",
+                         k.teamkill ? "  TEAM KILL" : ""), NULL, NULL);
+    prop("Antes");
+    value(NULL, va("%g s", before), "visor_step clip_kill_before -1 0 30", "visor_step clip_kill_before 1 0 30",
+          "Segundos de video antes de la kill", IT_BUTTON);
+    prop("Despues");
+    value(NULL, va("%g s", after), "visor_step clip_kill_after -1 0 30", "visor_step clip_kill_after 1 0 30",
+          "Segundos de video despues de la kill", IT_BUTTON);
+    prop("Camara");
+    button(follow ? "Sigue al que mata" : "La de ahora", "toggle clip_kill_follow",
+           follow ? "El clip sigue al que mata. Clic: dejar la camara como este (libre, puntos...)"
+                  : "El clip usa la camara como este. Clic: seguir al que mata",
+           on_if(follow));
+    prop("Vista");
+    button(CL_ChaseFirstPerson() ? "1a persona" : "3a persona", "camera_view",
+           "Primera / tercera persona al seguir al jugador  [F]", on_if(CL_ChaseFirstPerson()));
+    prop("");
+    button("< Kill", "kill_select prev", "La kill anterior de la lista", IT_BUTTON);
+    button("Ver", va("kill_select %d", kill + 1), "Ver la kill otra vez desde el inicio del clip", IT_BUTTON);
+    button("Kill >", "kill_select next", "La kill siguiente de la lista", IT_BUTTON);
+    prop("");
+    button("GRABAR ESTA KILL", va("clip_kill %d", kill + 1),
+           "Grabar el video de esta kill, de la marca de inicio a la de fin  [G]", IT_RED);
+}
+
 static void no_point_settings(void)
 {
     int n = CL_KeyCamCount();
@@ -999,7 +1244,9 @@ static void build_right(int bottom)
     int first = ed.num_items, here = CL_KeyCamIndex(), dy;
 
     side_begin(x, 0, chars);
-    if (CL_DemoView() && here >= 0)
+    if (kill_list_open() && CL_DemoPosition(NULL, NULL, NULL))
+        kill_settings();
+    else if (CL_DemoView() && here >= 0)
         point_settings(here, CL_KeyCamCount());
     else if (CL_FreecamProj() >= 0)
         proj_settings(CL_FreecamProj());
@@ -1062,13 +1309,22 @@ static void draw_timeline(int frame, float prog)
         R_DrawFill32(TX(p0), y + h, max(TX(p1) - TX(p0), 1), max(tick / 2, 2),
                      CL_CamPathRecording() ? COLOR_OUT : COLOR_PATH);
 
-    // the watched player's frags above the track, deaths below
-    n = CL_FeedMarks(false, marks, q_countof(marks));
-    for (int i = 0; i < n; i++)
-        R_DrawFill32(TX(marks[i]) - 1, y - tick, 2, tick, COLOR_FRAG);
-    n = CL_FeedMarks(true, marks, q_countof(marks));
-    for (int i = 0; i < n; i++)
-        R_DrawFill32(TX(marks[i]) - 1, y + h, 2, tick, COLOR_DEATH);
+    // the watched player's frags above the track, deaths below; the one
+    // under the mouse taller, it can be clicked
+    {
+        int max = q_countof(ed.frag_pos), hover_frag;
+
+        ed.num_frags = CL_FeedMarks(false, ed.frag_pos, ed.frag_kill, max);
+        ed.num_frag_ticks = ed.num_frags + CL_FeedMarks(true, ed.frag_pos + ed.num_frags,
+                                                        ed.frag_kill + ed.num_frags, max - ed.num_frags);
+        hover_frag = interactive() && !ed.dragging && key_at_mouse() < 0 ? frag_at_mouse() : -1;
+        for (int i = 0; i < ed.num_frag_ticks; i++) {
+            bool frag = i < ed.num_frags, big = i == hover_frag;
+            uint32_t c = big ? COLOR_HEAD : frag ? COLOR_FRAG : COLOR_DEATH;
+            int th = big ? tick * 2 : tick;
+            R_DrawFill32(TX(ed.frag_pos[i]) - (big ? 2 : 1), frag ? y - th : y + h, big ? 4 : 2, th, c);
+        }
+    }
 
     // throws of grenades, rockets and knives: small orange marks below
     n = CL_ProjMarks(marks, q_countof(marks));
@@ -1181,6 +1437,50 @@ static void draw_item_text(const item_t *it, bool hover)
     draw_text(tx, ty, c, 0, it->label);
 }
 
+static const char *frag_tip(int tick)
+{
+    feedkill_t k;
+
+    if (!CL_FeedGetKill(ed.frag_kill[tick], &k))
+        return "";
+    return va("%s %s: %s > %s%s%s. Clic: verla y marcarla para el clip",
+              tick < ed.num_frags ? "Frag" : "Muerte", short_time(k.frame), k.killer[0] ? k.killer : "-",
+              k.victim, k.weapon[0] ? va(" (%s)", k.weapon) : "", k.headshot ? " HEADSHOT" : "");
+}
+
+/*
+===============
+CL_EditorDrawClipFrame
+
+What a clip keeps of the window, when it isn't all of it (a vertical video,
+another shape): the rest is darkened and the edge drawn. With the CLIPS or
+VIDEO tab open, and while recording. Drawn after the frame is taken.
+===============
+*/
+void CL_EditorDrawClipFrame(void)
+{
+    int x, y, w, h, W = r_config.width, H = r_config.height, tab, b;
+
+    if (cls.key_dest & KEY_MENU)
+        return;
+    tab = visor_editor_tab ? visor_editor_tab->integer : -1;
+    if (!CL_CaptureActive() && !(CL_EditorActive() && (tab == TAB_CLIPS || tab == TAB_VIDEO)))
+        return;
+    if (!CL_ClipFrameRect(&x, &y, &w, &h))
+        return;
+
+    R_DrawFill32(0, 0, W, y, COLOR_OUTSIDE);
+    R_DrawFill32(0, y + h, W, H - y - h, COLOR_OUTSIDE);
+    R_DrawFill32(0, y, x, h, COLOR_OUTSIDE);
+    R_DrawFill32(x + w, y, W - x - w, h, COLOR_OUTSIDE);
+
+    b = max(H / 540, 1);
+    R_DrawFill32(x, y, w, b, COLOR_FRAME);
+    R_DrawFill32(x, y + h - b, w, b, COLOR_FRAME);
+    R_DrawFill32(x, y, b, h, COLOR_FRAME);
+    R_DrawFill32(x + w - b, y, b, h, COLOR_FRAME);
+}
+
 /*
 ===============
 CL_EditorDraw
@@ -1277,6 +1577,8 @@ void CL_EditorDraw(qhandle_t font, float scale, const char *left, const char *mi
         tip = hover->tip;
     else if (interactive() && key_at_mouse() >= 0)
         tip = va("Punto de camara %d: clic para ir a el", key_at_mouse() + 1);
+    else if (interactive() && frag_at_mouse() >= 0)
+        tip = frag_tip(frag_at_mouse());
     else if (interactive() && over_timeline(ed.ch / 2))
         tip = "Clic o arrastrar: ir a ese momento del demo";
     else
