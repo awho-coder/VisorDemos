@@ -82,6 +82,16 @@ static bool project(const vec3_t p, float *sx, float *sy)
     return true;
 }
 
+// the player whose eyes the camera is in (0 = none): their nick would sit
+// on the screen. The demo's own view (the recorder, or the player a MVD
+// shows in first person), and whoever is followed through their eyes.
+static int eyes_player(void)
+{
+    if (!CL_FreecamActive() && !CL_MvdThirdPerson())
+        return cl.frame.clientNum + 1;
+    return CL_ChasedBodyToHide();
+}
+
 /*
 ===============
 CL_DrawNames
@@ -94,6 +104,7 @@ void CL_DrawNames(qhandle_t font)
     const refdef_t *rd = &cl.refdef;
     float lines, lo, hi, near;
     uint32_t allies, axis;
+    int eyes, hidden;
 
     if (!watching_demo() || !CL_NamesOn(CL_CaptureActive()))
         return;
@@ -107,17 +118,22 @@ void CL_DrawNames(qhandle_t font)
     near = Cvar_ClampValue(names_dist, 32, 4000);
     allies = name_color(Cvar_VariableString("xray_color_allies"));
     axis = name_color(Cvar_VariableString("xray_color_axis"));
+    eyes = eyes_player();
+    hidden = CL_ChasedBodyToHide();
 
     for (int num = 1; num <= cl.maxclients && num <= MAX_CLIENTS; num++) {
         const centity_t *e = &cl_entities[num];
         const clientinfo_t *ci = &cl.clientinfo[num - 1];
         vec3_t head;
         float dist, size, scale, sx, sy, top;
+        size_t len;
 
         if (e->serverframe != cl.frame.number || e->current.modelindex != MODELINDEX_PLAYER)
             continue;
         if (!ci->name[0])
             continue;
+        if (num == eyes || num == hidden)
+            continue;   // we look through their eyes
 
         if (num == cl.frame.clientNum + 1 && !cls.demo.playback)
             VectorCopy(cl.playerEntityOrigin, head);
@@ -139,10 +155,15 @@ void CL_DrawNames(qhandle_t font)
         size = Q_clipf(hi * near / dist, lo, hi);
         scale = CONCHAR_HEIGHT / size;
 
+        // centered over the head (R_DrawString itself starts at x)
+        len = strlen(ci->name);
+        if (len > MAX_CLIENT_NAME)
+            len = MAX_CLIENT_NAME;
+
         R_SetScale(scale);
         R_SetColor(CL_IsAxisPlayer(num - 1) ? axis : allies);
-        R_DrawString(Q_rint(sx * scale), Q_rint((sy - size) * scale),
-                     UI_CENTER | UI_DROPSHADOW, MAX_CLIENT_NAME, ci->name, font);
+        R_DrawString(Q_rint(sx * scale - len * CONCHAR_WIDTH / 2.0f), Q_rint((sy - size) * scale),
+                     UI_DROPSHADOW, MAX_CLIENT_NAME, ci->name, font);
     }
 
     R_ClearColor();
