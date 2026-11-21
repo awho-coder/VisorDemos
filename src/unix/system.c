@@ -31,6 +31,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -72,6 +73,51 @@ void Sys_DebugBreak(void)
 }
 
 #if USE_CLIENT
+/*
+=================
+Sys_OpenFolder
+
+xdg-open (open on macOS) in a process of its own, left to itself: the
+child starts it and quits at once, so nothing is left to wait for.
+=================
+*/
+bool Sys_OpenFolder(const char *path)
+{
+#ifdef __EMSCRIPTEN__
+    return false;
+#else
+#ifdef __APPLE__
+    const char *opener = "open";
+#else
+    const char *opener = "xdg-open";
+#endif
+    char full[PATH_MAX];
+    pid_t pid;
+    int status;
+
+    if (!realpath(path, full))
+        Q_strlcpy(full, path, sizeof(full));
+
+    pid = fork();
+    if (pid < 0)
+        return false;
+    if (pid == 0) {
+        if (fork() == 0) {
+            int fd = open("/dev/null", O_RDWR);
+            if (fd >= 0) {
+                dup2(fd, STDIN_FILENO);
+                dup2(fd, STDOUT_FILENO);
+                dup2(fd, STDERR_FILENO);
+            }
+            execlp(opener, opener, full, (char *)NULL);
+            _exit(127);
+        }
+        _exit(0);
+    }
+    return waitpid(pid, &status, 0) == pid && WIFEXITED(status) && !WEXITSTATUS(status);
+#endif
+}
+
 bool Sys_IsMainThread(void)
 {
     return pthread_equal(main_thread, pthread_self());

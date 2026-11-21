@@ -139,6 +139,14 @@
   armar un video en tu editor. Dentro del visor, la tecla <kbd>H</kbd> muestra un
   resumen de las teclas en un panel al costado, que no tapa el demo.</p>
 
+  <div class="note"><strong>Novedades de la 0.8:</strong>
+  <strong>clips de kills en un paso</strong>: la tecla <kbd>8</kbd> graba la kill de ese momento y la
+  <kbd>9</kbd> los últimos 10 segundos (<a href="#clip-kill">ver</a>). En el editor, la lista
+  <strong>KILLS</strong> para ver y grabar cualquier kill, las rayitas de frags se pueden clicar, y las
+  pestañas <strong>CLIPS</strong> y <strong>VIDEO</strong> traen el <strong>video vertical</strong> para
+  celulares (<a href="#vertical">ver</a>) y un botón para abrir la carpeta de videos. Los nombres sobre los
+  jugadores quedan centrados y en primera persona ya no sale el propio.</div>
+
   <div class="note"><strong>Novedades de la 0.7.1:</strong>
   el kill feed sale completo en las demos donde los jugadores usan el <strong>killfeed gráfico</strong> de
   D-Day (que no manda las muertes en texto), y ya no se ve dos veces: el grabado se oculta cuando el visor
@@ -213,7 +221,8 @@
     <span style="--c:#ff2d2d">sus muertes (rayitas abajo)</span>
   </div>
   <p>A la izquierda está el tiempo del demo; al centro, el estado (pausa, velocidad,
-  tipo de cámara); a la derecha, las marcas del clip.</p>
+  tipo de cámara); a la derecha, las marcas del clip y cuánto dura (<em>KILL</em> si es el
+  clip de una kill).</p>
 
   <h3 id="editor-mouse">Modo editor: todo con el mouse</h3>
   <p>Presiona <kbd>Tab</kbd> (o abre <code>VisorDemos Editor.bat</code>) y la barra se
@@ -221,16 +230,22 @@
   <ul>
     <li><strong>Barra de tiempo:</strong> clic o arrastrar para ir a cualquier momento. Clic en
     un cuadradito celeste (punto de cámara) para ir a ese punto. Los tramos en cámara lenta se
-    pintan en morado y los lanzamientos de granadas, cohetes y cuchillos son rayitas naranjas abajo.</li>
+    pintan en morado y los lanzamientos de granadas, cohetes y cuchillos son rayitas naranjas abajo.
+    Las rayitas de frags (amarillas, arriba) y muertes (rojas, abajo) dicen quién mató a quién al
+    pasar el mouse; clic en una para verla y marcarla como clip.</li>
     <li><strong>Fila fija:</strong> reproducción, velocidad, volumen y, a la derecha,
     <em>Abrir demo</em>, <em>Ayuda</em> y <em>Ocultar editor</em>.</li>
     <li><strong>Pestañas:</strong> <strong>CAMARA</strong>, <strong>PUNTOS</strong>, <strong>VER</strong>,
-    <strong>VIDEO</strong> y <strong>AJUSTES</strong>. <strong>VER</strong> cambia lo que sale en la pantalla y
-    <strong>VIDEO</strong> lo que sale en los videos, con los mismos botones en el mismo orden.</li>
-    <li><strong>Panel izquierdo:</strong> la lista de <strong>PUNTOS</strong> (clic para ir a uno) o de
-    <strong>JUGADORES</strong> (clic para seguirlo; en gris los que no están en el demo en ese momento).</li>
-    <li><strong>Panel derecho:</strong> los ajustes del punto donde estás (movimiento, objetivo,
-    velocidad, campo de visión, actualizar, borrar) o de lo que estás siguiendo.</li>
+    <strong>CLIPS</strong>, <strong>VIDEO</strong> y <strong>AJUSTES</strong>. <strong>CLIPS</strong> es para
+    grabar (una kill, los últimos segundos o de una marca a otra). <strong>VER</strong> cambia lo que
+    sale en la pantalla y <strong>VIDEO</strong> lo que sale en los videos, con los mismos botones en
+    el mismo orden.</li>
+    <li><strong>Panel izquierdo:</strong> la lista de <strong>PUNTOS</strong> (clic para ir a uno), de
+    <strong>JUGADORES</strong> (clic para seguirlo; en gris los que no están en el demo en ese momento)
+    o de <strong>KILLS</strong> (clic para verla y marcarla como clip; la rueda mueve la lista).</li>
+    <li><strong>Panel derecho:</strong> con la lista de kills, los ajustes del clip de la kill marcada
+    (segundos antes y después, cámara, vista, grabar). Si no, los del punto donde estás (movimiento,
+    objetivo, velocidad, campo de visión, actualizar, borrar) o de lo que estás siguiendo.</li>
     <li><strong>Botones:</strong> hacen lo mismo que las teclas; al pasar el mouse por encima, arriba del
     panel aparece qué hace cada uno y su tecla. Los encendidos se ven en celeste; los grises no se
     pueden usar en ese momento. Los números tienen <strong>−</strong> / <strong>+</strong> a los lados.</li>
@@ -282,13 +297,19 @@
       <tr><td>VER</td><td><strong>HUD</strong></td><td>HUD del juego en pantalla con la cámara libre o siguiendo a alguien</td><td>—</td></tr>
       <tr><td>VER</td><td><strong>Nick arriba</strong></td><td>Nick del jugador que ves, arriba al centro</td><td>—</td></tr>
       <tr><td>VER</td><td><strong>Hitmarker</strong></td><td>La X del hitmarker en el centro cuando el jugador le pega a alguien (servidor con <code>hitmarkers 2</code>)</td><td>—</td></tr>
-      <tr><td>VIDEO</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
-      <tr><td>VIDEO</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
-      <tr><td>VIDEO</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
-      <tr><td>VIDEO</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
-      <tr><td>VIDEO</td><td><strong>Estelas</strong>, <strong>Nombres</strong>, <strong>Muertes</strong>, <strong>Chat</strong>, <strong>HUD</strong>, <strong>Nick arriba</strong>, <strong>Hitmarker</strong></td><td>Lo mismo que en VER, pero <strong>en los videos</strong> (no cambian la pantalla). La X del hitmarker sale aunque el HUD esté apagado</td><td>—</td></tr>
-      <tr><td>VIDEO</td><td><strong>CALIDAD</strong> − +</td><td>Calidad del video (alta / media / baja; más alta = archivo más grande)</td><td>—</td></tr>
+      <tr><td>CLIPS</td><td><strong>Grabar la kill de ahora</strong></td><td>Video de la kill de este momento: unos segundos antes y después, siguiendo al que mata</td><td>8</td></tr>
+      <tr><td>CLIPS</td><td><strong>Grabar los ultimos 10 s</strong> y <strong>−</strong> / <strong>+</strong></td><td>Video de los últimos segundos hasta aquí; − / + cambian cuántos</td><td>9</td></tr>
+      <tr><td>CLIPS</td><td><strong>Lista de kills</strong></td><td>Abre la lista de kills en el panel izquierdo</td><td>—</td></tr>
+      <tr><td>CLIPS</td><td><strong>Inicio</strong> / <strong>Fin</strong></td><td>Marcar el inicio / fin del clip aquí</td><td>I / O</td></tr>
+      <tr><td>CLIPS</td><td><strong>Borrar marcas</strong></td><td>Borrar las marcas de inicio y fin</td><td>Supr</td></tr>
+      <tr><td>CLIPS</td><td><strong>GRABAR CLIP</strong></td><td>Grabar a video de la marca de inicio a la de fin</td><td>G</td></tr>
+      <tr><td>CLIPS</td><td><strong>DEMO COMPLETO</strong></td><td>Grabar todo el demo a video, sin marcar inicio ni fin</td><td>—</td></tr>
+      <tr><td>CLIPS</td><td><strong>Abrir carpeta de videos</strong></td><td>Abre la carpeta donde quedan los clips (al pasar el mouse dice cuál fue el último)</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>Horizontal 16:9</strong> / <strong>Vertical 9:16</strong></td><td>Forma del video: como la pantalla, o vertical para celulares</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>TAMANO</strong> − +</td><td>720p, 1080p, 1440p o 4K (en vertical, lo mismo de pie)</td><td>—</td></tr>
       <tr><td>VIDEO</td><td><strong>FPS</strong> − +</td><td>Cuadros por segundo del video</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>CALIDAD</strong> − +</td><td>Calidad del video (alta / media / baja; más alta = archivo más grande)</td><td>—</td></tr>
+      <tr><td>VIDEO</td><td><strong>Estelas</strong>, <strong>Nombres</strong>, <strong>Muertes</strong>, <strong>Chat</strong>, <strong>HUD</strong>, <strong>Nick arriba</strong>, <strong>Hitmarker</strong></td><td>Lo mismo que en VER, pero <strong>en los videos</strong> (no cambian la pantalla). La X del hitmarker sale aunque el HUD esté apagado</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>PANEL</strong> / <strong>KILL FEED</strong> − +</td><td>Tamaño de la letra del editor / del kill feed y el chat</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>MOUSE</strong> − +</td><td>Sensibilidad del mouse al mover la cámara</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>NOMBRES MIN</strong> / <strong>MAX</strong> − +</td><td>Tamaño de los nombres lejos / cerca</td><td>—</td></tr>
@@ -296,7 +317,12 @@
       <tr><td>AJUSTES</td><td><strong>Color: por tipo</strong></td><td>Color de las estelas: por tipo o uno solo (cambia con cada clic)</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>X-RAY</strong> − + / <strong>Color: por equipo</strong></td><td>Opacidad del x-ray / colores por equipo o uno solo</td><td>—</td></tr>
       <tr><td>AJUSTES</td><td><strong>Paneles a los lados</strong></td><td>Mostrar / ocultar los paneles izquierdo y derecho</td><td>—</td></tr>
-      <tr><td>Panel izquierdo</td><td><strong>PUNTOS</strong> / <strong>JUGADORES</strong></td><td>Lista de puntos (clic: ir al punto) o de jugadores (clic: seguirlo)</td><td>—</td></tr>
+      <tr><td>Panel izquierdo</td><td><strong>PUNTOS</strong> / <strong>JUGADORES</strong> / <strong>KILLS</strong></td><td>Lista de puntos (clic: ir al punto), de jugadores (clic: seguirlo) o de kills (clic: verla y marcarla)</td><td>—</td></tr>
+      <tr><td>Panel izquierdo (kills)</td><td><strong>Del que veo</strong> / <strong>Todas</strong></td><td>Solo los frags del jugador que ves o sigues, o todas las kills del demo</td><td>—</td></tr>
+      <tr><td>Panel derecho (kills)</td><td><strong>Antes</strong> / <strong>Despues</strong> − +</td><td>Segundos del video antes y después de la kill</td><td>—</td></tr>
+      <tr><td>Panel derecho (kills)</td><td><strong>Camara: Sigue al que mata</strong> / <strong>La de ahora</strong></td><td>El clip sigue al que mata, o usa la cámara como esté</td><td>—</td></tr>
+      <tr><td>Panel derecho (kills)</td><td><strong>&lt; Kill</strong> / <strong>Ver</strong> / <strong>Kill &gt;</strong></td><td>Kill anterior / ver esta otra vez / kill siguiente</td><td>—</td></tr>
+      <tr><td>Panel derecho (kills)</td><td><strong>GRABAR ESTA KILL</strong></td><td>Grabar el video de la kill marcada</td><td>—</td></tr>
       <tr><td>Panel derecho</td><td><strong>Movimiento: Curva / Recta</strong></td><td>Del punto al siguiente: curva suave o línea recta</td><td>M</td></tr>
       <tr><td>Panel derecho</td><td><strong>Objetivo: Nada / Mira a / Sigue a</strong></td><td>Cada clic: mirar al jugador del centro de la pantalla, seguirlo desde atrás, seguirlo en sus ojos (hasta el punto siguiente), o nada</td><td>L</td></tr>
       <tr><td>Panel derecho</td><td><strong>Vista: 1a / 3a persona</strong></td><td>Del punto al siguiente, seguir al jugador en primera o tercera persona (sin jugador: el que ves)</td><td>7</td></tr>
@@ -348,6 +374,8 @@
         <tr><td><kbd>I</kbd></td><td>Marcar inicio</td></tr>
         <tr><td><kbd>O</kbd></td><td>Marcar fin</td></tr>
         <tr><td><kbd>G</kbd></td><td>Grabar el clip a video (grabando: detener)</td></tr>
+        <tr><td><kbd>8</kbd></td><td>Grabar la kill de este momento</td></tr>
+        <tr><td><kbd>9</kbd></td><td>Grabar los últimos 10 segundos</td></tr>
         <tr><td><kbd>Supr</kbd></td><td>Borrar las marcas</td></tr>
         <tr><td><kbd>C</kbd></td><td>Grabar recorrido de cámara / terminar</td></tr>
         <tr><td><kbd>V</kbd></td><td>Usar el recorrido y los puntos de cámara sí / no</td></tr>
@@ -395,6 +423,27 @@
   <p>Los videos quedan en <code>Quake2\dday\videos\</code> con el nombre del demo y el minuto,
   por ejemplo <code>townwar_01m20s.mp4</code>. Nunca se sobrescriben. <kbd>G</kbd> durante la
   grabación la detiene y guarda lo grabado hasta ahí.</p>
+  <h3 id="clip-kill">Clip de una kill, en un paso</h3>
+  <ul>
+    <li><kbd>8</kbd> graba la kill de ese momento, desde 6 segundos antes hasta 2 después,
+    siguiendo al que mata. Lo más cómodo: <kbd>N</kbd> / <kbd>B</kbd> para saltar al frag y luego
+    <kbd>8</kbd>.</li>
+    <li><kbd>9</kbd> graba los últimos 10 segundos, lo que acabas de ver.</li>
+    <li>Con el mouse (<kbd>Tab</kbd>): en la lista <strong>KILLS</strong> haz clic en una kill. Se ve
+    una vez desde unos segundos antes y se pausa al final; el botón rojo <strong>GRABAR ESTA
+    KILL</strong> (o <kbd>G</kbd>) la graba. A la derecha cambias los segundos de antes y después,
+    si sigue al que mata y primera / tercera persona.</li>
+  </ul>
+  <p>Los clips de kills se llaman con el nick del que mata, por ejemplo
+  <code>townwar_05m00s_kill_Nick.mp4</code>. En un <code>.dm2</code> el que mata solo se puede
+  seguir si quien grabó lo estaba viendo al empezar el clip; si no, queda la cámara de ese
+  momento y arriba lo avisa. En un <code>.mvd2</code> se sigue a cualquiera.</p>
+  <h3 id="vertical">Videos verticales para el celular</h3>
+  <p>En la pestaña <strong>VIDEO</strong>, <strong>Horizontal 16:9</strong> cambia a
+  <strong>Vertical 9:16</strong> (TikTok, Reels, Shorts) y <strong>TAMANO</strong> elige 720p,
+  1080p, 1440p o 4K. Con las pestañas CLIPS o VIDEO abiertas, un marco naranjo sobre la imagen
+  muestra lo que sale en el video. Como el vertical sale del centro de una ventana horizontal, se
+  amplía y queda algo menos nítido; la pestaña VIDEO lo avisa.</p>
   <h3>Todo el demo de una vez</h3>
   <p>En el <a href="#editor-mouse">modo editor</a>, el botón <strong>Demo completo</strong> graba
   el demo entero, del principio al final, sin marcar inicio ni fin (en la consola:
@@ -464,7 +513,8 @@
   <p><kbd>Y</kbd> (o <strong>Nombres</strong> en VER) muestra el nick de cada jugador sobre su cabeza,
   con el color de su equipo, también detrás de las paredes. Los lejanos se ven más chicos, sin bajar
   del tamaño mínimo ni pasar del máximo (<strong>NOMBRES MIN / MAX</strong> en AJUSTES). En los videos se
-  activan aparte, con <strong>Nombres</strong> en la pestaña VIDEO.</p>
+  activan aparte, con <strong>Nombres</strong> en la pestaña VIDEO. El nick del jugador por cuyos ojos
+  miras (quien grabó, o el que sigues en primera persona) no se dibuja.</p>
 
   <h3 id="xray">X-ray: por qué no es un wallhack</h3>
   <p>Con <kbd>T</kbd> el visor dibuja a los jugadores que están detrás de las paredes como una
@@ -618,7 +668,11 @@
   <table>
     <thead><tr><th>Ajuste</th><th>Por defecto</th><th>Qué hace</th></tr></thead>
     <tbody>
-      <tr><td><code>clip_size</code></td><td>1920x1080</td><td>Resolución del video. <code>clip_size ""</code> usa el tamaño de la ventana</td></tr>
+      <tr><td><code>clip_size</code></td><td>1920x1080</td><td>Resolución del video. <code>clip_size ""</code> usa el tamaño de la ventana; <code>1080x1920</code> = vertical</td></tr>
+      <tr><td><code>clip_kill_before</code> / <code>clip_kill_after</code></td><td>6 / 2</td><td>Segundos antes y después de la kill en un clip de kill</td></tr>
+      <tr><td><code>clip_kill_follow</code></td><td>1</td><td>El clip de una kill sigue al que mata (<code>0</code> = deja la cámara como esté)</td></tr>
+      <tr><td><code>clip_last_time</code></td><td>10</td><td>Segundos que graba la tecla <kbd>9</kbd></td></tr>
+      <tr><td><code>visor_kill_list</code></td><td>0</td><td>Lista de kills: <code>0</code> = frags del jugador que ves, <code>1</code> = todas</td></tr>
       <tr><td><code>clip_fps</code></td><td>60</td><td>Cuadros por segundo</td></tr>
       <tr><td><code>clip_format</code></td><td>mp4</td><td><code>mov</code> = ProRes, calidad de edición profesional (archivos muy grandes)</td></tr>
       <tr><td><code>clip_quality</code></td><td>16</td><td>Calidad H.264 en Linux (menor = mejor; 14 a 20 está bien)</td></tr>
@@ -670,8 +724,8 @@
       <tr><td><code>follow_pitch</code></td><td><code>15</code></td><td>Ángulo desde arriba al empezar a seguir un proyectil (grados)</td></tr>
       <tr><td><code>follow_hold</code></td><td><code>1.5</code></td><td>Segundos que la cámara mira donde explotó el proyectil antes de pasar a cámara libre</td></tr>
       <tr><td><code>proj_models</code></td><td><code>rocket masher grenade knife</code></td><td>Partes del nombre del modelo que cuentan como proyectil</td></tr>
-      <tr><td><code>visor_editor_tab</code></td><td><code>1</code></td><td>Pestaña abierta del editor: <code>0</code> CAMARA, <code>1</code> PUNTOS, <code>2</code> VER, <code>3</code> VIDEO, <code>4</code> AJUSTES</td></tr>
-      <tr><td><code>visor_editor_list</code></td><td><code>0</code></td><td>Lista del panel izquierdo: <code>0</code> puntos, <code>1</code> jugadores</td></tr>
+      <tr><td><code>visor_editor_tab</code></td><td><code>1</code></td><td>Pestaña abierta del editor: <code>0</code> CAMARA, <code>1</code> PUNTOS, <code>2</code> VER, <code>3</code> CLIPS, <code>4</code> VIDEO, <code>5</code> AJUSTES</td></tr>
+      <tr><td><code>visor_editor_list</code></td><td><code>0</code></td><td>Lista del panel izquierdo: <code>0</code> puntos, <code>1</code> jugadores, <code>2</code> kills</td></tr>
       <tr><td><code>visor_editor_sides</code></td><td><code>1</code></td><td><code>0</code> = ocultar los paneles izquierdo y derecho del editor</td></tr>
     </tbody>
   </table>
@@ -712,6 +766,12 @@
       <tr><td><code>clip_export</code> / <code>clip_export nombre</code></td><td>G</td><td>Grabar el clip a video (con nombre opcional); si ya graba, lo detiene</td></tr>
       <tr><td><code>clip_export_all</code></td><td>—</td><td>Grabar todo el demo a video</td></tr>
       <tr><td><code>clip_stop</code></td><td>—</td><td>Detener la grabación y guardar lo grabado</td></tr>
+      <tr><td><code>clip_kill</code> / <code>clip_kill 12</code> / <code>clip_kill next</code></td><td>8</td><td>Grabar la kill de este momento / la número 12 de la lista del demo / la siguiente</td></tr>
+      <tr><td><code>kill_select</code> / <code>kill_select 12</code> / <code>next</code> / <code>prev</code></td><td>—</td><td>Marcar una kill y verla una vez (se pausa al final), sin grabar</td></tr>
+      <tr><td><code>clip_last</code> / <code>clip_last 20</code></td><td>9</td><td>Grabar los últimos <code>clip_last_time</code> segundos / los últimos 20</td></tr>
+      <tr><td><code>clip_vertical</code> / <code>clip_vertical 1</code> / <code>0</code></td><td>—</td><td>Video vertical 9:16 / horizontal 16:9</td></tr>
+      <tr><td><code>clip_resolution up</code> / <code>down</code> / <code>1080</code></td><td>—</td><td>Tamaño del video: 720, 1080, 1440 o 2160 (4K)</td></tr>
+      <tr><td><code>clip_folder</code></td><td>—</td><td>Abrir la carpeta de los videos</td></tr>
       <tr><td><code>capture_start nombre</code> / <code>capture_stop</code> / <code>capture_toggle</code></td><td>—</td><td>Grabar a mano, sin marcas: empieza / termina / alterna</td></tr>
       <tr><td><code>feed_toggle killfeed</code> / <code>feed_toggle chat</code></td><td>K / J</td><td>Kill feed / chat <strong>en pantalla</strong>: sí / solo el jugador o con avisos / no</td></tr>
       <tr><td><code>feed_toggle killfeed clip</code> / <code>feed_toggle chat clip</code></td><td>—</td><td>Lo mismo, pero <strong>en los videos</strong></td></tr>

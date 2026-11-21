@@ -25,6 +25,12 @@ GNU General Public License for more details.
 // seeks to the start, records until the end and pauses again.
 // capture_start / capture_stop record manually (also works for MVD playback).
 //
+// Shortcuts that set the marks themselves: kill_select marks a kill of the
+// demo's list (clip_kill_before seconds before it, clip_kill_after after),
+// follows the killer and plays it once as a preview; clip_kill does the same
+// and records it right away (the kill of this moment without a number);
+// clip_last records the last clip_last_time seconds.
+//
 // Web build: no FFmpeg. Everything above stays the same (marks, fixed time
 // step, crop to the clip's format, mixed audio) but each frame (RGBA, scaled
 // to clip_size) and the audio go to the page through Module.visorClip, which
@@ -41,13 +47,27 @@ static cvar_t   *clip_quality;
 static cvar_t   *clip_hud;
 static cvar_t   *clip_volume;
 static cvar_t   *clip_size;
+static cvar_t   *clip_kill_before;
+static cvar_t   *clip_kill_after;
+static cvar_t   *clip_kill_follow;
+static cvar_t   *clip_last_time;
+static cvar_t   *visor_kill_list;
 
 static struct {
     int     in, out;            // demo frame marks, -1 if unset
     float   in_pos, out_pos;    // position in the demo file (0..1), for the timeline
-} marks = { -1, -1 };
+    int     kill;               // the marks are around this kill of the list, -1: no
+    int     kill_frame;         // its frame, to know it's still the same demo
+    bool    preview;            // playing the marked kill once: pause at its end
+} marks = { -1, -1, 0, 0, -1 };
 
 static bool export_whole;       // clip_export_all is opening the file
+static char export_tag[48];     // added to the file name ("_kill_nick")
+static char export_label[80];   // what is being recorded, for the status line
+
+// the last clip written, for "Abrir carpeta"
+static char last_clip[MAX_OSPATH];
+static float last_seconds;
 
 #if USE_AVCODEC || defined(__EMSCRIPTEN__)
 #define CAPTURE_REAL    1
@@ -708,14 +728,15 @@ static void make_filename(const char *name, const char *ext)
         p = strrchr(base, '.');
         if (p)
             *p = 0;
-        for (p = base; *p; p++) {
-            if (!Q_isalnum(*p) && *p != '-' && *p != '_')
-                *p = '_';
-        }
         if (export_whole)
             Q_strlcat(base, "_completo", sizeof(base));
         else
             Q_strlcat(base, va("_%02dm%02ds", start / 600, start / 10 % 60), sizeof(base));
+        Q_strlcat(base, export_tag, sizeof(base));
+        for (p = base; *p; p++) {
+            if (!Q_isalnum(*p) && *p != '-' && *p != '_')
+                *p = '_';
+        }
     }
 
     // never overwrite an existing clip
@@ -907,6 +928,7 @@ static void capture_stop(void)
 
     cap.state = CAP_IDLE;
     seconds = (double)cap.vframes / cap.fps;
+    export_label[0] = 0;
 
     capture_close();
 
@@ -926,6 +948,9 @@ static void capture_stop(void)
         SCR_CenterPrint("No se pudo grabar el clip (ver consola)", false);
         return;
     }
+
+    Q_strlcpy(last_clip, cap.filename, sizeof(last_clip));
+    last_seconds = seconds;
 
     if (cap.failed) {
         Com_EPrintf("La grabacion se corto por un error; se guardo lo grabado "
@@ -966,6 +991,8 @@ CL_CaptureFrame
 Called right after the 3D view and HUD are drawn, before menus and console.
 ===============
 */
+static void check_preview(void);
+
 void CL_CaptureFrame(void)
 {
 #if USE_AVCODEC
@@ -974,8 +1001,10 @@ void CL_CaptureFrame(void)
     int ret;
 #endif
 
-    if (!CL_CaptureActive())
+    if (!CL_CaptureActive()) {
+        check_preview();
         return;
+    }
 
 #if !USE_AVCODEC
     // the page was busy this tick: the demo didn't move, nothing to take
@@ -1052,7 +1081,8 @@ bool CL_CaptureStatus(char *buf, size_t size)
         CL_DemoPosition(&done, NULL, NULL);
         done -= marks.in;
         int total = cap.stop_frame - marks.in;
-        Q_snprintf(buf, size, "GRABANDO %d%%  (%.1f s)",
+        Q_snprintf(buf, size, "GRABANDO%s%s %d%%  (%.1f s)",
+                   export_label[0] ? " " : "", export_label,
                    Q_clip(done * 100 / max(total, 1), 0, 100),
                    (double)cap.vframes / cap.fps);
     } else {
@@ -1085,7 +1115,8 @@ bool CL_CaptureRect(int *x, int *y, int *w, int *h) { return false; }
 unsigned CL_CaptureFrameMsec(void) { return 0; }
 int CL_CaptureAudioSamples(void) { return 0; }
 void CL_CaptureAudio(const float *samples, int count) { }
-void CL_CaptureFrame(void) { }
+static void check_preview(void);
+void CL_CaptureFrame(void) { check_preview(); }
 void CL_CaptureShutdown(void) { }
 bool CL_CaptureStatus(char *buf, size_t size) { return false; }
 float CL_CaptureProgress(void) { return 0; }
@@ -1115,11 +1146,74 @@ static void format_frame(char *buf, size_t size, int frame)
 
 int CL_ClipMarkIn(void)  { return marks.in; }
 int CL_ClipMarkOut(void) { return marks.out; }
-float CL_ClipMarkPos(bool out) { return out ? marks.out_pos : marks.in_pos; }
+
+// marks set without going there have an estimated place on the timeline:
+// the exact one once the demo is there
+float CL_ClipMarkPos(bool out)
+{
+    int frame;
+    float pos;
+
+    if (CL_DemoPosition(&frame, &pos, NULL)) {
+        if (frame == marks.in)
+            marks.in_pos = pos;
+        if (frame == marks.out)
+            marks.out_pos = pos;
+    }
+    return out ? marks.out_pos : marks.in_pos;
+}
+
+static void forget_kill(void)
+{
+    marks.kill = -1;
+    marks.preview = false;
+}
 
 void CL_ClipClearMarks(void)
 {
     marks.in = marks.out = -1;
+    forget_kill();
+}
+
+// a mark at a frame of the demo, wherever the demo is now
+static void set_mark(bool out, int frame)
+{
+    int now;
+    float pos;
+
+    if (CL_DemoPosition(&now, &pos, NULL) && now == frame)
+        ;   // here: the exact place
+    else
+        pos = CL_FeedFramePos(frame);
+
+    if (out) {
+        marks.out = frame;
+        marks.out_pos = pos;
+    } else {
+        marks.in = frame;
+        marks.in_pos = pos;
+    }
+}
+
+// the kill the marks are around (index of the list), -1 if none
+int CL_ClipKill(void)
+{
+    feedkill_t k;
+
+    if (marks.kill < 0)
+        return -1;
+    if (!CL_FeedGetKill(marks.kill, &k) || k.frame != marks.kill_frame) {
+        forget_kill();      // another demo, or its list was read again
+        return -1;
+    }
+    return marks.kill;
+}
+
+const char *CL_ClipLastFile(float *seconds)
+{
+    if (seconds)
+        *seconds = last_seconds;
+    return last_clip[0] ? last_clip : NULL;
 }
 
 static bool need_demo(void)
@@ -1138,6 +1232,7 @@ static void Clip_In_f(void)
     if (!need_demo())
         return;
 
+    forget_kill();
     CL_DemoPosition(&marks.in, &marks.in_pos, NULL);
     if (marks.out >= 0 && marks.out <= marks.in)
         marks.out = -1;
@@ -1158,9 +1253,11 @@ static void Clip_Out_f(void)
     CL_DemoPosition(&now, NULL, NULL);
     if (marks.in >= 0 && now <= marks.in) {
         Com_Printf("El fin del clip debe estar despues del inicio.\n");
+        SCR_CenterPrint("El fin del clip debe estar despues del inicio", false);
         return;
     }
 
+    forget_kill();
     CL_DemoPosition(&marks.out, &marks.out_pos, NULL);
     format_frame(buf, sizeof(buf), marks.out);
     SCR_CenterPrint(va("Fin del clip: %s", buf), false);
@@ -1170,6 +1267,7 @@ static void Clip_Clear_f(void)
 {
     CL_ClipClearMarks();
     Com_Printf("Marcas de clip borradas.\n");
+    SCR_CenterPrint("Marcas de clip borradas", false);
 }
 
 #ifdef __EMSCRIPTEN__
@@ -1198,11 +1296,53 @@ static bool web_can_record(void)
 #define web_can_record()    true
 #endif
 
-static void Clip_Export_f(void)
+static void seek_frame(int frame)
+{
+    Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", frame / 10, frame % 10));
+}
+
+// record from the start mark (or here) to the end mark (or the end).
+// export_tag and export_label say what it is; both are used up here.
+static void export_marks(const char *name)
 {
 #if CAPTURE_REAL
+    int start, now;
+    bool ok = false;
+
+    if (!web_can_record())
+        goto done;
+
+    marks.preview = false;
+    CL_DemoPosition(&now, NULL, NULL);
+    start = marks.in >= 0 ? marks.in : now;
+
+    // jump to the start mark first
+    if (start != now)
+        seek_frame(start);
+
+    if (!capture_start(name))
+        goto done;
+
+    cap.exporting = true;
+    cap.start_frame = start;
+    cap.stop_frame = marks.out > start ? marks.out : INT_MAX;
+#ifdef __EMSCRIPTEN__
+    cap.stop_frame = web_stop_frame(start, cap.stop_frame);
+#endif
+    ok = true;
+done:
+    export_tag[0] = 0;
+    if (!ok)
+        export_label[0] = 0;
+#else
+    export_tag[0] = export_label[0] = 0;
+    capture_start(NULL);
+#endif
+}
+
+static void Clip_Export_f(void)
+{
     char name[MAX_QPATH];
-    int start;
 
     if (!need_demo())
         return;
@@ -1216,30 +1356,524 @@ static void Clip_Export_f(void)
         return;
     }
 
-    int now;
+    export_tag[0] = 0;
+    export_label[0] = 0;
+    if (CL_ClipKill() >= 0) {
+        feedkill_t k;
+        CL_FeedGetKill(marks.kill, &k);
+        Q_snprintf(export_tag, sizeof(export_tag), "_kill_%s", k.killer);
+        Q_snprintf(export_label, sizeof(export_label), "KILL: %s > %s", k.killer, k.victim);
+    }
+    export_marks(name);
+}
 
-    if (!web_can_record())
+/*
+===============================================================================
+
+KILL CLIPS
+
+===============================================================================
+*/
+
+static int kill_range_before(void)
+{
+    return Q_rint(Cvar_ClampValue(clip_kill_before, 0, 60) * 10);
+}
+
+static int kill_range_after(void)
+{
+    return Q_rint(Cvar_ClampValue(clip_kill_after, 0, 60) * 10);
+}
+
+// the kills the list shows (visor_kill_list: 0 = the watched player's, 1 = all)
+static int listed_kills(int *index, int max, const char **who)
+{
+    return CL_FeedListKills(visor_kill_list->integer == 1, index, max, who);
+}
+
+#define MAX_LISTED  4096
+
+// of the kills given, the one whose clip range has this moment (the
+// closest); near: else the nearest one up to 15 s away. -1: none
+static int kill_around(const int *list, int n, int now, bool near)
+{
+    int best = -1, best_d = INT_MAX, other = -1, other_d = 150 + 1;
+    feedkill_t k;
+
+    for (int i = 0; i < n; i++) {
+        int d;
+        if (!CL_FeedGetKill(list[i], &k))
+            continue;
+        d = abs(k.frame - now);
+        if (now >= k.frame - kill_range_before() - 10 && now <= k.frame + kill_range_after() + 10) {
+            if (d < best_d) {
+                best_d = d;
+                best = list[i];
+            }
+        } else if (d < other_d) {
+            other_d = d;
+            other = list[i];
+        }
+    }
+    return best >= 0 || !near ? best : other;
+}
+
+/*
+===============
+kill_here
+
+The kill for this moment: the marked one while within its marks, else one
+of the list whose clip range has it, else any kill there (N may land on a
+death of the watched player: the kill of them). With near, else the
+nearest one of the list up to 15 s away. -1: none.
+===============
+*/
+static int kill_here(bool near)
+{
+    static int list[MAX_LISTED];
+    int n, now, kill;
+
+    if (!CL_DemoPosition(&now, NULL, NULL))
+        return -1;
+
+    // within the marks of the kill marked already: that one (two kills
+    // close together have ranges that overlap)
+    if (CL_ClipKill() >= 0 && now >= marks.in - 10 && now <= marks.out + 10)
+        return marks.kill;
+
+    n = listed_kills(list, MAX_LISTED, NULL);
+    kill = kill_around(list, n, now, false);
+    if (kill < 0 && near && visor_kill_list->integer != 1) {
+        int all = CL_FeedListKills(true, list, MAX_LISTED, NULL);
+        kill = kill_around(list, all, now, false);
+        if (kill < 0)
+            n = listed_kills(list, MAX_LISTED, NULL);
+    }
+    if (kill < 0 && near)
+        kill = kill_around(list, n, now, true);
+    return kill;
+}
+
+// the kill after / before the marked one (or the one of this moment, or
+// this moment itself) in the list
+static int kill_step(int dir)
+{
+    static int list[MAX_LISTED];
+    int n = listed_kills(list, MAX_LISTED, NULL);
+    int cur = CL_ClipKill(), at;
+    feedkill_t k;
+
+    if (!n || !CL_DemoPosition(&at, NULL, NULL))
+        return -1;
+
+    if (cur < 0)
+        cur = kill_here(false);
+    if (cur >= 0) {
+        // by its place in the list: kills of the same frame (one grenade,
+        // two deaths) are steps too
+        for (int i = 0; i < n; i++)
+            if (list[i] == cur)
+                return i + dir >= 0 && i + dir < n ? list[i + dir] : -1;
+        if (CL_FeedGetKill(cur, &k))
+            at = k.frame;   // not in this list (other filter)
+    }
+
+    if (dir > 0) {
+        for (int i = 0; i < n; i++)
+            if (CL_FeedGetKill(list[i], &k) && k.frame > at)
+                return list[i];
+    } else {
+        for (int i = n - 1; i >= 0; i--)
+            if (CL_FeedGetKill(list[i], &k) && k.frame < at)
+                return list[i];
+    }
+    return -1;
+}
+
+// "Kill 3 de 12" in the list shown, or "" if it isn't in it
+static const char *kill_number(int kill)
+{
+    static int list[MAX_LISTED];
+    int n = listed_kills(list, MAX_LISTED, NULL);
+
+    for (int i = 0; i < n; i++)
+        if (list[i] == kill)
+            return va("Kill %d de %d: ", i + 1, n);
+    return "";
+}
+
+/*
+===============
+follow_killer
+
+Put the camera on the killer for the clip, once the demo is at its start:
+keep it when they're watched already, when camera points drive it or with
+clip_kill_follow 0. Returns false with what to say when it can't.
+===============
+*/
+static bool follow_killer(const feedkill_t *k, char *why, size_t size)
+{
+    viewkind_t kind;
+    const char *viewed;
+    int slot;
+
+    *why = 0;
+    if (!clip_kill_follow->integer || !*k->killer || CL_FreecamKeysDriving())
+        return true;
+
+    viewed = CL_ViewedPlayer(&kind);
+    if (viewed && !strcmp(viewed, k->killer))
+        return true;
+
+    slot = CL_FeedPlayerSlot(k->killer);
+    if (slot < 0 || slot >= MAX_CLIENTS) {
+        Q_snprintf(why, size, "No encuentro a %s entre los jugadores", k->killer);
+        return false;
+    }
+
+    if (cls.demo.playback) {
+        // their own frag in their own demo: the demo's own view
+        if (slot == cl.frame.clientNum) {
+            Cmd_ExecuteString(&cmd_buffer, "camera_reset");
+            return true;
+        }
+        // a .dm2 only has the players the recorder could see
+        const centity_t *e = &cl_entities[slot + 1];
+        if (e->serverframe != cl.frame.number) {
+            Q_snprintf(why, size, "%s no se ve en el demo al empezar: queda la camara de ahora", k->killer);
+            return false;
+        }
+    }
+    Cmd_ExecuteString(&cmd_buffer, va("chase_player %d", slot + 1));
+    return true;
+}
+
+/*
+===============
+mark_kill
+
+Marks around a kill of the list. go: also jump to the start and put the
+camera on the killer. Returns false if there is no such kill.
+===============
+*/
+static bool mark_kill(int kill, bool go, char *why, size_t size)
+{
+    feedkill_t k;
+    int in;
+
+    *why = 0;
+    if (!CL_FeedGetKill(kill, &k))
+        return false;
+
+    in = max(k.frame - kill_range_before(), 0);
+    marks.preview = false;
+    set_mark(false, in);
+    set_mark(true, max(k.frame + kill_range_after(), in + 1));
+    marks.kill = kill;
+    marks.kill_frame = k.frame;
+
+    if (go) {
+        seek_frame(in);
+        set_mark(false, in);    // the exact place, now that it's there
+        follow_killer(&k, why, size);
+    }
+    return true;
+}
+
+// which kill a command means: a number of the list (from 1), next / prev,
+// or nothing for this moment's
+static int kill_arg(const char *arg)
+{
+    int n;
+
+    if (!*arg || !Q_stricmp(arg, "here"))
+        return kill_here(true);
+    if (!Q_stricmp(arg, "next"))
+        return kill_step(1);
+    if (!Q_stricmp(arg, "prev"))
+        return kill_step(-1);
+    n = Q_atoi(arg);
+    return n >= 1 && n <= CL_FeedNumKills() ? n - 1 : -1;
+}
+
+static bool need_kills(void)
+{
+    if (!need_demo())
+        return false;
+    if (!CL_FeedNumKills()) {
+        SCR_CenterPrint(CL_FeedIndexed() ? "Este demo no tiene kills" : "Leyendo el demo, prueba en un momento", false);
+        return false;
+    }
+    return true;
+}
+
+static void no_kill_message(const char *arg)
+{
+    const char *who;
+    int list[1];
+
+    if (!listed_kills(list, 1, &who))
+        SCR_CenterPrint(who ? va("%s no tiene kills en este demo", who) : "No hay kills en este demo", false);
+    else if (!Q_stricmp(arg, "next"))
+        SCR_CenterPrint("No hay mas kills despues", false);
+    else if (!Q_stricmp(arg, "prev"))
+        SCR_CenterPrint("No hay kills antes", false);
+    else
+        SCR_CenterPrint("No hay una kill cerca: N / B van a una", false);
+}
+
+// kill_select [n | next | prev]: mark a kill (the one of this moment without
+// a number), go to its start following the killer and play it once
+static void Kill_Select_f(void)
+{
+    char arg[16], why[MAX_QPATH * 2];
+    feedkill_t k;
+    int kill;
+
+    Q_strlcpy(arg, Cmd_Argv(1), sizeof(arg));
+    if (CL_CaptureActive() || !need_kills())
         return;
 
+    kill = kill_arg(arg);
+    if (kill < 0 || !CL_FeedGetKill(kill, &k)) {
+        no_kill_message(arg);
+        return;
+    }
+
+    mark_kill(kill, true, why, sizeof(why));
+    marks.preview = true;
+    CL_DemoSetPaused(false);
+
+    if (*why)
+        SCR_CenterPrint(why, false);
+    else
+        SCR_CenterPrint(va("%s%s > %s%s%s", kill_number(kill), k.killer, k.victim,
+                           k.weapon[0] ? va(" (%s)", k.weapon) : "",
+                           k.headshot ? " HEADSHOT" : ""), false);
+}
+
+// clip_kill [n | next | prev]: the same, but record it right away
+static void Clip_Kill_f(void)
+{
+    char arg[16], why[MAX_QPATH * 2];
+    feedkill_t k;
+    int kill;
+
+    Q_strlcpy(arg, Cmd_Argv(1), sizeof(arg));
+    if (CL_CaptureActive()) {
+        Cmd_ExecuteString(&cmd_buffer, "clip_stop");
+        return;
+    }
+    if (!need_kills())
+        return;
+
+    kill = kill_arg(arg);
+    if (kill < 0 || !CL_FeedGetKill(kill, &k)) {
+        no_kill_message(arg);
+        return;
+    }
+
+    mark_kill(kill, true, why, sizeof(why));
+    if (*why)
+        Com_Printf("%s\n", why);
+    Com_Printf("Clip de la kill: %s > %s, %s\n", k.killer, k.victim, k.weapon);
+
+    Q_snprintf(export_tag, sizeof(export_tag), "_kill_%s", k.killer);
+    Q_snprintf(export_label, sizeof(export_label), "KILL: %s > %s", k.killer, k.victim);
+    export_marks(NULL);
+}
+
+// clip_last [seconds]: record what was just seen, the last clip_last_time
+// seconds up to here
+static void Clip_Last_f(void)
+{
+    int secs, now;
+
+    if (!need_demo())
+        return;
+    if (CL_CaptureActive()) {
+        Cmd_ExecuteString(&cmd_buffer, "clip_stop");
+        return;
+    }
+
+    secs = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : Cvar_ClampInteger(clip_last_time, 1, 600);
+    secs = Q_clip(secs, 1, 600);
     CL_DemoPosition(&now, NULL, NULL);
-    start = marks.in >= 0 ? marks.in : now;
-
-    // jump to the start mark first
-    if (start != now)
-        Cmd_ExecuteString(&cmd_buffer, va("seek %d.%d", start / 10, start % 10));
-
-    if (!capture_start(name))
+    if (now < 10) {
+        SCR_CenterPrint("Aun no hay nada antes de este momento", false);
         return;
+    }
 
-    cap.exporting = true;
-    cap.start_frame = start;
-    cap.stop_frame = marks.out > start ? marks.out : INT_MAX;
-#ifdef __EMSCRIPTEN__
-    cap.stop_frame = web_stop_frame(start, cap.stop_frame);
-#endif
-#else
-    capture_start(NULL);
-#endif
+    forget_kill();
+    set_mark(true, now);
+    set_mark(false, max(now - secs * 10, 0));
+
+    Q_strlcpy(export_tag, "_jugada", sizeof(export_tag));
+    Q_snprintf(export_label, sizeof(export_label), "ULTIMOS %d s", secs);
+    export_marks(NULL);
+}
+
+// the marked kill is played once: pause at its end
+static void check_preview(void)
+{
+    int frame;
+
+    if (!marks.preview)
+        return;
+    if (CL_CaptureActive() || marks.out < 0 || !CL_DemoPosition(&frame, NULL, NULL)) {
+        marks.preview = false;
+        return;
+    }
+    if (frame < marks.in - 10 || frame > marks.out + 20) {
+        marks.preview = false;      // the user went somewhere else
+        return;
+    }
+    if (frame >= marks.out) {
+        marks.preview = false;
+        CL_DemoSetPaused(true);
+        SCR_CenterPrint("Fin de la kill. G la graba, 8 la graba de nuevo desde el inicio", false);
+    }
+}
+
+// a new before / after: the marks of the kill follow
+static void kill_range_changed(cvar_t *self)
+{
+    char why[4];
+    int kill = CL_ClipKill();
+
+    if (kill >= 0 && !CL_CaptureActive())
+        mark_kill(kill, false, why, sizeof(why));
+}
+
+/*
+===============================================================================
+
+VIDEO SIZE
+
+===============================================================================
+*/
+
+static void clip_dims(int *w, int *h)
+{
+    if (!parse_size(clip_size->string, w, h)) {
+        *w = r_config.width;
+        *h = r_config.height;
+    }
+}
+
+bool CL_ClipVertical(void)
+{
+    int w, h;
+
+    clip_dims(&w, &h);
+    return h > w;
+}
+
+// "1080p", "4K", or the size when it isn't one of the usual 16:9 ones
+const char *CL_ClipSizeText(void)
+{
+    static const int heights[] = { 720, 1080, 1440, 2160 };
+    static const char *const names[] = { "720p", "1080p", "1440p", "4K" };
+    int w, h, s, l;
+
+    clip_dims(&w, &h);
+    s = min(w, h);
+    l = max(w, h);
+    for (int i = 0; i < q_countof(heights); i++)
+        if (s == heights[i] && l == heights[i] * 16 / 9)
+            return names[i];
+    return va("%dx%d", w, h);
+}
+
+// clip_resolution up | down | 720 | 1080 | 1440 | 2160: the usual 16:9 sizes,
+// keeping the video horizontal or vertical
+static void Clip_Resolution_f(void)
+{
+    static const int heights[] = { 720, 1080, 1440, 2160 };
+    const char *arg = Cmd_Argv(1);
+    int w, h, s, i, n = q_countof(heights);
+    bool vertical;
+
+    clip_dims(&w, &h);
+    vertical = h > w;
+    s = min(w, h);
+
+    if (!Q_stricmp(arg, "up")) {
+        for (i = 0; i < n - 1 && heights[i] <= s; i++)
+            ;
+    } else if (!Q_stricmp(arg, "down")) {
+        for (i = n - 1; i > 0 && heights[i] >= s; i--)
+            ;
+    } else {
+        for (i = 0; i < n && heights[i] != Q_atoi(arg); i++)
+            ;
+        if (i == n) {
+            Com_Printf("Uso: %s up | down | 720 | 1080 | 1440 | 2160\n", Cmd_Argv(0));
+            return;
+        }
+    }
+
+    s = heights[i];
+    w = s * 16 / 9;
+    Cvar_Set("clip_size", vertical ? va("%dx%d", s, w) : va("%dx%d", w, s));
+    SCR_CenterPrint(va("Video: %s %s (%s)", CL_ClipSizeText(), vertical ? "vertical" : "horizontal",
+                       clip_size->string), false);
+}
+
+// clip_vertical [0 | 1]: video 9:16 (phones) or 16:9
+static void Clip_Vertical_f(void)
+{
+    int w, h;
+    bool want;
+
+    clip_dims(&w, &h);
+    want = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : !(h > w);
+    if (want != (h > w))
+        Cvar_Set("clip_size", va("%dx%d", h, w));
+    SCR_CenterPrint(want ? va("Video vertical 9:16 (%s): para celulares", clip_size->string)
+                         : va("Video horizontal 16:9 (%s)", clip_size->string), false);
+}
+
+/*
+===============
+CL_ClipFrameRect
+
+The part of the window a clip would keep (the middle, at the video's
+shape). False when it is the whole window.
+===============
+*/
+bool CL_ClipFrameRect(int *x, int *y, int *w, int *h)
+{
+    int vw, vh, sw = r_config.width, sh = r_config.height;
+
+    if (CL_CaptureRect(x, y, w, h))
+        return *w < sw - 1 || *h < sh - 1;
+
+    clip_dims(&vw, &vh);
+    if (vw < 16 || vh < 16 || sw < 16 || sh < 16)
+        return false;
+    if ((int64_t)sw * vh > (int64_t)sh * vw) {
+        *h = sh;
+        *w = (int64_t)sh * vw / vh;
+    } else {
+        *w = sw;
+        *h = (int64_t)sw * vh / vw;
+    }
+    *x = (sw - *w) / 2;
+    *y = (sh - *h) / 2;
+    return *w < sw - 1 || *h < sh - 1;
+}
+
+// clip_folder: open the folder the videos go to
+static void Clip_Folder_f(void)
+{
+    char path[MAX_OSPATH];
+
+    Q_snprintf(path, sizeof(path), "%s/videos/", fs_gamedir);
+    FS_CreatePath(path);
+    Com_Printf("Los videos se guardan en %s\n", path);
+    if (!Sys_OpenFolder(path))
+        SCR_CenterPrint(va("Los videos estan en %s", path), false);
 }
 
 // clip_export_all [name]: the whole demo to video, from the start to the
@@ -1316,6 +1950,12 @@ static const cmdreg_t c_capture[] = {
     { "clip_export", Clip_Export_f },
     { "clip_export_all", Clip_Export_All_f },
     { "clip_stop", Clip_Stop_f },
+    { "clip_kill", Clip_Kill_f },
+    { "clip_last", Clip_Last_f },
+    { "kill_select", Kill_Select_f },
+    { "clip_resolution", Clip_Resolution_f },
+    { "clip_vertical", Clip_Vertical_f },
+    { "clip_folder", Clip_Folder_f },
     { "capture_start", Capture_Start_f },
     { "capture_stop", Capture_Stop_f },
     { "capture_toggle", Capture_Toggle_f },
@@ -1330,6 +1970,13 @@ void CL_InitCapture(void)
     clip_hud = Cvar_Get("clip_hud", "0", CVAR_ARCHIVE);
     clip_volume = Cvar_Get("clip_volume", "auto", CVAR_ARCHIVE);
     clip_size = Cvar_Get("clip_size", "1920x1080", CVAR_ARCHIVE);
+    clip_kill_before = Cvar_Get("clip_kill_before", "6", CVAR_ARCHIVE);
+    clip_kill_before->changed = kill_range_changed;
+    clip_kill_after = Cvar_Get("clip_kill_after", "2", CVAR_ARCHIVE);
+    clip_kill_after->changed = kill_range_changed;
+    clip_kill_follow = Cvar_Get("clip_kill_follow", "1", CVAR_ARCHIVE);
+    clip_last_time = Cvar_Get("clip_last_time", "10", CVAR_ARCHIVE);
+    visor_kill_list = Cvar_Get("visor_kill_list", "0", CVAR_ARCHIVE);
 
     Cmd_Register(c_capture);
 }
